@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import GanttView from './components/GanttView.jsx';
 import TaskEditor from './components/TaskEditor.jsx';
 import CalendarSetupModal from './components/CalendarSetupModal.jsx';
+import HistoryPanel from './components/HistoryPanel.jsx';
 
 const PHASE_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
@@ -32,20 +33,36 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showCalendarSetup, setShowCalendarSetup] = useState(false);
   const [calendarConfig, setCalendarConfig] = useState(null);
-  const [restarting, setRestarting] = useState(false);
 
-  const handleRestart = async () => {
-    setRestarting(true);
-    try { await fetch('/api/restart', { method: 'POST' }); } catch (_) {}
-    // Vite HMR will reconnect and reload the page automatically
-  };
+  // Git status
+  const [gitDirty, setGitDirty] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
-  // Load tasks on mount
+  // Historical snapshot — { data, hash, date, message } or null
+  const [historicalSnapshot, setHistoricalSnapshot] = useState(null);
+
+  // PDF export
+  const [exporting, setExporting] = useState(false);
+
+  // Load tasks on mount — retry a few times to handle the Express startup race
   useEffect(() => {
-    fetch('/api/tasks')
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
-      .catch(err => { setError('Failed to load tasks: ' + err.message); setLoading(false); });
+    const load = async (attempt = 0) => {
+      try {
+        const r = await fetch('/api/tasks');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        setData(d);
+        setLoading(false);
+      } catch (err) {
+        if (attempt < 4) {
+          setTimeout(() => load(attempt + 1), 500 * (attempt + 1));
+        } else {
+          setError('Failed to load tasks: ' + err.message);
+          setLoading(false);
+        }
+      }
+    };
+    load();
   }, []);
 
   // Load calendar status and config on mount
@@ -60,8 +77,21 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // Compute the calendar date range as a string — only changes when task dates change,
-  // not on reorders (which don't affect dates). This prevents spurious re-fetches.
+  // Poll git status every 30s
+  const refreshGitStatus = useCallback(() => {
+    fetch('/api/git/status')
+      .then(r => r.json())
+      .then(s => setGitDirty(s.dirty))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refreshGitStatus();
+    const interval = setInterval(refreshGitStatus, 30000);
+    return () => clearInterval(interval);
+  }, [refreshGitStatus]);
+
+  // Compute the calendar date range as a string
   const calendarDateRange = useMemo(() => {
     if (!data || data.phases.length === 0) return null;
     const allDates = data.phases.flatMap(p => [p.start, p.end]).filter(Boolean).sort();
@@ -90,7 +120,9 @@ export default function App() {
     if (saveTimer) clearTimeout(saveTimer);
     const timer = setTimeout(() => setSaveStatus(null), 1500);
     setSaveTimer(timer);
-  }, [saveTimer]);
+    // Refresh git status after any save
+    setTimeout(refreshGitStatus, 500);
+  }, [saveTimer, refreshGitStatus]);
 
   const handleAddPhase = async () => {
     const today = new Date().toISOString().slice(0, 10);
@@ -111,7 +143,6 @@ export default function App() {
       const newPhase = await res.json();
       setData(prev => ({ ...prev, phases: [...prev.phases, newPhase] }));
       showSaveStatus('saved');
-      // Open editor for new phase immediately
       setEditTarget({ type: 'phase', id: newPhase.id });
     } catch (err) {
       showSaveStatus('failed');
@@ -119,7 +150,6 @@ export default function App() {
   };
 
   const handleSaveTask = async (taskId, updates) => {
-    // Find affected phase and compute new bounds if dates are changing
     const affectedPhase = data?.phases.find(p => p.tasks.some(t => t.id === taskId));
     const needsBoundsRecalc = affectedPhase && (updates.start !== undefined || updates.end !== undefined);
     let newBounds = null;
@@ -128,7 +158,6 @@ export default function App() {
       newBounds = calcPhaseBounds(projected);
     }
 
-    // Optimistic update — task + phase bounds
     setData(prev => ({
       ...prev,
       phases: prev.phases.map(p => {
@@ -139,7 +168,6 @@ export default function App() {
     }));
 
     try {
-      // Save task; also save phase bounds to server if they changed
       const fetches = [
         fetch(`/api/tasks/task/${taskId}`, {
           method: 'PUT',
@@ -159,7 +187,6 @@ export default function App() {
       if (!taskRes.ok) throw new Error('Server error');
       const serverTask = await taskRes.json();
 
-      // Confirm with server-returned task data and recompute bounds
       setData(prev => ({
         ...prev,
         phases: prev.phases.map(p => {
@@ -181,7 +208,6 @@ export default function App() {
       const res = await fetch(`/api/tasks/task/${taskId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Server error');
 
-      // Recalculate phase bounds without the deleted task
       const newBounds = affectedPhase
         ? calcPhaseBounds(affectedPhase.tasks.filter(t => t.id !== taskId))
         : null;
@@ -195,7 +221,6 @@ export default function App() {
         }),
       }));
 
-      // Persist updated phase bounds
       if (affectedPhase && newBounds &&
           (newBounds.start !== affectedPhase.start || newBounds.end !== affectedPhase.end)) {
         fetch(`/api/tasks/phase/${affectedPhase.id}`, {
@@ -339,6 +364,122 @@ export default function App() {
     }
   };
 
+  // ─── Historical snapshot handlers ────────────────────────────────────────────
+
+  const handleReturnToCurrent = () => {
+    setHistoricalSnapshot(null);
+  };
+
+  const handleMakeCurrent = async () => {
+    if (!historicalSnapshot) return;
+    try {
+      const res = await fetch('/api/git/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(historicalSnapshot.data),
+      });
+      if (!res.ok) throw new Error('Server error');
+      setData(historicalSnapshot.data);
+      setHistoricalSnapshot(null);
+      showSaveStatus('saved');
+    } catch (err) {
+      alert('Failed to restore snapshot');
+    }
+  };
+
+  // ─── PDF export ──────────────────────────────────────────────────────────────
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    try {
+      const [{ jsPDF }, html2canvas, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('html2canvas'),
+        import('jspdf-autotable'),
+      ]);
+
+      const displayData = historicalSnapshot ? historicalSnapshot.data : data;
+
+      // Capture the gantt body element
+      const ganttBody = document.querySelector('.gantt-body');
+      if (!ganttBody) throw new Error('Gantt element not found');
+
+      const canvas = await html2canvas.default(ganttBody, {
+        backgroundColor: '#0f1117',
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+      });
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 12;
+      const contentW = pageW - margin * 2;
+
+      // Header
+      const exportDate = new Date().toLocaleDateString(undefined, {
+        year: 'numeric', month: 'long', day: 'numeric',
+      });
+      doc.setFontSize(14);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Project Timeline', margin, margin + 5);
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Exported ${exportDate}`, margin, margin + 11);
+
+      // Gantt chart image
+      const imgW = contentW;
+      const imgH = Math.min((canvas.height / canvas.width) * imgW, pageH * 0.45);
+      doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin + 16, imgW, imgH);
+
+      // Task table
+      const tableTop = margin + 16 + imgH + 6;
+      const tableRows = [];
+      for (const phase of displayData.phases) {
+        tableRows.push([{ content: phase.name, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [30, 36, 51] } }]);
+        for (const task of phase.tasks) {
+          tableRows.push([
+            '',
+            task.name,
+            task.start || '',
+            task.milestone ? task.start : (task.end || ''),
+            task.done ? '✓' : '',
+          ]);
+        }
+      }
+
+      autoTable(doc, {
+        startY: tableTop,
+        head: [['Phase', 'Task', 'Start', 'End', 'Status']],
+        body: tableRows,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
+        headStyles: { fillColor: [42, 49, 66], textColor: 230, fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 28 },
+          1: { cellWidth: 'auto' },
+          2: { cellWidth: 22, font: 'courier' },
+          3: { cellWidth: 22, font: 'courier' },
+          4: { cellWidth: 14, halign: 'center' },
+        },
+        didDrawPage: (hookData) => {
+          doc.setFontSize(8);
+          doc.setTextColor(160, 160, 160);
+          doc.text(`Page ${hookData.pageNumber}`, pageW - margin, pageH - 6, { align: 'right' });
+        },
+      });
+
+      const today = new Date().toISOString().slice(0, 10);
+      doc.save(`gantt-export-${today}.pdf`);
+    } catch (err) {
+      console.error('PDF export failed:', err);
+      alert('PDF export failed: ' + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   // Find the item being edited
   const getEditItem = () => {
     if (!editTarget || !data) return null;
@@ -368,30 +509,50 @@ export default function App() {
     );
   }
 
+  const isHistorical = !!historicalSnapshot;
+  const displayData = isHistorical ? historicalSnapshot.data : data;
+
   return (
     <div className="app">
       <header className="top-bar">
         <div className="top-bar-left">
           <span className="app-title">Gantt</span>
-          <button className="btn btn-primary" onClick={handleAddPhase}>
-            + Add Phase
-          </button>
+          {!isHistorical && (
+            <button className="btn btn-primary" onClick={handleAddPhase}>
+              + Add Phase
+            </button>
+          )}
         </div>
         <div className="top-bar-right">
-          {restarting && <span className="save-indicator">Restarting…</span>}
           {saveStatus === 'saved' && (
             <span className="save-indicator saved">Saved ✓</span>
           )}
           {saveStatus === 'failed' && (
             <span className="save-indicator failed">Save failed ✗</span>
           )}
+          {gitDirty && !isHistorical && (
+            <button
+              className="btn btn-ghost btn-small git-dirty-btn"
+              onClick={() => setShowHistoryPanel(true)}
+              title="data/tasks.json has uncommitted changes — click to view history"
+            >
+              ● Uncommitted changes
+            </button>
+          )}
           <button
             className="btn btn-ghost btn-small"
-            onClick={handleRestart}
-            disabled={restarting}
-            title="Restart server"
+            onClick={() => setShowHistoryPanel(true)}
+            title="View snapshot history"
           >
-            ↺
+            History
+          </button>
+          <button
+            className="btn btn-ghost btn-small"
+            onClick={handleExportPdf}
+            disabled={exporting}
+            title="Export as PDF"
+          >
+            {exporting ? 'Generating PDF…' : 'Export PDF'}
           </button>
           {calendarStatus.connected ? (
             <div className="calendar-status connected">
@@ -414,14 +575,36 @@ export default function App() {
         </div>
       </header>
 
+      {/* Snapshot warning banner */}
+      {isHistorical && (
+        <div className="snapshot-banner">
+          <span className="snapshot-banner-icon">⚠</span>
+          <span className="snapshot-banner-text">
+            You are viewing a snapshot from{' '}
+            <strong>{new Date(historicalSnapshot.date).toLocaleString(undefined, {
+              month: 'short', day: 'numeric', year: 'numeric',
+              hour: '2-digit', minute: '2-digit',
+            })}</strong>
+            {historicalSnapshot.message ? ` — "${historicalSnapshot.message}"` : ''}
+            {' '}— this is not your current data. Changes are disabled.
+          </span>
+          <button className="btn btn-small snapshot-banner-btn-return" onClick={handleReturnToCurrent}>
+            Return to current
+          </button>
+          <button className="btn btn-small snapshot-banner-btn-restore" onClick={handleMakeCurrent}>
+            Make this current
+          </button>
+        </div>
+      )}
+
       <main className="app-main">
-        {data && (
+        {displayData && (
           <GanttView
-            data={data}
+            data={displayData}
             calendarEvents={calendarEvents}
             calendarConnected={calendarStatus.connected}
-            onTaskClick={(taskId) => setEditTarget({ type: 'task', id: taskId })}
-            onPhaseClick={(phaseId) => setEditTarget({ type: 'phase', id: phaseId })}
+            onTaskClick={(taskId) => !isHistorical && setEditTarget({ type: 'task', id: taskId })}
+            onPhaseClick={(phaseId) => !isHistorical && setEditTarget({ type: 'phase', id: phaseId })}
             onAddTask={handleAddTask}
             onTaskUpdate={handleSaveTask}
             onPhaseUpdate={handleSavePhase}
@@ -429,6 +612,7 @@ export default function App() {
             onCalendarSetup={() => setShowCalendarSetup(true)}
             onReorderPhases={handleReorderPhases}
             onReorderTasks={handleReorderTasks}
+            readonly={isHistorical}
           />
         )}
       </main>
@@ -442,7 +626,7 @@ export default function App() {
         />
       )}
 
-      {editTarget && (
+      {editTarget && !isHistorical && (
         <TaskEditor
           item={getEditItem()}
           type={editTarget.type}
@@ -456,6 +640,15 @@ export default function App() {
             else handleDeletePhase(editTarget.id);
           }}
           onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {showHistoryPanel && (
+        <HistoryPanel
+          onClose={() => setShowHistoryPanel(false)}
+          onViewSnapshot={setHistoricalSnapshot}
+          gitDirty={gitDirty}
+          onCommitted={refreshGitStatus}
         />
       )}
     </div>

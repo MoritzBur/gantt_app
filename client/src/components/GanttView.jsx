@@ -294,7 +294,7 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
 
 // ─── Milestone marker ─────────────────────────────────────────────────────────
 
-function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, label, diamondPx, onDragUpdate, onClick }) {
+function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadOnly, label, diamondPx, onDragUpdate, onClick }) {
   const offset = diffDays(startDate, parseDate(taskDate));
   const left = offset * dayWidth + dayWidth / 2 - diamondPx / 2;
 
@@ -303,6 +303,7 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, label, 
   const [tooltipVisible, setTooltipVisible] = useState(false);
 
   const handleMouseDown = useCallback((e) => {
+    if (isReadOnly) return;
     e.preventDefault();
     e.stopPropagation();
     didDragRef.current = false;
@@ -329,7 +330,7 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, label, 
   return (
     <div
       className={`milestone-marker ${isDone ? 'done' : ''}`}
-      style={{ left, cursor: 'grab', zIndex: tooltipVisible ? 1000 : 2 }}
+      style={{ left, cursor: isReadOnly ? 'default' : 'grab', zIndex: tooltipVisible ? 1000 : 2 }}
       onMouseDown={handleMouseDown}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
     >
@@ -375,6 +376,7 @@ export default function GanttView({
   onSaveStatus,
   onReorderPhases,
   onReorderTasks,
+  readonly = false,
 }) {
   const [zoom, setZoom] = useState('Month');
   const [collapsed, setCollapsed] = useState({});
@@ -688,14 +690,16 @@ export default function GanttView({
                     data-row-id={row.phase.id}
                     className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}`}
                     style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.phase.color}` }}
-                    onClick={() => !draggingItem && onPhaseClick(row.phase.id)}
+                    onClick={() => !readonly && !draggingItem && onPhaseClick(row.phase.id)}
                   >
-                    <div
-                      className="drag-handle"
-                      onMouseDown={(e) => startListDrag(e, 'phase', row.phase.id, null)}
-                      onClick={(e) => e.stopPropagation()}
-                      title="Drag to reorder"
-                    >⠿</div>
+                    {!readonly && (
+                      <div
+                        className="drag-handle"
+                        onMouseDown={(e) => startListDrag(e, 'phase', row.phase.id, null)}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Drag to reorder"
+                      >⠿</div>
+                    )}
                     <button
                       className="collapse-btn"
                       onClick={(e) => { e.stopPropagation(); toggleCollapse(row.phase.id); }}
@@ -730,15 +734,17 @@ export default function GanttView({
                     data-phase-id={row.phase.id}
                     className={`gantt-row gantt-task-row${row.task.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}`}
                     style={{ height: ROW_HEIGHT }}
-                    onClick={() => !draggingItem && onTaskClick(row.task.id)}
+                    onClick={() => !readonly && !draggingItem && onTaskClick(row.task.id)}
                   >
                     <span className="task-indent" />
-                    <div
-                      className="drag-handle"
-                      onMouseDown={(e) => startListDrag(e, 'task', row.task.id, row.phase.id)}
-                      onClick={(e) => e.stopPropagation()}
-                      title="Drag to reorder"
-                    >⠿</div>
+                    {!readonly && (
+                      <div
+                        className="drag-handle"
+                        onMouseDown={(e) => startListDrag(e, 'task', row.task.id, row.phase.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Drag to reorder"
+                      >⠿</div>
+                    )}
                     {row.task.milestone
                       ? <span className="task-milestone-dot" style={{ color: row.phase.color }}>◆</span>
                       : <span className="task-done-indicator" style={{ backgroundColor: row.phase.color }} />
@@ -758,6 +764,7 @@ export default function GanttView({
             }
 
             if (row.type === 'add-task') {
+              if (readonly) return null;
               const showTaskEndIndicator =
                 dropIndicator?.type === 'task' &&
                 dropIndicator.phaseId === row.phase.id &&
@@ -871,7 +878,7 @@ export default function GanttView({
                         taskEnd={row.phase.end}
                         dayWidth={dayWidth}
                         color={row.phase.color}
-                        isReadOnly={false}
+                        isReadOnly={readonly}
                         isLocked={phaseHasTasks}
                         isDone={false}
                         label={getPhaseLabel(row.phase, row.phaseIndex)}
@@ -895,10 +902,11 @@ export default function GanttView({
                             dayWidth={dayWidth}
                             color={taskColor}
                             isDone={row.task.done}
+                            isReadOnly={readonly}
                             label={taskLabel}
                             diamondPx={DIAMOND_PX}
                             onDragUpdate={(s, e) => handleTaskDrag(row.task.id, s, e)}
-                            onClick={() => onTaskClick(row.task.id)}
+                            onClick={() => !readonly && onTaskClick(row.task.id)}
                           />
                         : <GanttBar
                             startDate={rangeStart}
@@ -906,7 +914,7 @@ export default function GanttView({
                             taskEnd={row.task.end}
                             dayWidth={dayWidth}
                             color={taskColor}
-                            isReadOnly={false}
+                            isReadOnly={readonly}
                             isDone={row.task.done}
                             label={taskLabel}
                             barHeight={BAR_HEIGHT}
