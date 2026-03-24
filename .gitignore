@@ -1,0 +1,23 @@
+# Secrets — never commit these
+.env
+server/tokens.json
+
+# Calendar config contains private iCal URLs — keep out of version control
+data/calendar-config.json
+
+# Dependencies
+node_modules/
+
+# Build output
+client/dist/
+
+# Atomic write temp files
+*.tmp.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Tool artifacts
+.playwright-mcp/
+.claude/

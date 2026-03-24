@@ -1,0 +1,1289 @@
+/* ─── Reset & base ─────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:           #0f1117;
+  --bg-sidebar:   #161b22;
+  --bg-row:       #0f1117;
+  --bg-row-hover: #1a2030;
+  --bg-elevated:  #1e2433;
+  --border:       #2a3142;
+  --text:         #e6edf3;
+  --text-muted:   #7d8590;
+  --text-dim:     #4a5568;
+  --accent:       #4A90D9;
+  --danger:       #e74c3c;
+  --success:      #27ae60;
+  --today-line:   #e74c3c;
+  --font-sans:    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono:    "SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", Consolas, monospace;
+  --radius:       6px;
+  --row-height:   40px;
+  --list-width:   260px;
+  --header-height: 52px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  min-width: 768px;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* ─── App shell ─────────────────────────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-loading,
+.app-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  color: var(--text-muted);
+}
+
+/* ─── Top bar ───────────────────────────────────────────────────────────────── */
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 16px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  margin-right: 4px;
+}
+
+.save-indicator {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  animation: fadeIn 0.15s ease;
+}
+
+.save-indicator.saved {
+  color: var(--success);
+  background: rgba(39, 174, 96, 0.12);
+}
+
+.save-indicator.failed {
+  color: var(--danger);
+  background: rgba(231, 76, 60, 0.12);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.calendar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.calendar-status.connected span:first-child {
+  color: var(--success);
+}
+
+/* ─── Buttons ───────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+  min-width: 44px;
+  min-height: 32px;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.btn:hover {
+  opacity: 0.85;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.btn-ghost:hover {
+  border-color: var(--text-muted);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.4);
+  color: var(--danger);
+}
+
+.btn-danger:hover, .btn-danger-confirm {
+  background: rgba(231, 76, 60, 0.3);
+  border-color: var(--danger);
+}
+
+.btn-small {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.btn-zoom {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 0;
+}
+
+.btn-zoom:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.btn-zoom:last-child  { border-radius: 0 var(--radius) var(--radius) 0; }
+
+.btn-zoom.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  opacity: 1;
+}
+
+/* ─── App main ──────────────────────────────────────────────────────────────── */
+
+.app-main {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
+
+/* ─── Gantt view ────────────────────────────────────────────────────────────── */
+
+.gantt-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.gantt-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.zoom-controls {
+  display: flex;
+}
+
+.density-controls {
+  display: flex;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+
+.gantt-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─── Gantt list (left panel) ───────────────────────────────────────────────── */
+
+.gantt-list {
+  flex-shrink: 0;
+  background: var(--bg-sidebar);
+  /* border-right removed — resizer sits between list and timeline */
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.gantt-list-header {
+  height: 56px; /* matches timeline header */
+  display: flex;
+  align-items: flex-end;
+  padding: 0 12px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.gantt-row {
+  display: flex;
+  align-items: center;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  gap: 6px;
+  transition: background 0.1s;
+  flex-shrink: 0;
+}
+
+.gantt-row:hover {
+  background: var(--bg-row-hover);
+}
+
+.gantt-section-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  cursor: default;
+  background: var(--bg);
+}
+
+.gantt-section-header:hover {
+  background: var(--bg);
+}
+
+.section-icon {
+  font-size: 13px;
+}
+
+.gantt-cal-lane-row {
+  cursor: default;
+  background: transparent;
+}
+
+.gantt-cal-lane-row:hover {
+  background: transparent;
+}
+
+.gantt-cal-event, .gantt-cal-empty, .gantt-cal-connect {
+  padding-left: 24px;
+}
+
+.gantt-cal-connect .cal-connect-link {
+  font-size: 12px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.gantt-phase-row {
+  padding-left: 2px;
+  background: var(--bg-elevated);
+  font-weight: 600;
+}
+
+.gantt-phase-row:hover {
+  background: var(--bg-row-hover);
+}
+
+.gantt-task-row {
+  padding-left: 0;
+}
+
+.gantt-task-row.done .task-name {
+  color: var(--text-muted);
+}
+
+.gantt-add-task-row {
+  cursor: pointer;
+}
+
+.gantt-add-task-row:hover {
+  background: var(--bg-row-hover);
+}
+
+.collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  min-width: 16px;
+  min-height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-btn:hover {
+  color: var(--text);
+}
+
+.phase-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+/* ─── Drag-to-reorder ───────────────────────────────────────────────────────── */
+
+.drag-handle {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--text-dim);
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.1s;
+  user-select: none;
+}
+
+.gantt-row:hover .drag-handle {
+  opacity: 1;
+}
+
+.is-dragging {
+  opacity: 0.4;
+}
+
+.list-drop-indicator {
+  height: 2px;
+  background: var(--accent);
+  margin: 0 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px var(--accent);
+}
+
+.list-drop-indicator--task {
+  margin-left: 36px;
+}
+
+/* ─── Auto-numbering labels ─────────────────────────────────────────────────── */
+
+.phase-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.task-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.item-number {
+  font-size: 13px;
+  font-family: var(--font-sans);
+  color: inherit;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.gantt-task-row.done .item-name {
+  color: var(--text-muted);
+}
+
+.phase-task-count {
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.task-indent {
+  display: inline-block;
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.task-done-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.task-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.task-dates {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  display: none; /* show on hover via parent */
+}
+
+.gantt-task-row:hover .task-dates {
+  display: block;
+}
+
+.add-task-btn {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.gantt-add-task-row:hover .add-task-btn {
+  color: var(--accent);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+/* ─── List resize handle ────────────────────────────────────────────────────── */
+
+.gantt-list-resizer {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 10;
+}
+
+.gantt-list-resizer:hover,
+.gantt-list-resizer:active {
+  background: var(--accent);
+}
+
+/* ─── Timeline (right panel) ────────────────────────────────────────────────── */
+
+.gantt-timeline-wrap {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background: var(--bg);
+}
+
+.gantt-timeline-inner {
+  position: relative;
+  min-height: 100%;
+}
+
+/* ─── Timeline header ───────────────────────────────────────────────────────── */
+
+.timeline-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+}
+
+.timeline-header-months {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.timeline-month-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.timeline-header-days {
+  display: flex;
+  height: 24px;
+}
+
+.timeline-day-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.timeline-day-label.weekend {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-muted);
+}
+
+.timeline-week-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ─── Gantt grid ─────────────────────────────────────────────────────────────── */
+
+.gantt-grid {
+  position: relative;
+}
+
+.gantt-timeline-row {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+
+.gantt-timeline-row:hover {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.gantt-timeline-row.empty-row {
+  background: transparent;
+}
+
+/* ─── Gantt bar ──────────────────────────────────────────────────────────────── */
+
+.gantt-bar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px; /* default; overridden by inline style when density changes */
+  border-radius: 4px;
+  display: flex;
+  align-items: stretch;
+  overflow: visible;
+  transition: filter 0.1s;
+  z-index: 2;
+}
+
+.gantt-bar:hover {
+  filter: brightness(1.15);
+}
+
+.gantt-bar.readonly {
+  opacity: 0.65;
+  height: 20px;
+  border-radius: 3px;
+}
+
+.gantt-bar.done {
+  opacity: 0.5;
+}
+
+.gantt-bar.active {
+  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(220, 70, 50, 0.75);
+  opacity: 1 !important;
+  z-index: 3 !important;
+}
+
+.gantt-bar-inner {
+  flex: 1;
+  border-radius: 4px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.gantt-bar-label {
+  font-size: 11px;
+  font-weight: 500;
+  /* color set dynamically via getContrastColor() inline style */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  padding: 0 4px;
+  flex: 1;
+  min-width: 0;
+  cursor: inherit;
+}
+
+.gantt-bar-tooltip {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.gantt-bar-duration {
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.drag-date-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  min-width: 83px;
+  text-align: center;
+}
+
+.gantt-bar-outside-label {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  pointer-events: none;
+  user-select: none;
+}
+
+.drag-date-left {
+  right: calc(100% + 6px);
+}
+
+.drag-date-right {
+  left: calc(100% + 6px);
+}
+
+.gantt-bar-handle {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: ew-resize;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+
+.gantt-bar-handle:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* ─── Milestone marker ───────────────────────────────────────────────────────── */
+
+.milestone-marker {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.milestone-marker.done {
+  opacity: 0.5;
+}
+
+.milestone-diamond {
+  width: 16px;
+  height: 16px;
+  transform: rotate(45deg);
+  border-radius: 2px;
+  flex-shrink: 0;
+  transition: filter 0.1s;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
+}
+
+.milestone-marker:hover .milestone-diamond {
+  filter: brightness(1.25);
+}
+
+.milestone-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  user-select: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.task-milestone-dot {
+  font-size: 14px;
+  flex-shrink: 0;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+/* ─── Calendar event overlay ─────────────────────────────────────────────────── */
+
+.cal-event-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(220, 60, 50, 0.09);
+  border-left: 1px solid rgba(220, 60, 50, 0.35);
+  border-right: 1px solid rgba(220, 60, 50, 0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ─── Today line ─────────────────────────────────────────────────────────────── */
+
+.today-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--today-line);
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* ─── Weekend shading ────────────────────────────────────────────────────────── */
+
+.weekend-shade {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.02);
+  pointer-events: none;
+}
+
+/* ─── Modal ──────────────────────────────────────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: backdropFade 0.15s ease;
+}
+
+@keyframes backdropFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlide 0.15s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes modalSlide {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  min-width: 32px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close:hover {
+  background: var(--bg-row-hover);
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  gap: 8px;
+}
+
+.modal-footer-right {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ─── Form elements ──────────────────────────────────────────────────────────── */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.form-label-note {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.65;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.form-label-inline {
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.form-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  padding: 8px 10px;
+  width: 100%;
+  transition: border-color 0.15s;
+  min-height: 36px;
+}
+
+.form-input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-input-date {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 88px;
+  line-height: 1.5;
+}
+
+.form-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* ─── Prefix picker ──────────────────────────────────────────────────────────── */
+
+.prefix-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prefix-custom-input {
+  width: 100px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 13px;
+}
+
+/* ─── Color picker ───────────────────────────────────────────────────────────── */
+
+.color-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s, border-color 0.1s;
+  min-width: 28px;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  transform: scale(1.1);
+}
+
+.color-custom {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  overflow: hidden;
+}
+
+/* ─── Calendar overlay panel ─────────────────────────────────────────────────── */
+
+.calendar-overlay-panel {
+  padding: 12px 16px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  margin: 8px;
+}
+
+.cal-info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cal-connected-badge {
+  color: var(--success);
+  font-size: 12px;
+}
+
+.cal-event-count {
+  font-size: 12px;
+}
+
+.cal-info-text {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+/* ─── Scrollbar styling ──────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* ─── Selection ──────────────────────────────────────────────────────────────── */
+
+::selection {
+  background: rgba(74, 144, 217, 0.3);
+}
+
+/* ─── Calendar Setup Modal ───────────────────────────────────────────────────── */
+
+.cal-setup-modal {
+  width: 520px;
+  max-width: 95vw;
+}
+
+.cal-setup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.cal-option {
+  padding: 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-row);
+}
+
+.cal-option + .cal-option {
+  margin-top: 8px;
+}
+
+.cal-option-active {
+  border-color: var(--accent);
+  background: rgba(74, 144, 217, 0.06);
+}
+
+.cal-option-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.cal-option-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.cal-option-badge {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+}
+
+.cal-option-tag {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(39, 174, 96, 0.15);
+  color: #27ae60;
+  border: 1px solid rgba(39, 174, 96, 0.3);
+}
+
+.cal-option-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.cal-option-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.cal-ical-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+.cal-ical-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cal-option-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 6px 0 12px;
+  line-height: 1.5;
+}
+
+.cal-option-hint code {
+  font-family: var(--font-mono);
+  background: var(--bg-elevated);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.cal-option-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cal-save-ok   { font-size: 13px; color: #27ae60; }
+.cal-save-error { font-size: 13px; color: var(--danger); }
+
+.cal-connected-label {
+  font-size: 13px;
+  color: #27ae60;
+  font-weight: 500;
+}
+
+.cal-option-divider {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 8px 0;
+}
