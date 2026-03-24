@@ -29,6 +29,42 @@ function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
 }
 
+// ─── Duration breakdown helpers ───────────────────────────────────────────────
+
+function calcTaskDays(startStr, endStr, activeCalEventIds, calendarEvents) {
+  const start = parseDate(startStr);
+  const end = parseDate(endStr);
+  const total = diffDays(start, end) + 1;
+
+  const weekendSet = new Set();
+  const calSet = new Set();
+
+  let cursor = new Date(start);
+  while (cursor <= end) {
+    const ds = formatDate(cursor);
+    const dow = cursor.getDay();
+    if (dow === 0 || dow === 6) weekendSet.add(ds);
+    cursor = addDays(cursor, 1);
+  }
+
+  for (const evId of activeCalEventIds) {
+    const ev = calendarEvents.find(e => e.id === evId);
+    if (!ev) continue;
+    const evStart = parseDate(ev.start);
+    const evEnd = parseDate(ev.end || ev.start);
+    cursor = new Date(evStart);
+    while (cursor <= evEnd) {
+      if (cursor >= start && cursor <= end) calSet.add(formatDate(cursor));
+      cursor = addDays(cursor, 1);
+    }
+  }
+
+  const work = total - weekendSet.size;
+  const allBlocked = new Set([...weekendSet, ...calSet]);
+  const net = total - allBlocked.size;
+  return { total, work, net };
+}
+
 // ─── Numbering helpers ────────────────────────────────────────────────────────
 
 function getPhasePrefix(phase) {
@@ -163,7 +199,7 @@ function computeCalendarLanes(events) {
 
 // ─── Gantt bar ────────────────────────────────────────────────────────────────
 
-function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, onDragUpdate, onClick, onDoubleClick }) {
+function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, onDragUpdate, onClick, onDoubleClick }) {
   const startOffset = diffDays(startDate, parseDate(taskStart));
   const duration = diffDays(parseDate(taskStart), parseDate(taskEnd)) + 1;
   const left = startOffset * dayWidth;
@@ -212,10 +248,10 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
         newEnd = formatDate(addDays(parseDate(origEnd), daysDelta));
       } else if (mode === 'resize-left') {
         newStart = formatDate(addDays(parseDate(origStart), daysDelta));
-        if (newStart >= newEnd) newStart = formatDate(addDays(parseDate(newEnd), -1));
+        if (newStart > newEnd) newStart = newEnd;
       } else if (mode === 'resize-right') {
         newEnd = formatDate(addDays(parseDate(origEnd), daysDelta));
-        if (newEnd <= newStart) newEnd = formatDate(addDays(parseDate(newStart), 1));
+        if (newEnd < newStart) newEnd = newStart;
       }
 
       setDragState({ mode, newStart, newEnd });
@@ -270,7 +306,7 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
             }}
             onMouseEnter={!labelOutside ? handleLabelMouseEnter : undefined}
             onMouseLeave={!labelOutside ? handleLabelMouseLeave : undefined}
-          >{label} <span className="gantt-bar-duration">({duration}d)</span></span>
+          >{label}{!labelOutside && <span className="gantt-bar-duration"> ({duration}d{workDays != null && workDays !== duration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? duration) ? <span className="dur-net"> {netDays}d</span> : null})</span>}</span>
         )}
       </div>
       {!noDrag && (
@@ -279,12 +315,12 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
       {showRightDate && (
         <div className="drag-date-label drag-date-right">{formatShortDate(dragState.newEnd)}</div>
       )}
-      {labelOutside && label && !labelFits && (
+      {labelOutside && label && (
         <div
           className="gantt-bar-outside-label"
           style={{ left: showRightDate ? 'calc(100% + 95px)' : 'calc(100% + 8px)' }}
         >
-          {label} <span className="gantt-bar-duration">({liveDuration}d)</span>
+          {!labelFits && <>{label} </>}<span className="gantt-bar-duration">({liveDuration}d{workDays != null && workDays !== liveDuration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? liveDuration) ? <span className="dur-net"> {netDays}d</span> : null})</span>
         </div>
       )}
       {tooltipVisible && label && !labelOutside && <div className="gantt-bar-tooltip">{label}</div>}
@@ -378,12 +414,26 @@ export default function GanttView({
   onReorderTasks,
   readonly = false,
 }) {
-  const [zoom, setZoom] = useState('Month');
-  const [collapsed, setCollapsed] = useState({});
-  const [density, setDensity] = useState('Regular');
+  const [zoom, setZoom] = useState(() => {
+    const v = localStorage.getItem('gantt-zoom');
+    return v && ZOOM_LEVELS[v] ? v : 'Month';
+  });
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('gantt-collapsed') || '{}'); } catch { return {}; }
+  });
+  const [density, setDensity] = useState(() => {
+    const v = localStorage.getItem('gantt-density');
+    return v === 'Compact' ? 'Compact' : 'Regular';
+  });
   const [dropIndicator, setDropIndicatorState] = useState(null);
   const [draggingItem, setDraggingItem] = useState(null);
-  const [activeCalEvents, setActiveCalEvents] = useState(new Set());
+  const [activeCalEvents, setActiveCalEvents] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('gantt-active-cal-events') || '[]');
+      return new Set(Array.isArray(stored) ? stored : []);
+    } catch { return new Set(); }
+  });
+  const [missingCalWarning, setMissingCalWarning] = useState(null);
 
   const toggleCalEvent = useCallback((evId) => {
     setActiveCalEvents(prev => {
@@ -403,6 +453,28 @@ export default function GanttView({
   const dataRef = useRef(data);
 
   useEffect(() => { dataRef.current = data; }, [data]);
+
+  // Persist UI state to localStorage
+  useEffect(() => { localStorage.setItem('gantt-zoom', zoom); }, [zoom]);
+  useEffect(() => { localStorage.setItem('gantt-density', density); }, [density]);
+  useEffect(() => { localStorage.setItem('gantt-collapsed', JSON.stringify(collapsed)); }, [collapsed]);
+  useEffect(() => {
+    localStorage.setItem('gantt-active-cal-events', JSON.stringify([...activeCalEvents]));
+  }, [activeCalEvents]);
+
+  // Validate stored active calendar events against fetched events
+  useEffect(() => {
+    if (!calendarEvents || calendarEvents.length === 0) return;
+    const existingIds = new Set(calendarEvents.map(e => e.id));
+    setActiveCalEvents(prev => {
+      const missing = [...prev].filter(id => !existingIds.has(id));
+      if (missing.length === 0) return prev;
+      setMissingCalWarning(
+        `${missing.length} previously activated calendar event${missing.length > 1 ? 's' : ''} no longer exist${missing.length > 1 ? '' : 's'} and ${missing.length > 1 ? 'were' : 'was'} removed.`
+      );
+      return new Set([...prev].filter(id => existingIds.has(id)));
+    });
+  }, [calendarEvents]);
 
   const { dayWidth } = ZOOM_LEVELS[zoom];
 
@@ -614,6 +686,12 @@ export default function GanttView({
 
   return (
     <div className="gantt-view">
+      {missingCalWarning && (
+        <div className="cal-missing-warning">
+          <span>⚠ {missingCalWarning}</span>
+          <button className="cal-missing-dismiss" onClick={() => setMissingCalWarning(null)}>✕</button>
+        </div>
+      )}
       {/* Toolbar */}
       <div className="gantt-toolbar">
         <div className="zoom-controls">
@@ -870,6 +948,9 @@ export default function GanttView({
 
                 if (row.type === 'phase') {
                   const phaseHasTasks = row.phase.tasks && row.phase.tasks.length > 0;
+                  const pDays = row.phase.start && row.phase.end
+                    ? calcTaskDays(row.phase.start, row.phase.end, activeCalEvents, calendarEvents)
+                    : null;
                   return (
                     <div key={row.phase.id} className="gantt-timeline-row" style={rowStyle}>
                       <GanttBar
@@ -883,6 +964,9 @@ export default function GanttView({
                         isDone={false}
                         label={getPhaseLabel(row.phase, row.phaseIndex)}
                         barHeight={BAR_HEIGHT}
+                        labelOutside={true}
+                        workDays={pDays?.work}
+                        netDays={pDays?.net}
                         onDragUpdate={(s, e) => handlePhaseDrag(row.phase.id, s, e)}
                         onClick={() => onPhaseClick(row.phase.id)}
                       />
@@ -893,6 +977,9 @@ export default function GanttView({
                 if (row.type === 'task') {
                   const taskColor = row.task.done ? '#555' : row.phase.color;
                   const taskLabel = getTaskLabel(row.task, row.phaseIndex, row.taskIndex);
+                  const tDays = !row.task.milestone && row.task.start && row.task.end
+                    ? calcTaskDays(row.task.start, row.task.end, activeCalEvents, calendarEvents)
+                    : null;
                   return (
                     <div key={row.task.id} className="gantt-timeline-row" style={rowStyle}>
                       {row.task.milestone
@@ -919,6 +1006,8 @@ export default function GanttView({
                             label={taskLabel}
                             barHeight={BAR_HEIGHT}
                             labelOutside={true}
+                            workDays={tDays?.work}
+                            netDays={tDays?.net}
                             onDragUpdate={(s, e) => handleTaskDrag(row.task.id, s, e)}
                             onClick={() => onTaskClick(row.task.id)}
                           />

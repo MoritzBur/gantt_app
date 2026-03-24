@@ -728,6 +728,44 @@ a:hover {
   font-weight: 400;
 }
 
+.dur-work {
+  color: #f0c040;
+  opacity: 1;
+}
+
+.dur-net {
+  color: #4caf7a;
+  opacity: 1;
+}
+
+.cal-missing-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: #2a2000;
+  border-bottom: 1px solid #5a4200;
+  color: #f0c040;
+  font-size: 13px;
+}
+
+.cal-missing-warning span {
+  flex: 1;
+}
+
+.cal-missing-dismiss {
+  background: none;
+  border: none;
+  color: #f0c040;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  opacity: 0.7;
+}
+.cal-missing-dismiss:hover {
+  opacity: 1;
+}
+
 .drag-date-label {
   position: absolute;
   top: 50%;
