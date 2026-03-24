@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "dev": "concurrently --kill-others \"npm run server\" \"npm run client\"",
     "server": "node server/index.js",
     "client": "vite client/",
     "build": "vite build client/",
@@ -16,6 +16,9 @@
     "express": "^4.18.2",
     "express-session": "^1.18.0",
     "googleapis": "^144.0.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "node-ical": "^0.25.6"
   },
   "devDependencies": {
