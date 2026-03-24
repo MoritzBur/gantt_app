@@ -1,0 +1,281 @@
+{
+  "phases": [
+    {
+      "id": "f691f583-b1f9-4c06-a32c-20c3ca14e6e0",
+      "name": "Milestones",
+      "color": "#16A085",
+      "start": "2026-03-02",
+      "end": "2026-09-01",
+      "tasks": [
+        {
+          "id": "51fb4566-24e5-4063-9a77-0e9714e72f6c",
+          "name": "Project starts",
+          "start": "2026-03-02",
+          "end": "2026-03-02",
+          "done": false,
+          "notes": "",
+          "milestone": true
+        },
+        {
+          "id": "3c8ae311-666f-4341-a249-7f3b6f3c7458",
+          "name": "Base case operational",
+          "start": "2026-03-28",
+          "end": "2026-03-28",
+          "done": false,
+          "notes": "",
+          "milestone": true
+        },
+        {
+          "id": "5df44887-5c28-4291-8240-ca5ae9b6e892",
+          "name": "All variants simulated",
+          "start": "2026-04-04",
+          "end": "2026-04-04",
+          "done": false,
+          "notes": "",
+          "milestone": true
+        },
+        {
+          "id": "3bdddd32-e972-4f42-9110-0003d58ad172",
+          "name": "Results analyzed",
+          "start": "2026-04-26",
+          "end": "2026-04-26",
+          "done": false,
+          "notes": "",
+          "milestone": true
+        },
+        {
+          "id": "808cf07e-21dc-4617-a123-5acec4e66273",
+          "name": "Documentation written",
+          "start": "2026-07-25",
+          "end": "2026-07-25",
+          "done": false,
+          "notes": "",
+          "milestone": true
+        },
+        {
+          "id": "de7f1061-07b6-40a7-9aba-c4292e83f4de",
+          "name": "Project finished",
+          "start": "2026-09-01",
+          "end": "2026-09-01",
+          "done": false,
+          "notes": "",
+          "milestone": true
+        }
+      ],
+      "prefix": ""
+    },
+    {
+      "id": "wp1",
+      "name": "Literature Review",
+      "color": "#4A90D9",
+      "start": "2026-03-20",
+      "end": "2026-04-16",
+      "tasks": [
+        {
+          "id": "wp1-t1",
+          "name": "Review diffusor concepts",
+          "start": "2026-03-20",
+          "end": "2026-04-05",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp1-t2",
+          "name": "Write note on diffusor concepts",
+          "start": "2026-04-06",
+          "end": "2026-04-16",
+          "done": false,
+          "notes": ""
+        }
+      ],
+      "prefix": "WP"
+    },
+    {
+      "id": "wp2",
+      "name": "Simulation Setup",
+      "color": "#E67E22",
+      "start": "2026-04-16",
+      "end": "2026-06-29",
+      "tasks": [
+        {
+          "id": "wp2-t1",
+          "name": "Create array base case",
+          "start": "2026-04-16",
+          "end": "2026-04-25",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp2-t2",
+          "name": "Validate base case plausibility",
+          "start": "2026-04-25",
+          "end": "2026-05-02",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp2-t3",
+          "name": "Create support structure drag case",
+          "start": "2026-05-03",
+          "end": "2026-05-09",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp2-t4",
+          "name": "Run support structure drag case",
+          "start": "2026-05-11",
+          "end": "2026-05-20",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp2-t5",
+          "name": "Analyze support structure drag",
+          "start": "2026-05-20",
+          "end": "2026-06-01",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp2-t6",
+          "name": "Create variable diffusor cases",
+          "start": "2026-06-01",
+          "end": "2026-06-07",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp2-t7",
+          "name": "Run variable diffusor cases",
+          "start": "2026-06-10",
+          "end": "2026-06-19",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp2-t8",
+          "name": "Analyze variable diffusor cases",
+          "start": "2026-06-19",
+          "end": "2026-06-29",
+          "done": false,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "wp3",
+      "name": "Result Synthesis",
+      "color": "#27AE60",
+      "start": "2026-07-01",
+      "end": "2026-07-25",
+      "tasks": [
+        {
+          "id": "wp3-t1",
+          "name": "Review all results",
+          "start": "2026-07-01",
+          "end": "2026-07-08",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp3-t2",
+          "name": "Determine ranking criteria",
+          "start": "2026-07-09",
+          "end": "2026-07-12",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp3-t3",
+          "name": "Rank relevance wrt. cost",
+          "start": "2026-07-13",
+          "end": "2026-07-17",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp3-t4",
+          "name": "Create graphs",
+          "start": "2026-07-18",
+          "end": "2026-07-25",
+          "done": false,
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "id": "wp4",
+      "name": "Writing",
+      "color": "#8E44AD",
+      "start": "2026-07-20",
+      "end": "2026-09-05",
+      "tasks": [
+        {
+          "id": "wp4-t1",
+          "name": "Develop research story",
+          "start": "2026-07-20",
+          "end": "2026-07-26",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp4-t2",
+          "name": "Finish graphs for doc",
+          "start": "2026-07-27",
+          "end": "2026-08-02",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp4-t3",
+          "name": "Create document structure",
+          "start": "2026-08-03",
+          "end": "2026-08-05",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp4-t4",
+          "name": "Write Introduction",
+          "start": "2026-08-06",
+          "end": "2026-08-10",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp4-t5",
+          "name": "Write Theory",
+          "start": "2026-08-11",
+          "end": "2026-08-15",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp4-t6",
+          "name": "Write Methodology",
+          "start": "2026-08-16",
+          "end": "2026-08-20",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp4-t7",
+          "name": "Write Results",
+          "start": "2026-08-21",
+          "end": "2026-08-26",
+          "done": false,
+          "notes": ""
+        },
+        {
+          "id": "wp4-t8",
+          "name": "Write Discussion",
+          "start": "2026-08-27",
+          "end": "2026-09-05",
+          "done": false,
+          "notes": ""
+        }
+      ]
+    }
+  ]
+}
