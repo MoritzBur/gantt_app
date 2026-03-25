@@ -199,7 +199,7 @@ function computeCalendarLanes(events) {
 
 // ─── Gantt bar ────────────────────────────────────────────────────────────────
 
-function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, onDragUpdate, onClick, onDoubleClick }) {
+function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragUpdate, onClick, onDoubleClick }) {
   const startOffset = diffDays(startDate, parseDate(taskStart));
   const duration = diffDays(parseDate(taskStart), parseDate(taskEnd)) + 1;
   const left = startOffset * dayWidth;
@@ -279,7 +279,7 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
 
   return (
     <div
-      className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''}`}
+      className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''} ${hasNotes ? 'has-notes' : ''}`}
       style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight }}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
@@ -1008,6 +1008,7 @@ export default function GanttView({
                             labelOutside={true}
                             workDays={tDays?.work}
                             netDays={tDays?.net}
+                            hasNotes={!!row.task.notes}
                             onDragUpdate={(s, e) => handleTaskDrag(row.task.id, s, e)}
                             onClick={() => onTaskClick(row.task.id)}
                           />

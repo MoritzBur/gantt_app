@@ -684,6 +684,21 @@ a:hover {
   z-index: 3 !important;
 }
 
+/* Dog-ear note indicator — folded corner in the top-right of the bar */
+.gantt-bar.has-notes::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 12px 12px 0;
+  border-color: transparent rgba(255, 255, 255, 0.75) transparent transparent;
+  border-radius: 0 4px 0 0;
+  pointer-events: none;
+}
+
 .gantt-bar-inner {
   flex: 1;
   border-radius: 4px;
