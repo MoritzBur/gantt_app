@@ -1,22 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
-
-const DATA_FILE = path.join(__dirname, '../../data/tasks.json');
+const store = require('../data-store');
 
 function readData() {
-  const raw = fs.readFileSync(DATA_FILE, 'utf8');
-  return JSON.parse(raw);
+  return store.readTasks();
 }
 
 function writeData(data) {
-  const json = JSON.stringify(data, null, 2);
-  // Atomic write: temp file then rename
-  const tmpFile = path.join(path.dirname(DATA_FILE), `tasks-${Date.now()}.tmp.json`);
-  fs.writeFileSync(tmpFile, json, 'utf8');
-  fs.renameSync(tmpFile, DATA_FILE);
+  store.writeTasks(data);
 }
 
 // GET /api/tasks — return full tasks.json

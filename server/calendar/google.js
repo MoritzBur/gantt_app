@@ -1,8 +1,6 @@
 const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
+const store = require('../data-store');
 
-const TOKENS_FILE = path.join(__dirname, '../../server/tokens.json');
 const REDIRECT_URI = 'http://localhost:3000/api/calendar/callback';
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 
@@ -16,9 +14,7 @@ function createOAuthClient() {
 
 function loadTokens() {
   try {
-    if (fs.existsSync(TOKENS_FILE)) {
-      return JSON.parse(fs.readFileSync(TOKENS_FILE, 'utf8'));
-    }
+    return store.readTokens();
   } catch (err) {
     console.error('[Google] Failed to load tokens:', err);
   }
@@ -26,15 +22,7 @@ function loadTokens() {
 }
 
 function saveTokens(tokens) {
-  fs.writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2), { mode: 0o600 });
-}
-
-function deleteTokens() {
-  try {
-    if (fs.existsSync(TOKENS_FILE)) fs.unlinkSync(TOKENS_FILE);
-  } catch (err) {
-    console.error('[Google] Failed to delete tokens:', err);
-  }
+  store.writeTokens(tokens);
 }
 
 module.exports = {
@@ -58,7 +46,7 @@ module.exports = {
   },
 
   disconnect() {
-    deleteTokens();
+    store.deleteTokens();
   },
 
   getConfig() {
@@ -120,7 +108,7 @@ module.exports = {
       } catch (err) {
         console.error(`[Google] Failed to fetch calendar ${calendarId}:`, err.message);
         if (err.code === 401 || err.response?.status === 401) {
-          deleteTokens();
+          store.deleteTokens();
           throw Object.assign(new Error('Token expired'), { code: 401 });
         }
       }

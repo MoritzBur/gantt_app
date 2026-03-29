@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import GanttView from './components/GanttView.jsx';
 import TaskEditor from './components/TaskEditor.jsx';
 import CalendarSetupModal from './components/CalendarSetupModal.jsx';
@@ -24,6 +24,7 @@ function calcPhaseBounds(tasks) {
 
 export default function App() {
   const [data, setData] = useState(null);
+  const [uiState, setUiState] = useState(null);
   const [calendarStatus, setCalendarStatus] = useState({ connected: false });
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [saveStatus, setSaveStatus] = useState(null); // null | 'saved' | 'failed'
@@ -43,16 +44,65 @@ export default function App() {
 
   // PDF export
   const [exporting, setExporting] = useState(false);
+  const uiStateSaveTimerRef = useRef(null);
+
+  const readLegacyUiState = useCallback(() => {
+    try {
+      const zoom = localStorage.getItem('gantt-zoom') || 'Month';
+      const density = localStorage.getItem('gantt-density') === 'Compact' ? 'Compact' : 'Regular';
+      const collapsed = JSON.parse(localStorage.getItem('gantt-collapsed') || '{}');
+      const activeCalEvents = JSON.parse(localStorage.getItem('gantt-active-cal-events') || '[]');
+      const listWidth = parseInt(localStorage.getItem('gantt-list-width') || '260', 10);
+      return {
+        zoom,
+        density,
+        collapsed: collapsed && typeof collapsed === 'object' ? collapsed : {},
+        activeCalEvents: Array.isArray(activeCalEvents) ? activeCalEvents : [],
+        listWidth: Number.isFinite(listWidth) ? listWidth : 260,
+      };
+    } catch {
+      return {
+        zoom: 'Month',
+        density: 'Regular',
+        collapsed: {},
+        activeCalEvents: [],
+        listWidth: 260,
+      };
+    }
+  }, []);
 
   // Load tasks on mount — retry a few times to handle the Express startup race
   useEffect(() => {
     const load = async (attempt = 0) => {
       try {
-        const r = await fetch('/api/tasks');
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const d = await r.json();
+        const [tasksRes, stateRes] = await Promise.all([
+          fetch('/api/tasks'),
+          fetch('/api/state'),
+        ]);
+        if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
+        const d = await tasksRes.json();
+        const serverState = stateRes.ok ? await stateRes.json() : null;
+        const legacyState = readLegacyUiState();
+        const shouldMigrateLegacy = !serverState?._exists;
+        const nextUiState = shouldMigrateLegacy
+          ? legacyState
+          : {
+              zoom: serverState.zoom,
+              density: serverState.density,
+              collapsed: serverState.collapsed,
+              activeCalEvents: serverState.activeCalEvents,
+              listWidth: serverState.listWidth,
+            };
         setData(d);
+        setUiState(nextUiState);
         setLoading(false);
+        if (shouldMigrateLegacy) {
+          fetch('/api/state', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(legacyState),
+          }).catch(() => {});
+        }
       } catch (err) {
         if (attempt < 4) {
           setTimeout(() => load(attempt + 1), 500 * (attempt + 1));
@@ -63,7 +113,7 @@ export default function App() {
       }
     };
     load();
-  }, []);
+  }, [readLegacyUiState]);
 
   // Load calendar status and config on mount
   useEffect(() => {
@@ -376,10 +426,14 @@ export default function App() {
       const res = await fetch('/api/git/restore', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(historicalSnapshot.data),
+        body: JSON.stringify({
+          tasks: historicalSnapshot.tasks,
+          state: historicalSnapshot.state,
+        }),
       });
       if (!res.ok) throw new Error('Server error');
-      setData(historicalSnapshot.data);
+      setData(historicalSnapshot.tasks);
+      setUiState(historicalSnapshot.state || uiState);
       setHistoricalSnapshot(null);
       showSaveStatus('saved');
     } catch (err) {
@@ -398,7 +452,7 @@ export default function App() {
         import('jspdf-autotable'),
       ]);
 
-      const displayData = historicalSnapshot ? historicalSnapshot.data : data;
+      const displayData = historicalSnapshot ? historicalSnapshot.tasks : data;
 
       // Capture the gantt body element
       const ganttBody = document.querySelector('.gantt-body');
@@ -493,6 +547,26 @@ export default function App() {
     return null;
   };
 
+  const handleUiStateChange = useCallback((nextUiState) => {
+    setUiState(prev => {
+      const current = prev || {};
+      if (JSON.stringify(current) === JSON.stringify(nextUiState)) return prev;
+      if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
+      uiStateSaveTimerRef.current = setTimeout(() => {
+        fetch('/api/state', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nextUiState),
+        }).catch(() => {});
+      }, 150);
+      return nextUiState;
+    });
+  }, []);
+
+  useEffect(() => () => {
+    if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
+  }, []);
+
   if (loading) {
     return (
       <div className="app-loading">
@@ -510,7 +584,8 @@ export default function App() {
   }
 
   const isHistorical = !!historicalSnapshot;
-  const displayData = isHistorical ? historicalSnapshot.data : data;
+  const displayData = isHistorical ? historicalSnapshot.tasks : data;
+  const displayUiState = isHistorical ? (historicalSnapshot.state || uiState) : uiState;
 
   return (
     <div className="app">
@@ -534,7 +609,7 @@ export default function App() {
             <button
               className="btn btn-ghost btn-small git-dirty-btn"
               onClick={() => setShowHistoryPanel(true)}
-              title="data/tasks.json has uncommitted changes — click to view history"
+              title="Planning data or GUI state has uncommitted changes — click to view history"
             >
               ● Uncommitted changes
             </button>
@@ -601,6 +676,7 @@ export default function App() {
         {displayData && (
           <GanttView
             data={displayData}
+            uiState={displayUiState}
             calendarEvents={calendarEvents}
             calendarConnected={calendarStatus.connected}
             onTaskClick={(taskId) => !isHistorical && setEditTarget({ type: 'task', id: taskId })}
@@ -612,6 +688,7 @@ export default function App() {
             onCalendarSetup={() => setShowCalendarSetup(true)}
             onReorderPhases={handleReorderPhases}
             onReorderTasks={handleReorderTasks}
+            onUiStateChange={!isHistorical ? handleUiStateChange : undefined}
             readonly={isHistorical}
           />
         )}

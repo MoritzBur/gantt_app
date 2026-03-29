@@ -1,8 +1,6 @@
 const nodeIcal = require('node-ical');
-const fs = require('fs');
-const path = require('path');
+const store = require('../data-store');
 
-const CONFIG_FILE = path.join(__dirname, '../../data/calendar-config.json');
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 let icalUrls = loadUrls();
@@ -12,18 +10,16 @@ let lastFetchOk = false;
 function loadUrls() {
   // Config file takes precedence over env var
   try {
-    if (fs.existsSync(CONFIG_FILE)) {
-      const config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-      if (Array.isArray(config.icalUrls) && config.icalUrls.length > 0) {
-        return config.icalUrls;
-      }
+    const config = store.readCalendarConfig();
+    if (Array.isArray(config.icalUrls) && config.icalUrls.length > 0) {
+      return config.icalUrls;
     }
   } catch (_) {}
   return (process.env.ICAL_URLS || '').split(',').map(u => u.trim()).filter(Boolean);
 }
 
 function saveConfig(urls) {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify({ icalUrls: urls }, null, 2), 'utf8');
+  store.writeCalendarConfig({ icalUrls: urls });
 }
 
 function formatLocalDate(d) {

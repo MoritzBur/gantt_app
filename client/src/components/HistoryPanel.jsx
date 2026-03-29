@@ -64,7 +64,7 @@ export default function HistoryPanel({ onClose, onViewSnapshot, gitDirty, onComm
       const res = await fetch(`/api/git/show/${commit.hash}`);
       if (!res.ok) throw new Error('Not found');
       const data = await res.json();
-      onViewSnapshot({ data, hash: commit.hash, date: commit.date, message: commit.message });
+      onViewSnapshot({ ...data, hash: commit.hash, date: commit.date, message: commit.message });
       onClose();
     } catch {
       alert('Failed to load snapshot');

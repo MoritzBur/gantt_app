@@ -401,6 +401,7 @@ function TodayLine({ startDate, dayWidth, totalDays }) {
 
 export default function GanttView({
   data,
+  uiState,
   calendarEvents,
   calendarConnected,
   onCalendarSetup,
@@ -412,27 +413,15 @@ export default function GanttView({
   onSaveStatus,
   onReorderPhases,
   onReorderTasks,
+  onUiStateChange,
   readonly = false,
 }) {
-  const [zoom, setZoom] = useState(() => {
-    const v = localStorage.getItem('gantt-zoom');
-    return v && ZOOM_LEVELS[v] ? v : 'Month';
-  });
-  const [collapsed, setCollapsed] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('gantt-collapsed') || '{}'); } catch { return {}; }
-  });
-  const [density, setDensity] = useState(() => {
-    const v = localStorage.getItem('gantt-density');
-    return v === 'Compact' ? 'Compact' : 'Regular';
-  });
+  const [zoom, setZoom] = useState(uiState?.zoom && ZOOM_LEVELS[uiState.zoom] ? uiState.zoom : 'Month');
+  const [collapsed, setCollapsed] = useState(uiState?.collapsed || {});
+  const [density, setDensity] = useState(uiState?.density === 'Compact' ? 'Compact' : 'Regular');
   const [dropIndicator, setDropIndicatorState] = useState(null);
   const [draggingItem, setDraggingItem] = useState(null);
-  const [activeCalEvents, setActiveCalEvents] = useState(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('gantt-active-cal-events') || '[]');
-      return new Set(Array.isArray(stored) ? stored : []);
-    } catch { return new Set(); }
-  });
+  const [activeCalEvents, setActiveCalEvents] = useState(() => new Set(Array.isArray(uiState?.activeCalEvents) ? uiState.activeCalEvents : []));
   const [missingCalWarning, setMissingCalWarning] = useState(null);
 
   const toggleCalEvent = useCallback((evId) => {
@@ -442,9 +431,7 @@ export default function GanttView({
       return next;
     });
   }, []);
-  const [listWidth, setListWidth] = useState(() =>
-    parseInt(localStorage.getItem('gantt-list-width') || '260', 10)
-  );
+  const [listWidth, setListWidth] = useState(Number.isFinite(uiState?.listWidth) ? uiState.listWidth : 260);
 
   const timelineRef = useRef(null);
   const listRef = useRef(null);
@@ -454,13 +441,28 @@ export default function GanttView({
 
   useEffect(() => { dataRef.current = data; }, [data]);
 
-  // Persist UI state to localStorage
-  useEffect(() => { localStorage.setItem('gantt-zoom', zoom); }, [zoom]);
-  useEffect(() => { localStorage.setItem('gantt-density', density); }, [density]);
-  useEffect(() => { localStorage.setItem('gantt-collapsed', JSON.stringify(collapsed)); }, [collapsed]);
   useEffect(() => {
-    localStorage.setItem('gantt-active-cal-events', JSON.stringify([...activeCalEvents]));
-  }, [activeCalEvents]);
+    if (!uiState) return;
+    if (uiState.zoom && uiState.zoom !== zoom && ZOOM_LEVELS[uiState.zoom]) setZoom(uiState.zoom);
+    if (uiState.density && uiState.density !== density) setDensity(uiState.density === 'Compact' ? 'Compact' : 'Regular');
+    if (uiState.collapsed && JSON.stringify(uiState.collapsed) !== JSON.stringify(collapsed)) setCollapsed(uiState.collapsed);
+    const nextActive = Array.isArray(uiState.activeCalEvents) ? uiState.activeCalEvents : [];
+    if (JSON.stringify([...activeCalEvents]) !== JSON.stringify(nextActive)) {
+      setActiveCalEvents(new Set(nextActive));
+    }
+    if (Number.isFinite(uiState.listWidth) && uiState.listWidth !== listWidth) setListWidth(uiState.listWidth);
+  }, [uiState]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!onUiStateChange) return;
+    onUiStateChange({
+      zoom,
+      density,
+      collapsed,
+      activeCalEvents: [...activeCalEvents],
+      listWidth,
+    });
+  }, [zoom, density, collapsed, activeCalEvents, listWidth, onUiStateChange]);
 
   // Validate stored active calendar events against fetched events
   useEffect(() => {
@@ -525,8 +527,6 @@ export default function GanttView({
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
-      const finalWidth = Math.max(160, Math.min(520, startWidth + mv.clientX - startX));
-      localStorage.setItem('gantt-list-width', String(finalWidth));
     };
 
     document.body.style.cursor = 'col-resize';

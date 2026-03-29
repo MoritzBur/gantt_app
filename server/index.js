@@ -38,6 +38,7 @@ app.use(session({
 
 // API routes
 app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/state', require('./routes/state'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/git', require('./routes/git'));
 
