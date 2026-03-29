@@ -13,7 +13,8 @@ A personal project planning tool that runs entirely on your own machine. Plan yo
 - **Drag to reschedule** — Drag task bars to move them, or pull the left/right handles to resize. Start and end dates show live next to the bar while dragging, including day of week.
 - **Smart labels** — Task names and duration `(Nd)` are shown inside the bar when they fit, or floated to the right when the bar is too narrow.
 - **Calendar overlay** — Connect your calendar via iCal URL or Google OAuth. Events appear as read-only bars in their own lanes above your tasks.
-- **Calendar focus mode** — Double-click any calendar event to activate it. A translucent red band stretches down the full chart so you can instantly see which tasks overlap. Activate multiple events at once.
+- **Calendar focus mode** — Double-click any personal calendar event to activate it. A translucent red band stretches down the full chart so you can instantly see which tasks overlap. Activate multiple events at once.
+- **Real available workdays** — When calendar events are highlighted, task and phase bars show total span, weekdays, and net available workdays after weekends and the selected personal events are taken into account.
 - **Zoom levels** — Day / Week / Month / Quarter views.
 - **Compact density** — Tighter row height for seeing more at once.
 - **Drag to reorder** — Reorder phases and tasks within phases by dragging the left-panel rows.
@@ -30,9 +31,17 @@ Events sit above your Gantt tasks and let you reason about your schedule in cont
 
 ![Week view](docs/screenshots/week-view.png)
 
-**Double-click a calendar event** to highlight it with a red vertical band across all tasks:
+**Double-click a personal calendar event** to highlight it with a red vertical band across all tasks:
 
 ![Calendar overlay active](docs/screenshots/calendar-overlay.png)
+
+While one or more events are active, duration labels update to show:
+
+- `Nd` = full calendar span
+- second `Nd` = weekdays only (weekends removed)
+- third `Nd` = real available workdays after removing both weekends and the highlighted personal calendar events
+
+That makes it much easier to see whether a task that looks like "10 days" on the chart really contains only 6 workable days once life is accounted for.
 
 ---
 
