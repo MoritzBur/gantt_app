@@ -18,7 +18,11 @@ The app is not a desktop-packaged product in this repo yet. It is a cross-platfo
 
 Most Gantt charts only show the dates you typed in.
 
-This app is built for a more practical question: given weekends and the commitments already on your calendar, how much real work time do you actually have?
+A common frustration is building a plan, then bouncing back and forth with your calendar to guess how the work will really fit around existing commitments.
+
+This app is built around a more useful planning question: how much real time is actually available once weekends and your existing calendar commitments are taken into account?
+
+It helps you plan in the context of real life, so your schedule reflects what actually matters instead of only ideal dates.
 
 That makes it useful for students, researchers, freelancers, consultants, and solo builders who want a clear plan without moving to a large multi-user project system.
 
@@ -35,25 +39,31 @@ That makes it useful for students, researchers, freelancers, consultants, and so
 - Optional Git-backed snapshot history for planning data and GUI state
 - Optional external data directory via `GANTT_DATA_DIR`
 
+## Example Views
+
+<p align="center">
+  <img src="docs/screenshots/real-workdays-day-compact.png" alt="Compact day view showing task bars with real available workday counts after weekends and blocker events are removed" width="100%" />
+</p>
+
+Task and phase bars show real available workdays, not just raw calendar span.
+
+<p align="center">
+  <img src="docs/screenshots/history-panel-compact.png" alt="Compact history panel showing Git-backed snapshots, restore options, and read-only history browsing" width="100%" />
+</p>
+
+The optional History panel gives you lightweight Git-backed snapshots when your data directory is a Git repo.
+
 ## Quick Start
 
-If this is your first install, read the detailed Windows, macOS, or Linux instructions below before you start. The summary here is only meant to show the overall flow.
+If this is your first install, use the detailed Windows, macOS, or Linux install section below first. This Quick Start is meant to show what to do once the launcher has started the local app.
 
-1. Install Node.js 20 or newer.
-2. Optionally install Git if you want snapshot history or a private Git-backed data repo. You can add Git later, so you do not need to decide that before your first test run.
-3. Get this repo by cloning it or downloading the ZIP.
-4. Move the repo folder somewhere permanent before you create a launcher.
-5. Run the setup helper for your platform.
-6. Create the normal launcher for your platform.
-7. Start the app from that launcher.
-
-Default helper behavior:
-
-- `setup.ps1` and `setup.sh` install dependencies and create `.env` from `.env.example` if needed.
-- Windows daily use is a shortcut created by `create-windows-shortcut.ps1`.
-- macOS and Linux daily use is a launcher created by `create-launcher.sh`.
-- The main user-facing goal is simple local launch, not choosing between multiple runtime modes.
-- If you move the repo folder later, rerun the launcher helper so it points at the new location.
+1. Start the app from the launcher you created during install, then open your bookmarked local URL in the browser if it does not open automatically.
+2. Click `Connect Calendar`.
+3. For the quickest test, paste an iCal URL and save it. That is the simplest calendar setup, and you can add Git or switch to Google Calendar later.
+4. Create a phase and a task.
+5. In Day view, double-click a calendar entry to toggle it as a blocker and watch the available workday count update.
+6. Drag the end of the task until the available workdays match what you think the task really needs.
+7. Optional: open `History` and save a snapshot once you have a first draft you want to keep.
 
 ## Install On Windows
 
@@ -77,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
 
 8. Double-click the new `Gantt App` desktop shortcut.
 
-That shortcut uses the app icon and starts the single-port app without leaving a PowerShell window open. When the app is ready, Windows shows a notification with the local URL, usually `http://localhost:3000`. If you plan to use the app regularly, bookmark that URL in your browser. You can also pin the shortcut to Start or the taskbar from Windows Explorer.
+That shortcut uses the app icon and starts the single-port app without leaving a PowerShell window open. When the app is ready, Windows shows a notification with the local URL, usually `http://localhost:3000`. Bookmark that URL in your browser if you plan to use the app regularly. You can also pin the shortcut to Start or the taskbar from Windows Explorer.
 
 Git users can skip the ZIP path and clone directly:
 
@@ -112,9 +122,7 @@ Tip: type `cd `, drag the folder into Terminal, then press Return.
 8. Open the created launcher.
 By default this creates `~/Applications/Gantt App.app`, which you can open from Finder and drag to the Dock.
 
-When the app is ready, the launcher shows a macOS notification with the local URL. By default the URL is `http://localhost:3000`.
-
-If you plan to use the app regularly, bookmark that local URL in your browser.
+When the app is ready, the launcher shows a macOS notification with the local URL. By default the URL is `http://localhost:3000`. Bookmark that URL in your browser if you plan to use the app regularly.
 
 Git users can skip the ZIP path and clone directly:
 
@@ -150,9 +158,7 @@ On many desktops you can right-click the folder and choose `Open in Terminal`.
 
 The helper creates a launcher in `~/.local/share/applications` and, if a Desktop folder exists, also creates a desktop shortcut. On some desktops you may need to right-click the desktop shortcut once and choose `Allow Launching`.
 
-When the app is ready, the launcher shows a Linux notification if `notify-send` is available. By default the URL is `http://localhost:3000`.
-
-If you plan to use the app regularly, bookmark that local URL in your browser.
+When the app is ready, the launcher shows a Linux notification if `notify-send` is available. By default the URL is `http://localhost:3000`. Bookmark that URL in your browser if you plan to use the app regularly.
 
 Git users can skip the ZIP path and clone directly:
 
@@ -176,6 +182,7 @@ Launcher behavior:
 - it starts the single-port app on `http://localhost:3000` by default, or your configured `PORT`
 - it waits for the app to be ready
 - it shows the local URL in a platform-native notification where supported
+- it does not force the browser to open by default
 - if the app is already running, it tells you that instead of starting a second copy
 
 If no data files exist yet, the app starts with an empty plan. By default it stores local data in `data/` inside the repo and creates missing files on first save. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
@@ -322,3 +329,16 @@ The redirect URI in Google Cloud must exactly match `http://localhost:<PORT>/api
 - Git-backed snapshots are powerful for technical users, but they depend on Git being installed and available on `PATH`.
 
 ## Credits
+
+This project is built on top of open-source software. In particular, thanks to:
+
+- [Node.js](https://nodejs.org/) for the local runtime
+- [Express](https://expressjs.com/) for the backend server
+- [React](https://react.dev/) for the client UI
+- [Vite](https://vitejs.dev/) for the frontend build and development tooling
+- [wx-react-gantt](https://www.npmjs.com/package/wx-react-gantt) for the Gantt foundation used in the timeline UI
+- [node-ical](https://www.npmjs.com/package/node-ical) for iCal calendar support
+- [googleapis](https://www.npmjs.com/package/googleapis) for Google Calendar integration
+- [html2canvas](https://html2canvas.hertzen.com/) and [jsPDF](https://github.com/parallax/jsPDF) with [jsPDF-AutoTable](https://github.com/simonbengtsson/jsPDF-AutoTable) for PDF export
+
+There are also other direct dependencies used by the app and build pipeline. See [package.json](/home/moritz/dev/gantt_app/package.json) for the full list.
