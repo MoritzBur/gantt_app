@@ -41,16 +41,14 @@ That makes it useful for students, researchers, freelancers, consultants, and so
 2. Optionally install Git if you want snapshot history or a private Git-backed data repo.
 3. Get this repo by cloning it or downloading the ZIP.
 4. Run the setup helper for your platform.
-5. Run the start helper for your platform.
+5. Start the app in the simplest way for your platform.
 6. Open the local UI shown by the script.
 
 Default helper behavior:
 
 - `setup.ps1` and `setup.sh` install dependencies and create `.env` from `.env.example` if needed.
-- `start.ps1` and `start.sh` start the app in development mode for the lightest first run.
-- In development mode the backend runs on `http://localhost:3000` and the UI runs on `http://localhost:5173`.
-
-If you want a single-port run instead, use production mode later with `start.ps1 -Production`, `./start.sh --prod`, or `npm run build && npm start`.
+- Windows daily use is `launch-windows.cmd`, which starts the single-port app and shows a popup with the local URL.
+- The main user-facing goal is simple local launch, not choosing between multiple runtime modes.
 
 ## Install On Windows
 
@@ -75,13 +73,23 @@ Run setup:
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Start the app:
+Start the app for normal daily use:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\start.ps1
+.\launch-windows.cmd
 ```
 
-Then open `http://localhost:5173`.
+That starts the single-port app and shows a popup when it is ready. By default the URL is `http://localhost:3000`.
+
+Optional: create a desktop shortcut:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
+```
+
+You can set a custom icon on the shortcut later, or rerun the shortcut helper with `-IconPath` after you have an `.ico` file.
+
+If you want the shortcut to open the browser too, run the shortcut helper with `-OpenBrowser`.
 
 ## Install On macOS
 
@@ -109,10 +117,10 @@ Run setup:
 Start the app:
 
 ```bash
-./start.sh
+./start.sh --prod
 ```
 
-Then open `http://localhost:5173`.
+Then open `http://localhost:3000`.
 
 ## Install On Linux
 
@@ -140,32 +148,43 @@ Run setup:
 Start the app:
 
 ```bash
-./start.sh
+./start.sh --prod
 ```
 
-Then open `http://localhost:5173`.
+Then open `http://localhost:3000`.
 
 ## Running The App
 
-Recommended first run:
+Simple everyday use:
+
+- Windows: double-click `launch-windows.cmd` or a shortcut created by `create-windows-shortcut.ps1`
+- macOS/Linux: `./start.sh --prod`
+
+Windows launcher behavior:
+
+- it starts the single-port app on `http://localhost:3000` by default, or your configured `PORT`
+- it waits for the app to be ready
+- it shows a popup telling you the local URL
+- if the app is already running, it tells you that instead of starting a second copy
+
+If no data files exist yet, the app starts with an empty plan. By default it stores local data in `data/` inside the repo and creates missing files on first save. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
+
+Single-port runs serve the frontend and API from the same local port, so you open `http://localhost:3000` unless you changed `PORT` in `.env`.
+
+## For Contributors
+
+If you are working on the app itself, you can use the development servers:
 
 - Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1`
 - macOS/Linux: `./start.sh`
 
-That starts the repo in development mode:
+That runs Express on `http://localhost:3000` and Vite on `http://localhost:5173`.
 
-- Express backend: `http://localhost:3000`
-- Vite frontend: `http://localhost:5173`
-
-If no data files exist yet, the app starts with an empty plan. By default it stores local data in `data/` inside the repo and creates missing files on first save. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
-
-Single-port production-style run:
+If you want a direct single-port console run instead of the normal launcher flow:
 
 - Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1 -Production`
 - macOS/Linux: `./start.sh --prod`
 - Manual equivalent: `npm run build` then `npm start`
-
-In production mode the Express server serves the built frontend from the same port, so you open `http://localhost:3000` unless you changed `PORT` in `.env`.
 
 Optional calendar setup:
 
@@ -224,13 +243,13 @@ Autostart is intentionally separate from normal launch. Nothing in setup enables
 
 The default workflow is still:
 
-- run the start script manually
+- run the launcher or start script manually
 - open the browser yourself
 - stop the app when you are done
 
 If you want autostart later, keep it per-user and easy to undo:
 
-- Windows: add a shortcut or a small wrapper that runs `powershell.exe -ExecutionPolicy Bypass -File "<repo>\\start.ps1"` from your Startup folder, or use a Scheduled Task if you want a quieter background launch
+- Windows: add a shortcut to `launch-windows.cmd -Quiet` in your Startup folder, or use a Scheduled Task if you want a quieter background launch
 - macOS: use Login Items for a wrapper app or terminal workflow, or create a LaunchAgent that runs `start.sh`
 - Linux: use your desktop environment's autostart settings, a `.desktop` entry, or a user service
 
@@ -250,6 +269,14 @@ Run them with:
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
+
+**The Windows launcher says the app is already running**
+
+Open the URL shown in the popup. If you expected a fresh start, close the existing Gantt App PowerShell window first and then launch again.
+
+**The Windows launcher says the port is already in use**
+
+Another app is already using that port. Change `PORT` in `.env` or stop the other app.
 
 **`setup.sh` or `start.sh` is not executable**
 

@@ -89,4 +89,5 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 
 Write-Step ""
 Write-Step "Setup complete."
-Write-Step "Start the app with powershell -ExecutionPolicy Bypass -File .\start.ps1"
+Write-Step "Start the app with .\launch-windows.cmd"
+Write-Step "If you want a desktop shortcut, run powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1"
