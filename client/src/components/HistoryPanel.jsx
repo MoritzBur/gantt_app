@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function HistoryPanel({ onClose, onViewSnapshot, gitDirty, onCommitted }) {
+export default function HistoryPanel({ onClose, onViewSnapshot, gitStatus, onCommitted }) {
   const [commits, setCommits] = useState(null);
   const [loadingCommits, setLoadingCommits] = useState(true);
   const [loadingHash, setLoadingHash] = useState(null);
@@ -8,6 +8,12 @@ export default function HistoryPanel({ onClose, onViewSnapshot, gitDirty, onComm
   const [committing, setCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState(null); // { ok, text } | null
   const msgRef = useRef(null);
+  const snapshotStatusKnown = !!gitStatus?.loaded;
+  const snapshotsConfigured = !!gitStatus?.available && !!gitStatus?.repo;
+  const snapshotsReady = snapshotStatusKnown && snapshotsConfigured;
+  const statusMessage = !snapshotStatusKnown
+    ? 'Checking whether Git-backed snapshots are available...'
+    : gitStatus?.message;
 
   const loadCommits = () => {
     setLoadingCommits(true);
@@ -25,8 +31,11 @@ export default function HistoryPanel({ onClose, onViewSnapshot, gitDirty, onComm
 
   useEffect(() => {
     loadCommits();
-    msgRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (snapshotsReady) msgRef.current?.focus();
+  }, [snapshotsReady]);
 
   const handleCommit = async () => {
     if (!commitMsg.trim()) return;
@@ -85,30 +94,37 @@ export default function HistoryPanel({ onClose, onViewSnapshot, gitDirty, onComm
         <div className="history-commit-form">
           <div className="history-commit-form-label">
             <span>Create snapshot</span>
-            {gitDirty
+            {!snapshotStatusKnown
+              ? <span className="history-disabled-badge">Checking...</span>
+              : snapshotsReady
+              ? (gitStatus.dirty
               ? <span className="history-dirty-badge">● unsaved changes</span>
-              : <span className="history-clean-badge">✓ up to date</span>
+              : <span className="history-clean-badge">✓ up to date</span>)
+              : <span className="history-disabled-badge">Snapshot setup needed</span>
             }
           </div>
+          {statusMessage && (
+            <p className="history-setup-note">{statusMessage}</p>
+          )}
           <textarea
             ref={msgRef}
             className="history-commit-input"
-            placeholder="Describe what changed…"
+            placeholder={snapshotsReady ? 'Describe what changed...' : 'Snapshots become available when Git is installed and the data directory is a Git repo.'}
             value={commitMsg}
             onChange={e => { setCommitMsg(e.target.value); setCommitResult(null); }}
             onKeyDown={handleKeyDown}
             rows={2}
-            disabled={committing}
+            disabled={committing || !snapshotsReady}
           />
           <div className="history-commit-form-actions">
             <button
               className="btn btn-primary btn-small"
               onClick={handleCommit}
-              disabled={committing || !commitMsg.trim()}
+              disabled={committing || !commitMsg.trim() || !snapshotsReady}
             >
-              {committing ? 'Committing…' : 'Commit snapshot'}
+              {committing ? 'Committing...' : 'Commit snapshot'}
             </button>
-            <span className="history-commit-hint">⌘↵</span>
+            <span className="history-commit-hint">Ctrl/Cmd+Enter</span>
             {commitResult && (
               <span className={commitResult.ok ? 'history-commit-ok' : 'history-commit-err'}>
                 {commitResult.text}
@@ -119,8 +135,19 @@ export default function HistoryPanel({ onClose, onViewSnapshot, gitDirty, onComm
 
         {/* Commit list */}
         <div className="history-panel-body">
-          {loadingCommits && <p className="history-state-msg">Loading…</p>}
-          {!loadingCommits && commits && commits.length === 0 && (
+          {loadingCommits && <p className="history-state-msg">Loading...</p>}
+          {!loadingCommits && snapshotStatusKnown && !snapshotsConfigured && (
+            <div className="history-empty-state">
+              <p>Snapshot history is not active yet.</p>
+              <p className="history-hint">
+                Basic planning still works without Git. For snapshots, install Git and make sure the app's data directory is a Git repository.
+              </p>
+              <p className="history-hint">
+                If you want to keep planning data separate from this software repo, set <code>GANTT_DATA_DIR</code> in <code>.env</code> and run <code>git init</code> in that directory.
+              </p>
+            </div>
+          )}
+          {!loadingCommits && snapshotsReady && commits && commits.length === 0 && (
             <div className="history-empty-state">
               <p>No snapshots yet.</p>
               <p className="history-hint">

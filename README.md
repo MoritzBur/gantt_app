@@ -2,247 +2,284 @@
 
 A local-first Gantt planner for people who need a schedule that reflects real life, not just ideal dates.
 
-This app lets you plan tasks alongside your actual calendar, double-click calendar events to treat them as blockers, and see task bars update to show how many workdays are really available inside a task window.
+It lets you plan tasks alongside your actual calendar, highlight events as blockers, and see how many real workdays remain inside a task window after weekends and selected calendar events are removed.
 
 <p align="center">
-  <img src="docs/screenshots/overview-full-compact.png" alt="Compact day view showing the full Gantt app UI with task list, calendar lane, highlighted blockers, and task bars" width="100%" />
+  <img src="docs/screenshots/overview-full-compact.png" alt="Compact day view showing the Gantt app UI with task list, calendar lane, highlighted blockers, and task bars" width="100%" />
 </p>
 
-## Why This Is Useful
+## What This App Is
 
-Most Gantt charts answer: "What dates did I put on the chart?"
+This is a focused personal planning tool. It runs locally on your own machine, stores your data in local JSON files, and optionally uses Git to keep a lightweight snapshot history of planning changes.
 
-This tool is built to answer a more practical question: "Given weekends and the commitments already on my calendar, how much real work time do I actually have?"
+The app is not a desktop-packaged product in this repo yet. It is a cross-platform Node/React app that you run locally on Windows, macOS, or Linux.
 
-When calendar events are highlighted, task and phase labels show:
+## Why It Is Useful
 
-- `Nd` total calendar span
-- second `Nd` weekdays only
-- third `Nd` net available workdays after highlighted calendar events are removed
+Most Gantt charts only show the dates you typed in.
 
-That is the core idea of the app. A task may span nine calendar days, contain seven weekdays, and still leave only four realistically available workdays once calendar blockers are taken into account.
+This app is built for a more practical question: given weekends and the commitments already on your calendar, how much real work time do you actually have?
 
-<p align="center">
-  <img src="docs/screenshots/real-workdays-day-compact.png" alt="Zoomed-in day view showing highlighted calendar blockers and a task label with total span, weekdays, and net available workdays" width="100%" />
-</p>
+That makes it useful for students, researchers, freelancers, consultants, and solo builders who want a clear plan without moving to a large multi-user project system.
 
-## Best Fit
+## Key Features
 
-This app is a good fit for:
-
-- students and researchers planning around classes, meetings, and deadlines
-- solo builders, consultants, and freelancers planning around a real personal calendar
-- anyone who likes the clarity of a Gantt chart but does not want a large multi-user PM system
-
-It is not trying to be a full enterprise project platform.
-
-## Current Features
-
-- local-first planning on your own machine
-- phases, tasks, and milestones on one timeline
-- calendar overlay from iCal feeds or Google Calendar OAuth
-- double-click calendar event highlighting across the chart
-- real available workday calculation on task and phase labels
-- task notes stored with the task itself
-- day, week, month, and quarter views
-- regular and compact density modes
-- drag-to-move, drag-to-resize, and drag-to-reorder editing
+- Local-first planning on your own machine
+- Phases, tasks, and milestones on one timeline
+- Day, week, month, and quarter views
+- Real available workday calculations on task and phase labels
+- Calendar overlay from iCal feeds or Google Calendar OAuth
+- Task notes stored with the task itself
+- Drag-to-move, drag-to-resize, and drag-to-reorder editing
 - PDF export
-- git-backed snapshot history for planning data and GUI state
-- external private data directory support via `GANTT_DATA_DIR`
+- Optional Git-backed snapshot history for planning data and GUI state
+- Optional external data directory via `GANTT_DATA_DIR`
 
-## Snapshot History That Stays With The Plan
+## Quick Start
 
-If your data directory is a git repository, the app can use git as a lightweight snapshot system for planning changes. That gives you named checkpoints for both planning data and GUI state without turning the app into a hosted service.
+1. Install Node.js 20 or newer.
+2. Optionally install Git if you want snapshot history or a private Git-backed data repo.
+3. Get this repo by cloning it or downloading the ZIP.
+4. Run the setup helper for your platform.
+5. Run the start helper for your platform.
+6. Open the local UI shown by the script.
 
-<p align="center">
-  <img src="docs/screenshots/history-panel-compact.png" alt="History panel showing git-backed planning snapshots inside the app" width="100%" />
-</p>
+Default helper behavior:
 
-From the UI you can:
+- `setup.ps1` and `setup.sh` install dependencies and create `.env` from `.env.example` if needed.
+- `start.ps1` and `start.sh` start the app in development mode for the lightest first run.
+- In development mode the backend runs on `http://localhost:3000` and the UI runs on `http://localhost:5173`.
 
-- create named snapshots
-- browse recent snapshots
-- open older states read-only
-- restore an earlier snapshot as the current plan
+If you want a single-port run instead, use production mode later with `start.ps1 -Production`, `./start.sh --prod`, or `npm run build && npm start`.
 
-## Keep Notes On The Task Itself
+## Install On Windows
 
-Tasks can carry their own notes, so planning context stays attached to the work instead of getting lost in a separate document or chat thread.
+Install:
 
-<p align="center">
-  <img src="docs/screenshots/task-editor-notes.png" alt="Task editor showing notes stored directly on a task" width="100%" />
-</p>
+- Node.js 20+ from [nodejs.org](https://nodejs.org/)
+- Optional: Git from [git-scm.com](https://git-scm.com/) if you want snapshot history or a private Git-backed data repo
 
-## Honest Scope
+Get the repo:
 
-This is a focused planning tool for personal and self-managed work.
+- Download the ZIP from GitHub and extract it, or
+- Clone it with Git:
 
-It is intentionally not a full PM suite. There is no team collaboration model, permissions system, comment workflow, resource management layer, or enterprise reporting stack. If that is what you need, this is probably the wrong tool.
+```powershell
+git clone https://github.com/MoritzBur/gantt_app.git
+cd gantt_app
+```
 
-## Install
+Run setup:
 
-### Requirements
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
 
-- **Node.js 20+**: [nodejs.org](https://nodejs.org)
+Start the app:
 
-### Clone and install
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+Then open `http://localhost:5173`.
+
+## Install On macOS
+
+Install:
+
+- Node.js 20+ from [nodejs.org](https://nodejs.org/)
+- Optional: Git if you want snapshot history or a private Git-backed data repo
+
+Get the repo:
+
+- Download the ZIP from GitHub and extract it, or
+- Clone it with Git:
 
 ```bash
 git clone https://github.com/MoritzBur/gantt_app.git
 cd gantt_app
-npm install
-cp .env.example .env
 ```
 
-At minimum, set:
+Run setup:
+
+```bash
+./setup.sh
+```
+
+Start the app:
+
+```bash
+./start.sh
+```
+
+Then open `http://localhost:5173`.
+
+## Install On Linux
+
+Install:
+
+- Node.js 20+ using your distro package, NodeSource, nvm, Volta, or another normal Linux install path
+- Optional: Git if you want snapshot history or a private Git-backed data repo
+
+Get the repo:
+
+- Download the ZIP from GitHub and extract it, or
+- Clone it with Git:
+
+```bash
+git clone https://github.com/MoritzBur/gantt_app.git
+cd gantt_app
+```
+
+Run setup:
+
+```bash
+./setup.sh
+```
+
+Start the app:
+
+```bash
+./start.sh
+```
+
+Then open `http://localhost:5173`.
+
+## Running The App
+
+Recommended first run:
+
+- Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1`
+- macOS/Linux: `./start.sh`
+
+That starts the repo in development mode:
+
+- Express backend: `http://localhost:3000`
+- Vite frontend: `http://localhost:5173`
+
+If no data files exist yet, the app starts with an empty plan. By default it stores local data in `data/` inside the repo and creates missing files on first save. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
+
+Single-port production-style run:
+
+- Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1 -Production`
+- macOS/Linux: `./start.sh --prod`
+- Manual equivalent: `npm run build` then `npm start`
+
+In production mode the Express server serves the built frontend from the same port, so you open `http://localhost:3000` unless you changed `PORT` in `.env`.
+
+Optional calendar setup:
+
+- The app works without any calendar integration.
+- iCal is the simplest option and only needs `ICAL_URLS` in `.env`.
+- Google Calendar OAuth needs `CALENDAR_BACKEND=google`, Google client credentials, and a redirect URI that matches `http://localhost:<PORT>/api/calendar/callback`.
+
+## Optional: Git-Backed Snapshots And Private Data Repo
+
+The app works without Git. Git is only required for the snapshot/history workflow.
+
+If the app's data directory is a Git repository:
+
+- the History panel can create named snapshots
+- the app can browse recent snapshots
+- you can open older states read-only
+- you can restore an older snapshot as the current plan
+
+The app-created snapshot flow stages and commits:
+
+- `tasks.json`
+- `state.json`
+
+Other files in the same data directory, such as `calendar-config.json` or `tokens.json`, are not included in app-created snapshots.
+
+If you want to keep planning data separate from the software repo, set `GANTT_DATA_DIR` in `.env` to your own private directory. That directory can also be its own private Git repo.
+
+Example `.env` values:
 
 ```env
-SESSION_SECRET=any-long-random-string
+# Windows example
+GANTT_DATA_DIR=C:/Users/you/Documents/gantt_app_data
+
+# macOS example
+# GANTT_DATA_DIR=/Users/you/Documents/gantt_app_data
+
+# Linux example
+# GANTT_DATA_DIR=/home/you/gantt_app_data
 ```
 
-### Run in development
+Typical setup:
 
 ```bash
-npm run dev
-```
-
-By default this starts:
-
-- the Express backend on `http://localhost:3000`
-- the Vite frontend on `http://localhost:5173`
-
-Open `http://localhost:5173`.
-
-### Build and run
-
-```bash
-npm run build
-npm start
-```
-
-In production mode the Express server serves the built frontend from the same port.
-
-## Private Data Repo With `GANTT_DATA_DIR`
-
-The software repo can be public while your actual planning data stays private.
-
-Set `GANTT_DATA_DIR` to a directory outside this repo:
-
-```env
-GANTT_DATA_DIR=/absolute/path/to/private/gantt_app_data
-```
-
-That external directory can be its own private git repository. A typical layout looks like this:
-
-```text
-gantt_app_data/
-├── tasks.json
-├── state.json
-├── calendar-config.json
-└── tokens.json
-```
-
-What this separation gives you:
-
-- this public repo contains the app source code
-- your private data repo contains your tasks, UI state, and calendar credentials/config
-- the app can be published publicly without exposing planning data
-
-Important detail:
-
-- the built-in snapshot UI stages and commits `tasks.json` and `state.json`
-- `calendar-config.json` and `tokens.json` can live in the same private repo, but they are not included in app-created snapshots
-
-Recommended setup:
-
-```bash
-mkdir -p /home/you/private/gantt_app_data
-cd /home/you/private/gantt_app_data
+mkdir -p /path/to/your/gantt_app_data
+cd /path/to/your/gantt_app_data
 git init
 ```
 
-Then add `GANTT_DATA_DIR` to `.env` and restart the app.
+Then set `GANTT_DATA_DIR` in `.env` and restart the app.
 
-## Calendar Setup
+This is a strong setup for technical users because it gives you private local data, versioned planning history, and optional syncing to your own remote if you want it, while keeping the app source repo separate.
 
-The calendar overlay is optional. The app still works as a plain local Gantt planner without it.
+## Optional: Autostart On Login
 
-### Option A: iCal feed
+Autostart is intentionally separate from normal launch. Nothing in setup enables it automatically.
 
-This is the simplest setup. It works with Google Calendar, Apple Calendar, Outlook, Fastmail, and other services that expose an iCal feed.
+The default workflow is still:
 
-Add this to `.env`:
+- run the start script manually
+- open the browser yourself
+- stop the app when you are done
 
-```env
-CALENDAR_BACKEND=ical
-SESSION_SECRET=any-long-random-string
-ICAL_URLS=https://calendar.google.com/calendar/ical/...your-private-url.../basic.ics
-```
+If you want autostart later, keep it per-user and easy to undo:
 
-If you use multiple calendars, separate the URLs with commas.
+- Windows: add a shortcut or a small wrapper that runs `powershell.exe -ExecutionPolicy Bypass -File "<repo>\\start.ps1"` from your Startup folder, or use a Scheduled Task if you want a quieter background launch
+- macOS: use Login Items for a wrapper app or terminal workflow, or create a LaunchAgent that runs `start.sh`
+- Linux: use your desktop environment's autostart settings, a `.desktop` entry, or a user service
 
-### Option B: Google Calendar OAuth
-
-Use this if you want Google Calendar API access instead of a secret iCal URL.
-
-```env
-CALENDAR_BACKEND=google
-SESSION_SECRET=any-long-random-string
-GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_CALENDAR_IDS=your.email@gmail.com
-```
-
-Then click **Connect Calendar** in the app.
-
-<details>
-<summary>Google OAuth setup</summary>
-
-1. Create a project in [Google Cloud Console](https://console.cloud.google.com)
-2. Enable the **Google Calendar API**
-3. Create an OAuth 2.0 Client ID for a web application
-4. Add this redirect URI exactly: `http://localhost:3000/api/calendar/callback`
-5. Copy the client ID and secret into `.env`
-6. Start the app and sign in through **Connect Calendar**
-
-</details>
+Some users want the backend to start quietly without opening a browser on login. Keep those concerns separate. This repo does not force browser-opening as part of autostart.
 
 ## Troubleshooting
 
-**Missing required environment variable**
+**`node` or `npm` is not found**
 
-Copy `.env.example` to `.env` and set `SESSION_SECRET`. For iCal mode, `SESSION_SECRET` and `ICAL_URLS` are enough.
+Install Node.js 20+ first, then rerun the setup helper.
 
-**Calendar still shows "Connect Calendar" after adding `ICAL_URLS`**
+**PowerShell blocks `setup.ps1` or `start.ps1`**
 
-Check that the URL is correct and reachable. The server log prints `[iCal]` errors if loading fails.
+Run them with:
 
-**Google shows `redirect_uri_mismatch`**
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
 
-Your Google Cloud OAuth client must use exactly:
-`http://localhost:3000/api/calendar/callback`
+**`setup.sh` or `start.sh` is not executable**
+
+Run once:
+
+```bash
+chmod +x setup.sh start.sh
+```
+
+**Missing `.env` or missing `SESSION_SECRET`**
+
+Run the setup helper. If `.env` already exists, make sure it contains a real `SESSION_SECRET`.
 
 **Port already in use**
 
-Set `PORT=3001` in `.env`. If you use Google OAuth, update the Google redirect URI to match the new port.
+Set a different `PORT` in `.env`, then restart the app. If you use Google Calendar OAuth, update the redirect URI in Google Cloud to `http://localhost:<PORT>/api/calendar/callback`.
 
-## Future Directions
+**History panel says snapshots are unavailable**
 
-These are ideas, not current features:
+Basic planning still works. For snapshots, install Git and make sure the app's data directory is a Git repository.
 
-- writing planned work blocks back to a calendar instead of only reading calendar data
-- better handling of multiple calendars with clearer separation of personal, work, and project time
-- cross-project planning where overlapping projects compete for the same real availability
-- richer capacity planning beyond simple date blocking
-- desktop packaging for macOS, Windows, and Linux
+**Google Calendar shows `redirect_uri_mismatch`**
+
+The redirect URI in Google Cloud must exactly match `http://localhost:<PORT>/api/calendar/callback` for the port you are using.
+
+## Scope / Limitations
+
+- This repo is a local app, not a native packaged desktop installer yet.
+- It is designed for personal and self-managed work, not team collaboration.
+- Calendar overlay is optional, but Google OAuth still requires a localhost callback setup.
+- Git-backed snapshots are powerful for technical users, but they depend on Git being installed and available on `PATH`.
 
 ## Credits
-
-This project is built on well-established open-source tools and APIs:
-
-- **React** and **Vite** for the frontend
-- **Express** for the local backend
-- **node-ical** for iCal calendar feeds
-- **googleapis** for Google Calendar OAuth access
-- **html2canvas**, **jsPDF**, and **jspdf-autotable** for PDF export

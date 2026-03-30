@@ -2,12 +2,15 @@
   "name": "gantt-app",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently --kill-others \"npm run server\" \"npm run client\"",
     "server": "node server/index.js",
     "client": "vite client/",
     "build": "vite build client/",
-    "start": "node server/index.js"
+    "start": "node server/start-production.js"
   },
   "dependencies": {
     "concurrently": "^8.2.2",

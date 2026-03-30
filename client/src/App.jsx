@@ -36,7 +36,13 @@ export default function App() {
   const [calendarConfig, setCalendarConfig] = useState(null);
 
   // Git status
-  const [gitDirty, setGitDirty] = useState(false);
+  const [gitStatus, setGitStatus] = useState({
+    loaded: false,
+    available: false,
+    repo: false,
+    dirty: false,
+    message: null,
+  });
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
   // Historical snapshot — { data, hash, date, message } or null
@@ -131,8 +137,20 @@ export default function App() {
   const refreshGitStatus = useCallback(() => {
     fetch('/api/git/status')
       .then(r => r.json())
-      .then(s => setGitDirty(s.dirty))
-      .catch(() => {});
+      .then(s => setGitStatus({
+        loaded: true,
+        available: !!s.available,
+        repo: !!s.repo,
+        dirty: !!s.dirty,
+        message: s.message || null,
+      }))
+      .catch(() => {
+        setGitStatus(prev => ({
+          ...prev,
+          loaded: true,
+          message: 'Snapshot status is temporarily unavailable.',
+        }));
+      });
   }, []);
 
   useEffect(() => {
@@ -605,7 +623,7 @@ export default function App() {
           {saveStatus === 'failed' && (
             <span className="save-indicator failed">Save failed ✗</span>
           )}
-          {gitDirty && !isHistorical && (
+          {gitStatus.dirty && !isHistorical && (
             <button
               className="btn btn-ghost btn-small git-dirty-btn"
               onClick={() => setShowHistoryPanel(true)}
@@ -724,7 +742,7 @@ export default function App() {
         <HistoryPanel
           onClose={() => setShowHistoryPanel(false)}
           onViewSnapshot={setHistoricalSnapshot}
-          gitDirty={gitDirty}
+          gitStatus={gitStatus}
           onCommitted={refreshGitStatus}
         />
       )}

@@ -1565,6 +1565,21 @@ a:hover {
   color: var(--success);
 }
 
+.history-disabled-badge {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+}
+
+.history-setup-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .history-commit-input {
   background: var(--bg-elevated);
   border: 1px solid var(--border);

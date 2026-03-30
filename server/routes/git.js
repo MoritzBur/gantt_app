@@ -9,7 +9,54 @@ const STATE_FILE = store.FILES.state;
 const TRACKED_FILES = ['tasks.json', 'state.json'];
 
 function runGit(args, callback) {
+  try {
+    store.ensureDataDir();
+  } catch (err) {
+    process.nextTick(() => callback(err));
+    return;
+  }
   execFile('git', args, { cwd: DATA_ROOT }, callback);
+}
+
+function snapshotUnavailable(message, extras = {}) {
+  return {
+    available: extras.available ?? false,
+    repo: extras.repo ?? false,
+    dirty: false,
+    message,
+  };
+}
+
+function classifyGitFailure(err, stderr = '') {
+  if (err?.code === 'ENOENT') {
+    return snapshotUnavailable(
+      'Git is not installed or not available on PATH. The planner still works, but snapshot history needs Git.',
+      { available: false, repo: false }
+    );
+  }
+
+  const output = `${stderr || ''}\n${err?.message || ''}`;
+  if (/not a git repository/i.test(output)) {
+    return snapshotUnavailable(
+      'Snapshot history is available when the current data directory is a Git repository.',
+      { available: true, repo: false }
+    );
+  }
+
+  return snapshotUnavailable(
+    'Git is available, but snapshot history is not ready in the current data directory.',
+    { available: true, repo: false }
+  );
+}
+
+function ensureGitRepo(res, callback) {
+  runGit(['rev-parse', '--is-inside-work-tree'], (repoErr, stdout, stderr) => {
+    if (repoErr || stdout.trim() !== 'true') {
+      const status = classifyGitFailure(repoErr || new Error('Not inside a Git work tree'), stderr);
+      return res.status(status.available ? 409 : 503).json({ error: status.message });
+    }
+    callback();
+  });
 }
 
 function ensureTrackedFiles() {
@@ -18,13 +65,27 @@ function ensureTrackedFiles() {
   if (!require('fs').existsSync(STATE_FILE)) store.writeUiState(store.readUiState());
 }
 
-// GET /api/git/status — { dirty: bool, repo: bool }
+// GET /api/git/status — { available, repo, dirty, message }
 router.get('/status', (_req, res) => {
-  runGit(['rev-parse', '--is-inside-work-tree'], (repoErr) => {
-    if (repoErr) return res.json({ dirty: false, repo: false });
-    runGit(['status', '--porcelain', '--', ...TRACKED_FILES], (err, stdout) => {
-      if (err) return res.json({ dirty: false, repo: true });
-      res.json({ dirty: stdout.trim().length > 0, repo: true });
+  runGit(['rev-parse', '--is-inside-work-tree'], (repoErr, stdout, stderr) => {
+    if (repoErr || stdout.trim() !== 'true') {
+      return res.json(classifyGitFailure(repoErr || new Error('Not inside a Git work tree'), stderr));
+    }
+    runGit(['status', '--porcelain', '--', ...TRACKED_FILES], (err, statusStdout) => {
+      if (err) {
+        return res.json({
+          available: true,
+          repo: true,
+          dirty: false,
+          message: 'Git is available, but the current snapshot status could not be read.',
+        });
+      }
+      res.json({
+        available: true,
+        repo: true,
+        dirty: statusStdout.trim().length > 0,
+        message: null,
+      });
     });
   });
 });
@@ -72,18 +133,23 @@ router.post('/commit', (req, res) => {
   if (!message) {
     return res.status(400).json({ error: 'Commit message is required' });
   }
-  ensureTrackedFiles();
-  runGit(['add', ...TRACKED_FILES], (addErr) => {
-    if (addErr) return res.status(500).json({ error: addErr.message });
-    runGit(['commit', '-m', message], (commitErr, stdout, stderr) => {
-      const output = `${stdout || ''}\n${stderr || ''}`.trim();
-      if (commitErr) {
-        if (commitErr.message.includes('nothing to commit') || output.includes('nothing to commit')) {
-          return res.json({ ok: true, output: 'Nothing to commit.' });
-        }
-        return res.status(500).json({ error: commitErr.message });
+  ensureGitRepo(res, () => {
+    ensureTrackedFiles();
+    runGit(['add', ...TRACKED_FILES], (addErr, _addStdout, addStderr) => {
+      if (addErr) {
+        const details = classifyGitFailure(addErr, addStderr);
+        return res.status(details.available ? 500 : 503).json({ error: details.message });
       }
-      res.json({ ok: true, output });
+      runGit(['commit', '-m', message], (commitErr, stdout, stderr) => {
+        const output = `${stdout || ''}\n${stderr || ''}`.trim();
+        if (commitErr) {
+          if (commitErr.message.includes('nothing to commit') || output.includes('nothing to commit')) {
+            return res.json({ ok: true, output: 'Nothing to commit.' });
+          }
+          return res.status(500).json({ error: output || commitErr.message });
+        }
+        res.json({ ok: true, output });
+      });
     });
   });
 });

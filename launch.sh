@@ -1,16 +1,9 @@
-#!/bin/bash
-export PATH="/home/moritz/.nvm/versions/node/v24.14.0/bin:$PATH"
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Start the service if it's not already running
-systemctl --user start gantt-app
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Wait for Vite to be ready (up to 15 seconds)
-for i in $(seq 1 30); do
-  sleep 0.5
-  if nc -z localhost 5173 2>/dev/null; then
-    google-chrome "http://localhost:5173"
-    exit 0
-  fi
-done
+echo "launch.sh is a legacy wrapper."
+echo "The primary documented launcher is ./start.sh."
 
-notify-send "Gantt App" "Server failed to start."
+exec "$SCRIPT_DIR/start.sh" "$@"

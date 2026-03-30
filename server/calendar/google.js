@@ -1,14 +1,19 @@
 const { google } = require('googleapis');
 const store = require('../data-store');
 
-const REDIRECT_URI = 'http://localhost:3000/api/calendar/callback';
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
+
+function getRedirectUri() {
+  if (process.env.GOOGLE_REDIRECT_URI) return process.env.GOOGLE_REDIRECT_URI;
+  const port = process.env.PORT || 3000;
+  return `http://localhost:${port}/api/calendar/callback`;
+}
 
 function createOAuthClient() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    REDIRECT_URI
+    getRedirectUri()
   );
 }
 
