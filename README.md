@@ -1,4 +1,4 @@
-# Gantt App
+# <img src="icons/favicon.svg" alt="Gantt App icon" width="28" /> Gantt App
 
 A local-first Gantt planner for people who need a schedule that reflects real life, not just ideal dates.
 
@@ -37,134 +37,145 @@ That makes it useful for students, researchers, freelancers, consultants, and so
 
 ## Quick Start
 
+If this is your first install, read the detailed Windows, macOS, or Linux instructions below before you start. The summary here is only meant to show the overall flow.
+
 1. Install Node.js 20 or newer.
-2. Optionally install Git if you want snapshot history or a private Git-backed data repo.
+2. Optionally install Git if you want snapshot history or a private Git-backed data repo. You can add Git later, so you do not need to decide that before your first test run.
 3. Get this repo by cloning it or downloading the ZIP.
-4. Run the setup helper for your platform.
-5. Start the app in the simplest way for your platform.
-6. Open the local UI shown by the script.
+4. Move the repo folder somewhere permanent before you create a launcher.
+5. Run the setup helper for your platform.
+6. Create the normal launcher for your platform.
+7. Start the app from that launcher.
 
 Default helper behavior:
 
 - `setup.ps1` and `setup.sh` install dependencies and create `.env` from `.env.example` if needed.
-- Windows daily use is a shortcut created by `create-windows-shortcut.ps1`, or `launch-windows.cmd` if you prefer a manual terminal entrypoint.
+- Windows daily use is a shortcut created by `create-windows-shortcut.ps1`.
+- macOS and Linux daily use is a launcher created by `create-launcher.sh`.
 - The main user-facing goal is simple local launch, not choosing between multiple runtime modes.
+- If you move the repo folder later, rerun the launcher helper so it points at the new location.
 
 ## Install On Windows
 
-Install:
-
-- Node.js 20+ from [nodejs.org](https://nodejs.org/)
-- Optional: Git from [git-scm.com](https://git-scm.com/) if you want snapshot history or a private Git-backed data repo
-
-Get the repo:
-
-- Download the ZIP from GitHub and extract it, or
-- Clone it with Git:
-
-```powershell
-git clone https://github.com/MoritzBur/gantt_app.git
-cd gantt_app
-```
-
-Run setup:
+1. Install Node.js 20+ from [nodejs.org](https://nodejs.org/).
+2. Optional: install Git from [git-scm.com](https://git-scm.com/) if you want snapshot history or a private Git-backed data repo. You can do this later.
+3. Download this repo as a ZIP and extract it.
+4. Move the extracted folder somewhere permanent before you continue.
+Suggested examples: `C:\Users\you\Programs\Gantt App` or `C:\Users\you\Documents\Gantt App`
+5. Open that folder in File Explorer, click the address bar, type `powershell`, and press Enter.
+6. Run setup:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-Start the app for normal daily use:
+7. Create the launcher shortcut:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
 ```
 
-That creates a desktop shortcut with the Gantt App icon. Double-click the shortcut to start the app without leaving a PowerShell window open.
+8. Double-click the new `Gantt App` desktop shortcut.
 
-If you prefer not to create a shortcut, you can still start the app manually:
+That shortcut uses the app icon and starts the single-port app without leaving a PowerShell window open. When the app is ready, Windows shows a notification with the local URL, usually `http://localhost:3000`. If you plan to use the app regularly, bookmark that URL in your browser. You can also pin the shortcut to Start or the taskbar from Windows Explorer.
+
+Git users can skip the ZIP path and clone directly:
 
 ```powershell
-.\launch-windows.cmd
+git clone https://github.com/MoritzBur/gantt_app.git
+cd gantt_app
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
 ```
-
-When the app is ready, Windows shows a notification with the local URL. By default the URL is `http://localhost:3000`.
-
-You can pin the created shortcut to Start or the taskbar from Windows Explorer. If you want the shortcut to open the browser too, rerun the shortcut helper with `-OpenBrowser`.
 
 ## Install On macOS
 
-Install:
-
-- Node.js 20+ from [nodejs.org](https://nodejs.org/)
-- Optional: Git if you want snapshot history or a private Git-backed data repo
-
-Get the repo:
-
-- Download the ZIP from GitHub and extract it, or
-- Clone it with Git:
-
-```bash
-git clone https://github.com/MoritzBur/gantt_app.git
-cd gantt_app
-```
-
-Run setup:
+1. Install Node.js 20+ from [nodejs.org](https://nodejs.org/).
+2. Optional: install Git if you want snapshot history or a private Git-backed data repo. You can do this later.
+3. Download this repo as a ZIP and extract it.
+4. Move the extracted folder somewhere permanent before you continue.
+Suggested examples: `~/Applications/Gantt App` or `~/Documents/Gantt App`
+5. Open Terminal and change into that folder.
+Tip: type `cd `, drag the folder into Terminal, then press Return.
+6. Run setup:
 
 ```bash
 ./setup.sh
 ```
 
-Start the app:
+7. Create the normal launcher:
 
 ```bash
-./start.sh --prod
+./create-launcher.sh
 ```
 
-Then open `http://localhost:3000`.
+8. Open the created launcher.
+By default this creates `~/Applications/Gantt App.app`, which you can open from Finder and drag to the Dock.
+
+When the app is ready, the launcher shows a macOS notification with the local URL. By default the URL is `http://localhost:3000`.
+
+If you plan to use the app regularly, bookmark that local URL in your browser.
+
+Git users can skip the ZIP path and clone directly:
+
+```bash
+git clone https://github.com/MoritzBur/gantt_app.git
+cd gantt_app
+./setup.sh
+./create-launcher.sh
+```
 
 ## Install On Linux
 
-Install:
-
-- Node.js 20+ using your distro package, NodeSource, nvm, Volta, or another normal Linux install path
-- Optional: Git if you want snapshot history or a private Git-backed data repo
-
-Get the repo:
-
-- Download the ZIP from GitHub and extract it, or
-- Clone it with Git:
-
-```bash
-git clone https://github.com/MoritzBur/gantt_app.git
-cd gantt_app
-```
-
-Run setup:
+1. Install Node.js 20+ using your distro package, NodeSource, nvm, Volta, or another normal Linux install path.
+2. Optional: install Git if you want snapshot history or a private Git-backed data repo. You can do this later.
+3. Download this repo as a ZIP and extract it.
+4. Move the extracted folder somewhere permanent before you continue.
+Suggested examples: `~/Applications/gantt_app` or `~/opt/gantt_app`
+5. Open a terminal in that folder.
+On many desktops you can right-click the folder and choose `Open in Terminal`.
+6. Run setup:
 
 ```bash
 ./setup.sh
 ```
 
-Start the app:
+7. Create the normal launcher:
 
 ```bash
-./start.sh --prod
+./create-launcher.sh
 ```
 
-Then open `http://localhost:3000`.
+8. Open the created launcher from your desktop or app menu.
+
+The helper creates a launcher in `~/.local/share/applications` and, if a Desktop folder exists, also creates a desktop shortcut. On some desktops you may need to right-click the desktop shortcut once and choose `Allow Launching`.
+
+When the app is ready, the launcher shows a Linux notification if `notify-send` is available. By default the URL is `http://localhost:3000`.
+
+If you plan to use the app regularly, bookmark that local URL in your browser.
+
+Git users can skip the ZIP path and clone directly:
+
+```bash
+git clone https://github.com/MoritzBur/gantt_app.git
+cd gantt_app
+./setup.sh
+./create-launcher.sh
+```
 
 ## Running The App
 
 Simple everyday use:
 
-- Windows: double-click the shortcut created by `create-windows-shortcut.ps1`, or use `launch-windows.cmd` if you prefer a manual terminal run
-- macOS/Linux: `./start.sh --prod`
+- Windows: double-click the shortcut created by `create-windows-shortcut.ps1`
+- macOS: open the app created by `./create-launcher.sh`
+- Linux: open the launcher created by `./create-launcher.sh`
 
-Windows launcher behavior:
+Launcher behavior:
 
 - it starts the single-port app on `http://localhost:3000` by default, or your configured `PORT`
 - it waits for the app to be ready
-- it shows a Windows notification telling you the local URL
+- it shows the local URL in a platform-native notification where supported
 - if the app is already running, it tells you that instead of starting a second copy
 
 If no data files exist yet, the app starts with an empty plan. By default it stores local data in `data/` inside the repo and creates missing files on first save. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
@@ -183,7 +194,7 @@ That runs Express on `http://localhost:3000` and Vite on `http://localhost:5173`
 If you want a direct single-port console run instead of the normal launcher flow:
 
 - Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1 -Production`
-- macOS/Linux: `./start.sh --prod`
+- macOS/Linux: `./launch.sh`
 - Manual equivalent: `npm run build` then `npm start`
 
 Optional calendar setup:
@@ -249,9 +260,9 @@ The default workflow is still:
 
 If you want autostart later, keep it per-user and easy to undo:
 
-- Windows: add a shortcut to `launch-windows.vbs -Quiet` in your Startup folder, or use a Scheduled Task if you want a quieter background launch
-- macOS: use Login Items for a wrapper app or terminal workflow, or create a LaunchAgent that runs `start.sh`
-- Linux: use your desktop environment's autostart settings, a `.desktop` entry, or a user service
+- Windows: create a quiet shortcut with `powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1 -Quiet`, then place that shortcut in your Startup folder
+- macOS: rebuild the launcher with `./create-launcher.sh --quiet`, then add `~/Applications/Gantt App.app` to Login Items
+- Linux: rebuild the launcher with `./create-launcher.sh --quiet`, then copy `~/.local/share/applications/gantt-app.desktop` to `~/.config/autostart/`
 
 Some users want the backend to start quietly without opening a browser on login. Keep those concerns separate. This repo does not force browser-opening as part of autostart.
 
@@ -270,20 +281,20 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-**The Windows launcher says the app is already running**
+**A launcher says the app is already running**
 
 Open the URL shown in the notification. If you expected a fresh start, stop the existing Gantt App process and then launch again.
 
-**The Windows launcher says the port is already in use**
+**A launcher says the port is already in use**
 
 Another app is already using that port. Change `PORT` in `.env` or stop the other app.
 
-**`setup.sh` or `start.sh` is not executable**
+**`setup.sh`, `create-launcher.sh`, or `launch.sh` is not executable**
 
 Run once:
 
 ```bash
-chmod +x setup.sh start.sh
+chmod +x setup.sh create-launcher.sh launch.sh start.sh
 ```
 
 **Missing `.env` or missing `SESSION_SECRET`**
@@ -305,6 +316,7 @@ The redirect URI in Google Cloud must exactly match `http://localhost:<PORT>/api
 ## Scope / Limitations
 
 - This repo is a local app, not a native packaged desktop installer yet.
+- Launchers created by the helper scripts point at the current repo folder. If you move that folder later, rerun the launcher helper.
 - It is designed for personal and self-managed work, not team collaboration.
 - Calendar overlay is optional, but Google OAuth still requires a localhost callback setup.
 - Git-backed snapshots are powerful for technical users, but they depend on Git being installed and available on `PATH`.

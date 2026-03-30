@@ -86,4 +86,12 @@ fi
 
 say ""
 say "Setup complete."
-say "Start the app with ./start.sh"
+case "$(uname -s)" in
+  Darwin|Linux)
+    say "For everyday use, create a launcher with ./create-launcher.sh"
+    say "If you prefer a manual terminal launch, start the app with ./launch.sh"
+    ;;
+  *)
+    say "Start the app with ./start.sh --prod"
+    ;;
+esac
