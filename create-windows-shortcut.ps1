@@ -8,15 +8,21 @@ param(
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$LauncherPath = Join-Path $RepoRoot "launch-windows.cmd"
+$HiddenLauncherPath = Join-Path $RepoRoot "launch-windows.vbs"
+$WScriptPath = Join-Path $env:SystemRoot "System32\wscript.exe"
 $DefaultIconPath = Join-Path $RepoRoot "icons/gantt-app.ico"
 $LegacyIconPath = Join-Path $RepoRoot "gantt-app.ico"
 
-if (-not (Test-Path $LauncherPath)) {
-  throw "Could not find launch-windows.cmd in $RepoRoot"
+if (-not (Test-Path $HiddenLauncherPath)) {
+  throw "Could not find launch-windows.vbs in $RepoRoot"
+}
+
+if (-not (Test-Path $WScriptPath)) {
+  throw "Could not find wscript.exe at $WScriptPath"
 }
 
 $arguments = @()
+$arguments += "`"$HiddenLauncherPath`""
 if ($OpenBrowser) {
   $arguments += "-OpenBrowser"
 }
@@ -26,10 +32,10 @@ if ($Quiet) {
 
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($ShortcutPath)
-$shortcut.TargetPath = $LauncherPath
+$shortcut.TargetPath = $WScriptPath
 $shortcut.WorkingDirectory = $RepoRoot
 $shortcut.Arguments = ($arguments -join " ")
-$shortcut.Description = "Launch Gantt App"
+$shortcut.Description = "Launch Gantt App without opening a console window"
 
 if (-not [string]::IsNullOrWhiteSpace($IconPath)) {
   if (-not (Test-Path $IconPath)) {
@@ -48,3 +54,4 @@ Write-Host "Created shortcut at $ShortcutPath"
 if ($arguments.Count -gt 0) {
   Write-Host "Shortcut arguments: $($arguments -join ' ')"
 }
+Write-Host "You can pin that shortcut to Start or the taskbar from Windows Explorer."

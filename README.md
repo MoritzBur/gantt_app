@@ -47,7 +47,7 @@ That makes it useful for students, researchers, freelancers, consultants, and so
 Default helper behavior:
 
 - `setup.ps1` and `setup.sh` install dependencies and create `.env` from `.env.example` if needed.
-- Windows daily use is `launch-windows.cmd`, which starts the single-port app and shows a popup with the local URL.
+- Windows daily use is a shortcut created by `create-windows-shortcut.ps1`, or `launch-windows.cmd` if you prefer a manual terminal entrypoint.
 - The main user-facing goal is simple local launch, not choosing between multiple runtime modes.
 
 ## Install On Windows
@@ -76,20 +76,20 @@ powershell -ExecutionPolicy Bypass -File .\setup.ps1
 Start the app for normal daily use:
 
 ```powershell
-.\launch-windows.cmd
-```
-
-That starts the single-port app and shows a popup when it is ready. By default the URL is `http://localhost:3000`.
-
-Optional: create a desktop shortcut:
-
-```powershell
 powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
 ```
 
-You can set a custom icon on the shortcut later, or rerun the shortcut helper with `-IconPath` after you have an `.ico` file.
+That creates a desktop shortcut with the Gantt App icon. Double-click the shortcut to start the app without leaving a PowerShell window open.
 
-If you want the shortcut to open the browser too, run the shortcut helper with `-OpenBrowser`.
+If you prefer not to create a shortcut, you can still start the app manually:
+
+```powershell
+.\launch-windows.cmd
+```
+
+When the app is ready, Windows shows a notification with the local URL. By default the URL is `http://localhost:3000`.
+
+You can pin the created shortcut to Start or the taskbar from Windows Explorer. If you want the shortcut to open the browser too, rerun the shortcut helper with `-OpenBrowser`.
 
 ## Install On macOS
 
@@ -157,14 +157,14 @@ Then open `http://localhost:3000`.
 
 Simple everyday use:
 
-- Windows: double-click `launch-windows.cmd` or a shortcut created by `create-windows-shortcut.ps1`
+- Windows: double-click the shortcut created by `create-windows-shortcut.ps1`, or use `launch-windows.cmd` if you prefer a manual terminal run
 - macOS/Linux: `./start.sh --prod`
 
 Windows launcher behavior:
 
 - it starts the single-port app on `http://localhost:3000` by default, or your configured `PORT`
 - it waits for the app to be ready
-- it shows a popup telling you the local URL
+- it shows a Windows notification telling you the local URL
 - if the app is already running, it tells you that instead of starting a second copy
 
 If no data files exist yet, the app starts with an empty plan. By default it stores local data in `data/` inside the repo and creates missing files on first save. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
@@ -249,7 +249,7 @@ The default workflow is still:
 
 If you want autostart later, keep it per-user and easy to undo:
 
-- Windows: add a shortcut to `launch-windows.cmd -Quiet` in your Startup folder, or use a Scheduled Task if you want a quieter background launch
+- Windows: add a shortcut to `launch-windows.vbs -Quiet` in your Startup folder, or use a Scheduled Task if you want a quieter background launch
 - macOS: use Login Items for a wrapper app or terminal workflow, or create a LaunchAgent that runs `start.sh`
 - Linux: use your desktop environment's autostart settings, a `.desktop` entry, or a user service
 
@@ -272,7 +272,7 @@ powershell -ExecutionPolicy Bypass -File .\start.ps1
 
 **The Windows launcher says the app is already running**
 
-Open the URL shown in the popup. If you expected a fresh start, close the existing Gantt App PowerShell window first and then launch again.
+Open the URL shown in the notification. If you expected a fresh start, stop the existing Gantt App process and then launch again.
 
 **The Windows launcher says the port is already in use**
 

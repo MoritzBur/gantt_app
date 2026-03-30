@@ -89,5 +89,6 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 
 Write-Step ""
 Write-Step "Setup complete."
-Write-Step "Start the app with .\launch-windows.cmd"
-Write-Step "If you want a desktop shortcut, run powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1"
+Write-Step "For everyday use, create a launcher shortcut with powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1"
+Write-Step "If you prefer a manual terminal launch, start the app with .\launch-windows.cmd"
+Write-Step "That shortcut uses the app icon and launches Gantt App without leaving a PowerShell window open."
