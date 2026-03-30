@@ -21,8 +21,11 @@ router.get('/config', (req, res) => {
 // POST /api/calendar/config
 router.post('/config', async (req, res) => {
   try {
-    await calendar.configure(req.body);
-    res.json({ connected: calendar.isConnected() });
+    const config = await calendar.configure(req.body);
+    res.json({
+      connected: calendar.isConnected(),
+      config,
+    });
   } catch (err) {
     console.error('Calendar config failed:', err);
     res.status(500).json({ error: err.message });

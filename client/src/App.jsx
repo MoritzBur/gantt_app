@@ -9,6 +9,9 @@ const PHASE_COLORS = [
   '#E74C3C', '#16A085', '#F39C12', '#2C3E50',
 ];
 
+const CALENDAR_PAST_BUFFER_DAYS = 30;
+const CALENDAR_FUTURE_BUFFER_DAYS = 180;
+
 // Compute start/end bounds from a phase's tasks (includes milestones)
 function calcPhaseBounds(tasks) {
   const datable = tasks.filter(t => t.start);
@@ -27,6 +30,7 @@ export default function App() {
   const [uiState, setUiState] = useState(null);
   const [calendarStatus, setCalendarStatus] = useState({ connected: false });
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [calendarNotice, setCalendarNotice] = useState(null);
   const [saveStatus, setSaveStatus] = useState(null); // null | 'saved' | 'failed'
   const [saveTimer, setSaveTimer] = useState(null);
   const [editTarget, setEditTarget] = useState(null); // { type: 'task'|'phase', id }
@@ -51,31 +55,84 @@ export default function App() {
   // PDF export
   const [exporting, setExporting] = useState(false);
   const uiStateSaveTimerRef = useRef(null);
+  const serverRestartNotice = 'The browser UI is newer than the local server process. Restart the app/server so the multi-calendar API loads, then open Connect Calendar and save again.';
+
+  const normalizeUiState = useCallback((raw = {}) => {
+    const zoom = typeof raw.zoom === 'string' ? raw.zoom : 'Month';
+    const density = raw.density === 'Compact' ? 'Compact' : 'Regular';
+    const collapsed = raw.collapsed && typeof raw.collapsed === 'object' && !Array.isArray(raw.collapsed)
+      ? raw.collapsed
+      : {};
+    const calendarCollapsed = raw.calendarCollapsed && typeof raw.calendarCollapsed === 'object' && !Array.isArray(raw.calendarCollapsed)
+      ? raw.calendarCollapsed
+      : {};
+    const calendarOrder = Array.isArray(raw.calendarOrder)
+      ? raw.calendarOrder.filter(id => typeof id === 'string' && id.trim())
+      : [];
+    const activeCalEvents = Array.isArray(raw.activeCalEvents) ? raw.activeCalEvents : [];
+    const listWidth = Number.isFinite(raw.listWidth) ? raw.listWidth : 260;
+
+    return {
+      zoom,
+      density,
+      collapsed,
+      calendarCollapsed,
+      calendarOrder,
+      activeCalEvents,
+      calendarEventIdsVersion: 2,
+      listWidth,
+    };
+  }, []);
+
+  const normalizeCalendarConfig = useCallback((raw, backendHint = 'ical') => {
+    if (raw && raw.version === 2 && Array.isArray(raw.calendars)) {
+      return raw;
+    }
+
+    if (raw && Array.isArray(raw.icalUrls)) {
+      return {
+        version: 2,
+        backend: backendHint,
+        calendars: raw.icalUrls
+          .filter(url => typeof url === 'string' && url.trim())
+          .map((icalUrl, index) => ({
+            id: `legacy-ical-${index}`,
+            source: 'ical',
+            label: `Calendar ${index + 1}`,
+            color: PHASE_COLORS[index % PHASE_COLORS.length],
+            icalUrl: icalUrl.trim(),
+            enabled: true,
+          })),
+      };
+    }
+
+    return null;
+  }, []);
 
   const readLegacyUiState = useCallback(() => {
     try {
       const zoom = localStorage.getItem('gantt-zoom') || 'Month';
       const density = localStorage.getItem('gantt-density') === 'Compact' ? 'Compact' : 'Regular';
       const collapsed = JSON.parse(localStorage.getItem('gantt-collapsed') || '{}');
-      const activeCalEvents = JSON.parse(localStorage.getItem('gantt-active-cal-events') || '[]');
+      const legacyActiveCalEvents = JSON.parse(localStorage.getItem('gantt-active-cal-events') || '[]');
       const listWidth = parseInt(localStorage.getItem('gantt-list-width') || '260', 10);
       return {
-        zoom,
-        density,
-        collapsed: collapsed && typeof collapsed === 'object' ? collapsed : {},
-        activeCalEvents: Array.isArray(activeCalEvents) ? activeCalEvents : [],
-        listWidth: Number.isFinite(listWidth) ? listWidth : 260,
+        state: normalizeUiState({
+          zoom,
+          density,
+          collapsed: collapsed && typeof collapsed === 'object' ? collapsed : {},
+          activeCalEvents: [],
+          listWidth: Number.isFinite(listWidth) ? listWidth : 260,
+        }),
+        hadLegacyActiveCalEvents: Array.isArray(legacyActiveCalEvents) && legacyActiveCalEvents.length > 0,
       };
     } catch {
       return {
-        zoom: 'Month',
-        density: 'Regular',
-        collapsed: {},
-        activeCalEvents: [],
-        listWidth: 260,
+        state: normalizeUiState(),
+        hadLegacyActiveCalEvents: false,
       };
     }
-  }, []);
+  }, [normalizeUiState]);
 
   // Load tasks on mount — retry a few times to handle the Express startup race
   useEffect(() => {
@@ -90,23 +147,27 @@ export default function App() {
         const serverState = stateRes.ok ? await stateRes.json() : null;
         const legacyState = readLegacyUiState();
         const shouldMigrateLegacy = !serverState?._exists;
+        const shouldClearLegacyServerActiveEvents = !!serverState?._legacyCalendarEventIds;
+        const needsCalendarStateMigration = !!serverState?._calendarStateNeedsMigration;
         const nextUiState = shouldMigrateLegacy
-          ? legacyState
-          : {
-              zoom: serverState.zoom,
-              density: serverState.density,
-              collapsed: serverState.collapsed,
-              activeCalEvents: serverState.activeCalEvents,
-              listWidth: serverState.listWidth,
-            };
+          ? legacyState.state
+          : normalizeUiState({
+              ...serverState,
+              activeCalEvents: shouldClearLegacyServerActiveEvents ? [] : serverState.activeCalEvents,
+            });
         setData(d);
         setUiState(nextUiState);
         setLoading(false);
-        if (shouldMigrateLegacy) {
+        if (shouldMigrateLegacy && legacyState.hadLegacyActiveCalEvents) {
+          setCalendarNotice('Previously activated calendar blockers were cleared once during migration to grouped calendars because old event ids cannot be mapped safely.');
+        } else if (shouldClearLegacyServerActiveEvents) {
+          setCalendarNotice('Previously activated calendar blockers were cleared once during migration to grouped calendars because old event ids cannot be mapped safely.');
+        }
+        if (shouldMigrateLegacy || needsCalendarStateMigration) {
           fetch('/api/state', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(legacyState),
+            body: JSON.stringify(nextUiState),
           }).catch(() => {});
         }
       } catch (err) {
@@ -129,9 +190,19 @@ export default function App() {
       .catch(() => {});
     fetch('/api/calendar/config')
       .then(r => r.json())
-      .then(c => setCalendarConfig(c))
+      .then(c => {
+        const normalized = normalizeCalendarConfig(c, c?.backend || calendarStatus.backend || 'ical');
+        if (normalized) {
+          setCalendarConfig(normalized);
+          if (c.version !== 2) setCalendarNotice(serverRestartNotice);
+          return;
+        }
+        if (c && typeof c === 'object') {
+          setCalendarNotice(serverRestartNotice);
+        }
+      })
       .catch(() => {});
-  }, []);
+  }, [normalizeCalendarConfig, calendarStatus.backend, serverRestartNotice]);
 
   // Poll git status every 30s
   const refreshGitStatus = useCallback(() => {
@@ -161,14 +232,21 @@ export default function App() {
 
   // Compute the calendar date range as a string
   const calendarDateRange = useMemo(() => {
-    if (!data || data.phases.length === 0) return null;
-    const allDates = data.phases.flatMap(p => [p.start, p.end]).filter(Boolean).sort();
-    if (allDates.length === 0) return null;
-    const start = new Date(allDates[0]);
-    const end = new Date(allDates[allDates.length - 1]);
-    start.setDate(start.getDate() - 14);
-    end.setDate(end.getDate() + 14);
-    return `${start.toISOString().slice(0, 10)}/${end.toISOString().slice(0, 10)}`;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const allDates = data?.phases?.flatMap(p => [p.start, p.end]).filter(Boolean).sort() || [];
+    const start = allDates.length > 0 ? new Date(allDates[0]) : new Date(today);
+    const end = allDates.length > 0 ? new Date(allDates[allDates.length - 1]) : new Date(today);
+
+    start.setDate(start.getDate() - CALENDAR_PAST_BUFFER_DAYS);
+    end.setDate(end.getDate() + CALENDAR_FUTURE_BUFFER_DAYS);
+
+    const minimumFutureEnd = new Date(today);
+    minimumFutureEnd.setDate(minimumFutureEnd.getDate() + CALENDAR_FUTURE_BUFFER_DAYS);
+    const effectiveEnd = end > minimumFutureEnd ? end : minimumFutureEnd;
+
+    return `${start.toISOString().slice(0, 10)}/${effectiveEnd.toISOString().slice(0, 10)}`;
   }, [data]);
 
   // Fetch calendar events when connection status or task date range changes
@@ -181,7 +259,7 @@ export default function App() {
         if (Array.isArray(events)) setCalendarEvents(events);
       })
       .catch(() => {});
-  }, [calendarStatus.connected, calendarDateRange]);
+  }, [calendarStatus.connected, calendarDateRange, calendarConfig]);
 
   const showSaveStatus = useCallback((status) => {
     setSaveStatus(status);
@@ -414,23 +492,29 @@ export default function App() {
     } catch (err) {}
   };
 
-  const handleCalendarSave = async (config) => {
+  const handleCalendarSave = useCallback(async (config) => {
     try {
       const res = await fetch('/api/calendar/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
       });
-      if (!res.ok) return false;
-      const result = await res.json();
-      setCalendarConfig(config);
+      const result = await res.json().catch(() => null);
+      const normalizedConfig = normalizeCalendarConfig(result?.config, config.backend);
+      if (!res.ok || !normalizedConfig) {
+        setCalendarNotice(serverRestartNotice);
+        return false;
+      }
+      setCalendarConfig(normalizedConfig);
       setCalendarStatus(s => ({ ...s, connected: result.connected }));
+      setCalendarNotice(null);
       if (result.connected) setShowCalendarSetup(false);
       return true;
     } catch (err) {
+      setCalendarNotice(serverRestartNotice);
       return false;
     }
-  };
+  }, [normalizeCalendarConfig, serverRestartNotice]);
 
   // ─── Historical snapshot handlers ────────────────────────────────────────────
 
@@ -690,11 +774,22 @@ export default function App() {
         </div>
       )}
 
+      {calendarNotice && (
+        <div className="calendar-notice-banner">
+          <span className="calendar-notice-icon">⚠</span>
+          <span className="calendar-notice-text">{calendarNotice}</span>
+          <button className="btn btn-small btn-ghost" onClick={() => setCalendarNotice(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <main className="app-main">
         {displayData && (
           <GanttView
             data={displayData}
             uiState={displayUiState}
+            calendarConfig={calendarConfig}
             calendarEvents={calendarEvents}
             calendarConnected={calendarStatus.connected}
             onTaskClick={(taskId) => !isHistorical && setEditTarget({ type: 'task', id: taskId })}

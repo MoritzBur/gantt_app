@@ -1,5 +1,6 @@
 const { google } = require('googleapis');
 const store = require('../data-store');
+const { normalizeBackendCalendars, normalizeGoogleCalendar, toPublicCalendarConfig } = require('./shared');
 
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 
@@ -30,6 +31,50 @@ function saveTokens(tokens) {
   store.writeTokens(tokens);
 }
 
+function getEnvCalendarIds() {
+  return (process.env.GOOGLE_CALENDAR_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean);
+}
+
+function getStoredCalendars() {
+  const config = store.readCalendarConfig();
+  return normalizeBackendCalendars(config.backends?.google?.calendars, 'google');
+}
+
+function buildDerivedCalendars(submittedCalendars = null) {
+  const envCalendarIds = getEnvCalendarIds();
+  const storedByCalendarId = new Map(getStoredCalendars().map(calendar => [calendar.calendarId, calendar]));
+  const submittedByCalendarId = new Map(
+    normalizeBackendCalendars(submittedCalendars, 'google').map(calendar => [calendar.calendarId, calendar])
+  );
+
+  return envCalendarIds.map((calendarId, index) => {
+    const submitted = submittedByCalendarId.get(calendarId);
+    const stored = storedByCalendarId.get(calendarId);
+    return normalizeGoogleCalendar({
+      ...stored,
+      ...submitted,
+      calendarId,
+      enabled: true,
+    }, index);
+  });
+}
+
+function saveCalendars(nextCalendars) {
+  const config = store.readCalendarConfig();
+  store.writeCalendarConfig({
+    ...config,
+    backends: {
+      ...config.backends,
+      google: {
+        calendars: normalizeBackendCalendars(nextCalendars, 'google'),
+      },
+    },
+  });
+}
+
 module.exports = {
   isConnected() {
     return !!loadTokens();
@@ -55,21 +100,22 @@ module.exports = {
   },
 
   getConfig() {
-    return {};
+    return toPublicCalendarConfig('google', buildDerivedCalendars());
   },
 
-  async configure(_config) {},
+  async configure(config) {
+    const calendars = buildDerivedCalendars(config?.calendars);
+    saveCalendars(calendars);
+    return this.getConfig();
+  },
 
   async getEvents(start, end) {
     const tokens = loadTokens();
     if (!tokens) return [];
 
-    const calendarIds = (process.env.GOOGLE_CALENDAR_IDS || '')
-      .split(',')
-      .map(id => id.trim())
-      .filter(Boolean);
+    const calendars = buildDerivedCalendars();
 
-    if (calendarIds.length === 0) return [];
+    if (calendars.length === 0) return [];
 
     const oauth2Client = createOAuthClient();
     oauth2Client.setCredentials(tokens);
@@ -80,7 +126,8 @@ module.exports = {
     const calendar = google.calendar({ version: 'v3', auth: oauth2Client });
     const allEvents = [];
 
-    for (const calendarId of calendarIds) {
+    for (const calendarConfig of calendars) {
+      const calendarId = calendarConfig.calendarId;
       try {
         const response = await calendar.events.list({
           calendarId,
@@ -101,7 +148,9 @@ module.exports = {
             eventEnd = d.toISOString().slice(0, 10);
           }
           allEvents.push({
-            id: item.id,
+            id: `${calendarConfig.id}::${item.id}`,
+            sourceEventId: item.id,
+            calendarKey: calendarConfig.id,
             title: item.summary || '(No title)',
             start: eventStart,
             end: eventEnd,

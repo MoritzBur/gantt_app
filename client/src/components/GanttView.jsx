@@ -48,7 +48,9 @@ function calcTaskDays(startStr, endStr, activeCalEventIds, calendarEvents) {
   }
 
   for (const evId of activeCalEventIds) {
-    const ev = calendarEvents.find(e => e.id === evId);
+    const ev = calendarEvents instanceof Map
+      ? calendarEvents.get(evId)
+      : calendarEvents.find(e => e.id === evId);
     if (!ev) continue;
     const evStart = parseDate(ev.start);
     const evEnd = parseDate(ev.end || ev.start);
@@ -195,6 +197,25 @@ function computeCalendarLanes(events) {
     }
   }
   return lanes;
+}
+
+function rgbaFromHex(hexColor, alpha) {
+  if (!hexColor || !hexColor.startsWith('#') || hexColor.length !== 7) {
+    return `rgba(100, 160, 220, ${alpha})`;
+  }
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function mergeOrderedIds(availableIds, preferredIds) {
+  const availableSet = new Set(availableIds);
+  const ordered = Array.isArray(preferredIds)
+    ? preferredIds.filter(id => availableSet.has(id))
+    : [];
+  const missing = availableIds.filter(id => !ordered.includes(id));
+  return [...ordered, ...missing];
 }
 
 // ─── Gantt bar ────────────────────────────────────────────────────────────────
@@ -402,6 +423,7 @@ function TodayLine({ startDate, dayWidth, totalDays }) {
 export default function GanttView({
   data,
   uiState,
+  calendarConfig,
   calendarEvents,
   calendarConnected,
   onCalendarSetup,
@@ -418,6 +440,8 @@ export default function GanttView({
 }) {
   const [zoom, setZoom] = useState(uiState?.zoom && ZOOM_LEVELS[uiState.zoom] ? uiState.zoom : 'Month');
   const [collapsed, setCollapsed] = useState(uiState?.collapsed || {});
+  const [calendarCollapsed, setCalendarCollapsed] = useState(uiState?.calendarCollapsed || {});
+  const [calendarOrder, setCalendarOrder] = useState(Array.isArray(uiState?.calendarOrder) ? uiState.calendarOrder : []);
   const [density, setDensity] = useState(uiState?.density === 'Compact' ? 'Compact' : 'Regular');
   const [dropIndicator, setDropIndicatorState] = useState(null);
   const [draggingItem, setDraggingItem] = useState(null);
@@ -434,18 +458,78 @@ export default function GanttView({
   const [listWidth, setListWidth] = useState(Number.isFinite(uiState?.listWidth) ? uiState.listWidth : 260);
 
   const timelineRef = useRef(null);
-  const listRef = useRef(null);
   const dragRef = useRef(null);
   const dropIndicatorRef = useRef(null);
   const dataRef = useRef(data);
+  const calendarDefsRef = useRef([]);
+
+  const calendarDefinitions = React.useMemo(() => {
+    const configuredCalendars = Array.isArray(calendarConfig?.calendars) ? calendarConfig.calendars : [];
+    const missingCalendars = [...new Set(calendarEvents.map(event => event.calendarKey).filter(Boolean))]
+      .filter(calendarKey => !configuredCalendars.some(calendar => calendar.id === calendarKey))
+      .map((calendarKey, index) => ({
+        id: calendarKey,
+        label: calendarKey,
+        color: '#4A90D9',
+        source: 'ical',
+        enabled: true,
+        _derived: true,
+        _index: configuredCalendars.length + index,
+      }));
+
+    return [...configuredCalendars, ...missingCalendars];
+  }, [calendarConfig, calendarEvents]);
+
+  const orderedCalendarIds = React.useMemo(
+    () => mergeOrderedIds(calendarDefinitions.map(calendar => calendar.id), calendarOrder),
+    [calendarDefinitions, calendarOrder]
+  );
+
+  const orderedCalendars = React.useMemo(
+    () => orderedCalendarIds
+      .map(calendarId => calendarDefinitions.find(calendar => calendar.id === calendarId))
+      .filter(Boolean),
+    [calendarDefinitions, orderedCalendarIds]
+  );
+
+  const calendarEventsById = React.useMemo(() => {
+    const grouped = new Map(orderedCalendars.map(calendar => [calendar.id, []]));
+    for (const event of calendarEvents) {
+      const calendarKey = event.calendarKey;
+      if (!calendarKey) continue;
+      if (!grouped.has(calendarKey)) grouped.set(calendarKey, []);
+      grouped.get(calendarKey).push(event);
+    }
+    for (const events of grouped.values()) {
+      events.sort((a, b) => (
+        a.start.localeCompare(b.start) ||
+        (a.end || a.start).localeCompare(b.end || b.start) ||
+        a.title.localeCompare(b.title)
+      ));
+    }
+    return grouped;
+  }, [orderedCalendars, calendarEvents]);
+
+  const calendarEventLookup = React.useMemo(
+    () => new Map(calendarEvents.map(event => [event.id, event])),
+    [calendarEvents]
+  );
 
   useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { calendarDefsRef.current = orderedCalendars; }, [orderedCalendars]);
 
   useEffect(() => {
     if (!uiState) return;
     if (uiState.zoom && uiState.zoom !== zoom && ZOOM_LEVELS[uiState.zoom]) setZoom(uiState.zoom);
     if (uiState.density && uiState.density !== density) setDensity(uiState.density === 'Compact' ? 'Compact' : 'Regular');
     if (uiState.collapsed && JSON.stringify(uiState.collapsed) !== JSON.stringify(collapsed)) setCollapsed(uiState.collapsed);
+    if (uiState.calendarCollapsed && JSON.stringify(uiState.calendarCollapsed) !== JSON.stringify(calendarCollapsed)) {
+      setCalendarCollapsed(uiState.calendarCollapsed);
+    }
+    const nextCalendarOrder = Array.isArray(uiState.calendarOrder) ? uiState.calendarOrder : [];
+    if (JSON.stringify(nextCalendarOrder) !== JSON.stringify(calendarOrder)) {
+      setCalendarOrder(nextCalendarOrder);
+    }
     const nextActive = Array.isArray(uiState.activeCalEvents) ? uiState.activeCalEvents : [];
     if (JSON.stringify([...activeCalEvents]) !== JSON.stringify(nextActive)) {
       setActiveCalEvents(new Set(nextActive));
@@ -454,15 +538,25 @@ export default function GanttView({
   }, [uiState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    const mergedOrder = mergeOrderedIds(calendarDefinitions.map(calendar => calendar.id), calendarOrder);
+    if (JSON.stringify(mergedOrder) !== JSON.stringify(calendarOrder)) {
+      setCalendarOrder(mergedOrder);
+    }
+  }, [calendarDefinitions, calendarOrder]);
+
+  useEffect(() => {
     if (!onUiStateChange) return;
     onUiStateChange({
       zoom,
       density,
       collapsed,
+      calendarCollapsed,
+      calendarOrder: orderedCalendarIds,
       activeCalEvents: [...activeCalEvents],
+      calendarEventIdsVersion: 2,
       listWidth,
     });
-  }, [zoom, density, collapsed, activeCalEvents, listWidth, onUiStateChange]);
+  }, [zoom, density, collapsed, calendarCollapsed, orderedCalendarIds, activeCalEvents, listWidth, onUiStateChange]);
 
   // Validate stored active calendar events against fetched events
   useEffect(() => {
@@ -482,7 +576,7 @@ export default function GanttView({
 
   const allDates = [
     ...data.phases.flatMap(p => [p.start, p.end, ...p.tasks.flatMap(t => [t.start, t.end])]),
-    ...calendarEvents.map(e => e.start),
+    ...calendarEvents.flatMap(e => [e.start, e.end || e.start]),
   ].filter(Boolean).sort();
 
   const today = new Date();
@@ -501,6 +595,10 @@ export default function GanttView({
 
   const toggleCollapse = (phaseId) => {
     setCollapsed(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
+  };
+
+  const toggleCalendarGroupCollapse = (calendarId) => {
+    setCalendarCollapsed(prev => ({ ...prev, [calendarId]: !prev[calendarId] }));
   };
 
   const handleTaskDrag = useCallback(async (taskId, newStart, newEnd) => {
@@ -564,7 +662,20 @@ export default function GanttView({
 
       let indicator = null;
 
-      if (drag.type === 'phase' && rowType === 'phase') {
+      if (drag.type === 'calendar') {
+        if (rowType === 'calendar') {
+          if (isTopHalf) {
+            indicator = { type: 'calendar', insertBeforeCalendarId: rowId };
+          } else {
+            const calendars = calendarDefsRef.current;
+            const idx = calendars.findIndex(calendar => calendar.id === rowId);
+            const next = calendars[idx + 1];
+            indicator = { type: 'calendar', insertBeforeCalendarId: next ? next.id : null };
+          }
+        } else if (rowType === 'phase' || rowType === 'task' || rowType === 'add-task') {
+          indicator = { type: 'calendar', insertBeforeCalendarId: null };
+        }
+      } else if (drag.type === 'phase' && rowType === 'phase') {
         if (isTopHalf) {
           indicator = { type: 'phase', insertBeforePhaseId: rowId };
         } else {
@@ -602,7 +713,20 @@ export default function GanttView({
 
       if (drag && indicator) {
         const d = dataRef.current;
-        if (drag.type === 'phase' && indicator.type === 'phase') {
+        if (drag.type === 'calendar' && indicator.type === 'calendar') {
+          const ids = calendarDefsRef.current.map(calendar => calendar.id);
+          const fromIdx = ids.indexOf(drag.id);
+          if (fromIdx !== -1) {
+            ids.splice(fromIdx, 1);
+            if (indicator.insertBeforeCalendarId === null) {
+              ids.push(drag.id);
+            } else {
+              const toIdx = ids.indexOf(indicator.insertBeforeCalendarId);
+              ids.splice(toIdx >= 0 ? toIdx : ids.length, 0, drag.id);
+            }
+            setCalendarOrder(ids);
+          }
+        } else if (drag.type === 'phase' && indicator.type === 'phase') {
           const ids = d.phases.map(p => p.id);
           const fromIdx = ids.indexOf(drag.id);
           if (fromIdx !== -1) {
@@ -658,15 +782,25 @@ export default function GanttView({
 
   rows.push({ type: 'cal-header' });
 
-  if (calendarConnected) {
-    if (calendarEvents.length === 0) {
-      rows.push({ type: 'cal-empty' });
-    } else {
-      const lanes = computeCalendarLanes(calendarEvents);
-      lanes.forEach((events, laneIndex) => rows.push({ type: 'cal-lane', events, laneIndex }));
-    }
-  } else {
+  if (!calendarConnected) {
     rows.push({ type: 'cal-connect' });
+  } else if (orderedCalendars.length === 0) {
+    rows.push({ type: 'cal-none' });
+  } else {
+    orderedCalendars.forEach((calendar, calendarIndex) => {
+      const events = calendarEventsById.get(calendar.id) || [];
+      rows.push({ type: 'calendar-header', calendar, calendarIndex, eventCount: events.length });
+      if (!calendarCollapsed[calendar.id]) {
+        if (events.length === 0) {
+          rows.push({ type: 'calendar-empty', calendar });
+        } else {
+          const lanes = computeCalendarLanes(events);
+          lanes.forEach((laneEvents, laneIndex) => {
+            rows.push({ type: 'calendar-lane', calendar, events: laneEvents, laneIndex });
+          });
+        }
+      }
+    });
   }
 
   data.phases.forEach((phase, phaseIndex) => {
@@ -720,7 +854,7 @@ export default function GanttView({
 
       <div className="gantt-body">
         {/* Left panel: task list */}
-        <div className="gantt-list" ref={listRef} style={{ width: listWidth, minWidth: listWidth }}>
+        <div className="gantt-list" style={{ width: listWidth, minWidth: listWidth }}>
           <div className="gantt-list-header">Tasks</div>
 
           {rows.map((row, i) => {
@@ -728,7 +862,7 @@ export default function GanttView({
               return (
                 <div key="cal-header" className="gantt-row gantt-section-header" style={{ height: ROW_HEIGHT }}>
                   <span className="section-icon">📅</span>
-                  <span>Calendar</span>
+                  <span>Calendars</span>
                 </div>
               );
             }
@@ -739,16 +873,73 @@ export default function GanttView({
                 </div>
               );
             }
-            if (row.type === 'cal-empty') {
+            if (row.type === 'cal-none') {
               return (
-                <div key="cal-empty" className="gantt-row gantt-cal-empty" style={{ height: ROW_HEIGHT }}>
+                <div key="cal-none" className="gantt-row gantt-cal-empty" style={{ height: ROW_HEIGHT }}>
+                  <span className="muted">No calendars configured</span>
+                </div>
+              );
+            }
+            if (row.type === 'calendar-header') {
+              const isCollapsed = calendarCollapsed[row.calendar.id];
+              const isDragging = draggingItem?.type === 'calendar' && draggingItem?.id === row.calendar.id;
+              const showIndicatorBefore =
+                dropIndicator?.type === 'calendar' &&
+                dropIndicator.insertBeforeCalendarId === row.calendar.id &&
+                draggingItem?.id !== row.calendar.id;
+
+              return (
+                <React.Fragment key={`calendar-header-${row.calendar.id}`}>
+                  {showIndicatorBefore && <div className="list-drop-indicator list-drop-indicator--calendar" />}
+                  <div
+                    data-row-type="calendar"
+                    data-row-id={row.calendar.id}
+                    className={`gantt-row gantt-calendar-row${isDragging ? ' is-dragging' : ''}`}
+                    style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.calendar.color}` }}
+                  >
+                    {!readonly && (
+                      <div
+                        className="drag-handle"
+                        onMouseDown={(e) => startListDrag(e, 'calendar', row.calendar.id, null)}
+                        onClick={(e) => e.stopPropagation()}
+                        title="Drag to reorder"
+                      >⠿</div>
+                    )}
+                    <button
+                      className="collapse-btn"
+                      onClick={(e) => { e.stopPropagation(); toggleCalendarGroupCollapse(row.calendar.id); }}
+                      title={isCollapsed ? 'Expand' : 'Collapse'}
+                    >
+                      {isCollapsed ? '▶' : '▼'}
+                    </button>
+                    <span className="phase-label" title={row.calendar.label}>
+                      <span className="item-name">{row.calendar.label}</span>
+                    </span>
+                    <span className="calendar-source-pill">{row.calendar.source === 'google' ? 'Google' : 'iCal'}</span>
+                    <span className="phase-task-count muted">({row.eventCount})</span>
+                  </div>
+                </React.Fragment>
+              );
+            }
+            if (row.type === 'calendar-empty') {
+              return (
+                <div
+                  key={`calendar-empty-${row.calendar.id}`}
+                  className="gantt-row gantt-cal-empty"
+                  style={{ height: ROW_HEIGHT }}
+                >
+                  <span className="task-indent" />
                   <span className="muted">No events in range</span>
                 </div>
               );
             }
-            if (row.type === 'cal-lane') {
+            if (row.type === 'calendar-lane') {
               return (
-                <div key={`cal-lane-${row.laneIndex}`} className="gantt-row gantt-cal-lane-row" style={{ height: ROW_HEIGHT }} />
+                <div
+                  key={`cal-lane-${row.calendar.id}-${row.laneIndex}`}
+                  className="gantt-row gantt-cal-lane-row"
+                  style={{ height: ROW_HEIGHT }}
+                />
               );
             }
 
@@ -868,8 +1059,11 @@ export default function GanttView({
             return null;
           })}
 
+          {dropIndicator?.type === 'calendar' && dropIndicator.insertBeforeCalendarId === null && draggingItem?.type === 'calendar' && (
+            <div className="list-drop-indicator list-drop-indicator--calendar" />
+          )}
           {/* Drop indicator after last phase */}
-          {dropIndicator?.type === 'phase' && dropIndicator.insertBeforePhaseId === null && draggingItem && (
+          {dropIndicator?.type === 'phase' && dropIndicator.insertBeforePhaseId === null && draggingItem?.type === 'phase' && (
             <div className="list-drop-indicator" />
           )}
         </div>
@@ -892,7 +1086,7 @@ export default function GanttView({
 
               {/* Active calendar event overlays */}
               {activeCalEvents.size > 0 && [...activeCalEvents].map(evId => {
-                const ev = calendarEvents.find(e => e.id === evId);
+                const ev = calendarEventLookup.get(evId);
                 if (!ev) return null;
                 const evEnd = ev.end || ev.start;
                 const startOff = diffDays(rangeStart, parseDate(ev.start));
@@ -917,13 +1111,19 @@ export default function GanttView({
               {rows.map((row, i) => {
                 const rowStyle = { height: ROW_HEIGHT, position: 'relative' };
 
-                if (row.type === 'cal-header' || row.type === 'cal-connect' || row.type === 'cal-empty') {
+                if (
+                  row.type === 'cal-header' ||
+                  row.type === 'cal-connect' ||
+                  row.type === 'cal-none' ||
+                  row.type === 'calendar-header' ||
+                  row.type === 'calendar-empty'
+                ) {
                   return <div key={i} className="gantt-timeline-row empty-row" style={rowStyle} />;
                 }
 
-                if (row.type === 'cal-lane') {
+                if (row.type === 'calendar-lane') {
                   return (
-                    <div key={`cal-lane-${row.laneIndex}`} className="gantt-timeline-row" style={rowStyle}>
+                    <div key={`cal-lane-${row.calendar.id}-${row.laneIndex}`} className="gantt-timeline-row" style={rowStyle}>
                       {row.events.map(ev => (
                         <GanttBar
                           key={ev.id}
@@ -931,7 +1131,7 @@ export default function GanttView({
                           taskStart={ev.start}
                           taskEnd={ev.end || ev.start}
                           dayWidth={dayWidth}
-                          color="rgba(100, 160, 220, 0.5)"
+                          color={rgbaFromHex(row.calendar.color, activeCalEvents.has(ev.id) ? 0.62 : 0.45)}
                           isReadOnly={true}
                           isDone={false}
                           label={ev.title}
@@ -949,7 +1149,7 @@ export default function GanttView({
                 if (row.type === 'phase') {
                   const phaseHasTasks = row.phase.tasks && row.phase.tasks.length > 0;
                   const pDays = row.phase.start && row.phase.end
-                    ? calcTaskDays(row.phase.start, row.phase.end, activeCalEvents, calendarEvents)
+                    ? calcTaskDays(row.phase.start, row.phase.end, activeCalEvents, calendarEventLookup)
                     : null;
                   return (
                     <div key={row.phase.id} className="gantt-timeline-row" style={rowStyle}>
@@ -978,7 +1178,7 @@ export default function GanttView({
                   const taskColor = row.task.done ? '#555' : row.phase.color;
                   const taskLabel = getTaskLabel(row.task, row.phaseIndex, row.taskIndex);
                   const tDays = !row.task.milestone && row.task.start && row.task.end
-                    ? calcTaskDays(row.task.start, row.task.end, activeCalEvents, calendarEvents)
+                    ? calcTaskDays(row.task.start, row.task.end, activeCalEvents, calendarEventLookup)
                     : null;
                   return (
                     <div key={row.task.id} className="gantt-timeline-row" style={rowStyle}>

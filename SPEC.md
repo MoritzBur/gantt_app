@@ -170,22 +170,47 @@ All routes are under `/api/`. The frontend talks to these.
 
 All write endpoints immediately persist to `tasks.json` after the update.
 
-### Google Calendar
+### Calendar integration
 
 | Method | Route | What it does |
 |---|---|---|
-| `GET` | `/api/calendar/status` | Returns `{ connected: true/false }` |
+| `GET` | `/api/calendar/status` | Returns connection status for the active backend |
+| `GET` | `/api/calendar/config` | Returns grouped calendar config for the active backend |
+| `POST` | `/api/calendar/config` | Saves grouped calendar config for the active backend |
 | `GET` | `/api/calendar/auth` | Redirects user to Google OAuth consent screen |
 | `GET` | `/api/calendar/callback` | OAuth callback, saves token, redirects to `/` |
 | `GET` | `/api/calendar/events?start=...&end=...` | Returns events from all configured calendars in the given date range |
 | `POST` | `/api/calendar/disconnect` | Deletes `tokens.json`, clears session |
+
+Calendar config response shape:
+
+```json
+{
+  "version": 2,
+  "backend": "ical",
+  "calendars": [
+    {
+      "id": "ical-abc123",
+      "source": "ical",
+      "label": "Work",
+      "color": "#4A90D9",
+      "icalUrl": "https://example.com/work.ics",
+      "enabled": true
+    }
+  ]
+}
+```
+
+For the Google backend, calendar membership still comes from `GOOGLE_CALENDAR_IDS`; those entries use `calendarId` instead of `icalUrl` and can be relabeled/recolored in the UI.
 
 Calendar events response shape:
 
 ```json
 [
   {
-    "id": "google-event-id",
+    "id": "ical-abc123::google-event-id",
+    "sourceEventId": "google-event-id",
+    "calendarKey": "ical-abc123",
     "title": "Meeting with supervisor",
     "start": "2026-03-25",
     "end": "2026-03-25",
@@ -246,13 +271,15 @@ In Google Cloud Console, the OAuth redirect URI must be set to: `http://localhos
 - **Zoom controls** → buttons to switch between Day / Week / Month / Quarter view
 - **Today line** → vertical red line marking today's date
 
-### Google Calendar overlay
+### Calendar overlay
 
-- Shown as a visually distinct section at the top of the task list, labeled "Google Calendar"
-- Events are rendered as non-draggable, slightly transparent bars in a different color (e.g. soft gray or light blue)
+- Shown as a visually distinct section at the top of the task list, labeled "Calendars"
+- Each configured calendar has its own header row, color, reorder handle, and collapse toggle
+- Events are rendered as non-draggable, slightly transparent bars in that calendar's configured color
 - Multi-day events span their full duration on the timeline
 - Single-day events show as a narrow block
-- If not connected, show a placeholder row: "Connect Google Calendar →" that links to `/api/calendar/auth`
+- If a calendar is collapsed, its event rows are hidden but any previously activated blocker overlays remain active
+- If not connected, show a placeholder row: "Connect Calendar →"
 - Fetch events for the currently visible date range + 2 weeks on each side as buffer
 
 ### Auto-save

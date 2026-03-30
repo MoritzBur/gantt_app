@@ -354,6 +354,16 @@ a:hover {
   font-family: inherit;
 }
 
+.gantt-calendar-row {
+  padding-left: 2px;
+  background: rgba(255, 255, 255, 0.02);
+  font-weight: 600;
+}
+
+.gantt-calendar-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .gantt-phase-row {
   padding-left: 2px;
   background: var(--bg-elevated);
@@ -444,6 +454,10 @@ a:hover {
   margin-left: 36px;
 }
 
+.list-drop-indicator--calendar {
+  margin-left: 8px;
+}
+
 /* ─── Auto-numbering labels ─────────────────────────────────────────────────── */
 
 .phase-label {
@@ -453,6 +467,17 @@ a:hover {
   flex: 1;
   min-width: 0;
   overflow: hidden;
+}
+
+.calendar-source-pill {
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
 }
 
 .task-label {
@@ -1225,6 +1250,15 @@ a:hover {
   gap: 0;
 }
 
+.cal-option-divider {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 10px 0;
+}
+
 .cal-option {
   padding: 20px;
   border-radius: var(--radius);
@@ -1285,6 +1319,7 @@ a:hover {
   margin-bottom: 6px;
 }
 
+.cal-text-input,
 .cal-ical-input {
   width: 100%;
   box-sizing: border-box;
@@ -1299,7 +1334,16 @@ a:hover {
   line-height: 1.6;
 }
 
+.cal-text-input {
+  resize: none;
+}
+
 .cal-ical-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cal-text-input:focus {
   outline: none;
   border-color: var(--accent);
 }
@@ -1323,6 +1367,77 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.cal-option-actions-stacked {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.cal-option-save-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cal-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cal-editor-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 14px;
+}
+
+.cal-editor-row {
+  display: flex;
+  gap: 12px;
+}
+
+.cal-editor-row .cal-option-label:first-child {
+  flex: 1;
+}
+
+.cal-color-field {
+  width: 88px;
+  flex-shrink: 0;
+}
+
+.cal-color-input {
+  width: 100%;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  padding: 4px;
+  cursor: pointer;
+}
+
+.cal-url-input,
+.cal-readonly-input {
+  font-family: var(--font-mono);
+}
+
+.cal-readonly-input {
+  color: var(--text-muted);
+}
+
+.cal-editor-actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cal-editor-actions .cal-option-hint {
+  margin-bottom: 0;
+  flex: 1;
 }
 
 .cal-save-ok   { font-size: 13px; color: #27ae60; }
@@ -1405,6 +1520,28 @@ a:hover {
 .snapshot-banner-btn-restore:hover {
   background: rgba(220, 60, 50, 0.4);
   opacity: 1;
+}
+
+.calendar-notice-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  background: rgba(240, 192, 64, 0.14);
+  border-bottom: 1px solid rgba(240, 192, 64, 0.4);
+  flex-wrap: wrap;
+}
+
+.calendar-notice-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.calendar-notice-text {
+  flex: 1;
+  min-width: 220px;
+  font-size: 13px;
+  color: #f0d48a;
 }
 
 /* ─── History panel ──────────────────────────────────────────────────────────── */

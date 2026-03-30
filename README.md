@@ -59,7 +59,7 @@ If this is your first install, use the detailed Windows, macOS, or Linux install
 
 1. Start the app from the launcher you created during install, then open your bookmarked local URL in the browser if it does not open automatically.
 2. Click `Connect Calendar`.
-3. For the quickest test, paste an iCal URL and save it. That is the simplest calendar setup, and you can add Git or switch to Google Calendar later.
+3. For the quickest test, add an iCal URL, give it a label/color if you want, and save it. Each saved feed becomes its own collapsible calendar group, and you can add more later.
 4. Create a phase and a task.
 5. In Day view, double-click a calendar entry to toggle it as a blocker and watch the available workday count update.
 6. Drag the end of the task until the available workdays match what you think the task really needs.
@@ -207,8 +207,9 @@ If you want a direct single-port console run instead of the normal launcher flow
 Optional calendar setup:
 
 - The app works without any calendar integration.
-- iCal is the simplest option and only needs `ICAL_URLS` in `.env`.
+- iCal is the simplest option. You can still seed it with `ICAL_URLS` in `.env`, but the app now manages individual iCal calendars as separate labeled/colorized groups.
 - Google Calendar OAuth needs `CALENDAR_BACKEND=google`, Google client credentials, and a redirect URI that matches `http://localhost:<PORT>/api/calendar/callback`.
+- In the Google backend, calendar membership still comes from `GOOGLE_CALENDAR_IDS`; the app lets you label/color those calendars, reorder them, and collapse them.
 
 ## Optional: Git-Backed Snapshots And Private Data Repo
 

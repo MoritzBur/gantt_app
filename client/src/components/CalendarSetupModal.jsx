@@ -1,23 +1,123 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
+const CALENDAR_COLORS = [
+  '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
+  '#E74C3C', '#16A085', '#F39C12', '#2C3E50',
+];
+
+function createDraftIcalCalendar(index) {
+  return {
+    id: `draft-ical-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+    source: 'ical',
+    label: `Calendar ${index + 1}`,
+    color: CALENDAR_COLORS[index % CALENDAR_COLORS.length],
+    icalUrl: '',
+    enabled: true,
+  };
+}
+
+function sanitizeIcalCalendars(calendars) {
+  return calendars
+    .map((calendar, index) => ({
+      id: calendar.id,
+      source: 'ical',
+      label: (calendar.label || '').trim() || `Calendar ${index + 1}`,
+      color: calendar.color || CALENDAR_COLORS[index % CALENDAR_COLORS.length],
+      icalUrl: (calendar.icalUrl || '').trim(),
+      enabled: calendar.enabled !== false,
+    }))
+    .filter(calendar => calendar.icalUrl);
+}
+
+function sanitizeGoogleCalendars(calendars) {
+  return calendars.map((calendar, index) => ({
+    id: calendar.id,
+    source: 'google',
+    label: (calendar.label || '').trim() || calendar.calendarId || `Calendar ${index + 1}`,
+    color: calendar.color || CALENDAR_COLORS[index % CALENDAR_COLORS.length],
+    calendarId: calendar.calendarId,
+    enabled: true,
+  }));
+}
 
 export default function CalendarSetupModal({ status, config, onSave, onClose }) {
-  const [icalInput, setIcalInput] = useState(
-    (config?.icalUrls || []).join('\n')
-  );
-  const [saving, setSaving] = useState(false);
-  const [saveResult, setSaveResult] = useState(null); // 'ok' | 'error'
+  const [icalCalendars, setIcalCalendars] = useState([]);
+  const [googleCalendars, setGoogleCalendars] = useState([]);
+  const [saving, setSaving] = useState(null); // 'ical' | 'google' | null
+  const [saveResult, setSaveResult] = useState(null); // 'ical-ok' | 'ical-error' | 'google-ok' | 'google-error' | null
 
-  const handleSaveIcal = async () => {
-    setSaving(true);
-    setSaveResult(null);
-    const urls = icalInput.split('\n').map(u => u.trim()).filter(Boolean);
-    const ok = await onSave({ icalUrls: urls });
-    setSaveResult(ok ? 'ok' : 'error');
-    setSaving(false);
-  };
+  useEffect(() => {
+    if (status.backend === 'ical') {
+      const nextCalendars = Array.isArray(config?.calendars) && config.calendars.length > 0
+        ? config.calendars.map((calendar, index) => ({
+            ...calendar,
+            label: calendar.label || `Calendar ${index + 1}`,
+            color: calendar.color || CALENDAR_COLORS[index % CALENDAR_COLORS.length],
+            enabled: calendar.enabled !== false,
+          }))
+        : [createDraftIcalCalendar(0)];
+      setIcalCalendars(nextCalendars);
+    }
+
+    if (status.backend === 'google') {
+      setGoogleCalendars(Array.isArray(config?.calendars) ? config.calendars : []);
+    }
+  }, [status.backend, config]);
 
   const isIcal = status.backend === 'ical';
   const isGoogle = status.backend === 'google';
+
+  const updateIcalCalendar = (calendarId, patch) => {
+    setIcalCalendars(prev => prev.map(calendar => (
+      calendar.id === calendarId ? { ...calendar, ...patch } : calendar
+    )));
+    setSaveResult(null);
+  };
+
+  const updateGoogleCalendar = (calendarId, patch) => {
+    setGoogleCalendars(prev => prev.map(calendar => (
+      calendar.id === calendarId ? { ...calendar, ...patch } : calendar
+    )));
+    setSaveResult(null);
+  };
+
+  const handleAddIcalCalendar = () => {
+    setIcalCalendars(prev => [...prev, createDraftIcalCalendar(prev.length)]);
+    setSaveResult(null);
+  };
+
+  const handleRemoveIcalCalendar = (calendarId) => {
+    setIcalCalendars(prev => prev.filter(calendar => calendar.id !== calendarId));
+    setSaveResult(null);
+  };
+
+  const handleSaveIcal = async () => {
+    setSaving('ical');
+    setSaveResult(null);
+    const calendars = sanitizeIcalCalendars(icalCalendars);
+    const ok = await onSave({
+      version: 2,
+      backend: 'ical',
+      calendars,
+    });
+    setSaveResult(ok ? 'ical-ok' : 'ical-error');
+    if (ok) {
+      setIcalCalendars(calendars.length > 0 ? calendars : [createDraftIcalCalendar(0)]);
+    }
+    setSaving(null);
+  };
+
+  const handleSaveGoogle = async () => {
+    setSaving('google');
+    setSaveResult(null);
+    const ok = await onSave({
+      version: 2,
+      backend: 'google',
+      calendars: sanitizeGoogleCalendars(googleCalendars),
+    });
+    setSaveResult(ok ? 'google-ok' : 'google-error');
+    setSaving(null);
+  };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -28,7 +128,6 @@ export default function CalendarSetupModal({ status, config, onSave, onClose }) 
         </div>
 
         <div className="modal-body cal-setup-body">
-          {/* iCal option */}
           <div className={`cal-option ${isIcal ? 'cal-option-active' : ''}`}>
             <div className="cal-option-header">
               <span className="cal-option-title">iCal Subscription</span>
@@ -36,49 +135,154 @@ export default function CalendarSetupModal({ status, config, onSave, onClose }) 
               <span className="cal-option-tag">Recommended</span>
             </div>
             <p className="cal-option-desc">
-              No Google Cloud project needed. Works with Google Calendar, Apple Calendar, Outlook, and more.
+              Each saved feed becomes its own calendar group with its own color, order, and collapse state.
             </p>
-            <label className="cal-option-label">
-              iCal URL(s) — one per line
-            </label>
-            <textarea
-              className="cal-ical-input"
-              value={icalInput}
-              onChange={e => { setIcalInput(e.target.value); setSaveResult(null); }}
-              placeholder={'https://calendar.google.com/calendar/ical/you%40gmail.com/private-xxx/basic.ics'}
-              rows={4}
-              spellCheck={false}
-            />
-            <p className="cal-option-hint">
-              Find it in Google Calendar → Settings → your calendar → <em>"Secret address in iCal format"</em>
-            </p>
-            <div className="cal-option-actions">
-              <button
-                className="btn btn-primary"
-                onClick={handleSaveIcal}
-                disabled={saving}
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              {saveResult === 'ok' && <span className="cal-save-ok">Saved ✓</span>}
-              {saveResult === 'error' && <span className="cal-save-error">Save failed ✗</span>}
-            </div>
+
+            {isIcal ? (
+              <>
+                <div className="cal-editor-list">
+                  {icalCalendars.map((calendar, index) => (
+                    <div key={calendar.id} className="cal-editor-card">
+                      <div className="cal-editor-row">
+                        <label className="cal-option-label">
+                          Label
+                          <input
+                            className="cal-text-input"
+                            value={calendar.label}
+                            onChange={e => updateIcalCalendar(calendar.id, { label: e.target.value })}
+                            placeholder={`Calendar ${index + 1}`}
+                          />
+                        </label>
+                        <label className="cal-option-label cal-color-field">
+                          Color
+                          <input
+                            className="cal-color-input"
+                            type="color"
+                            value={calendar.color || CALENDAR_COLORS[index % CALENDAR_COLORS.length]}
+                            onChange={e => updateIcalCalendar(calendar.id, { color: e.target.value })}
+                          />
+                        </label>
+                      </div>
+
+                      <label className="cal-option-label">
+                        iCal URL
+                        <input
+                          className="cal-text-input cal-url-input"
+                          value={calendar.icalUrl || ''}
+                          onChange={e => updateIcalCalendar(calendar.id, { icalUrl: e.target.value })}
+                          placeholder="https://calendar.google.com/calendar/ical/you%40gmail.com/private-xxx/basic.ics"
+                          spellCheck={false}
+                        />
+                      </label>
+
+                      <div className="cal-editor-actions">
+                        <span className="cal-option-hint">
+                          Find it in Google Calendar → Settings → your calendar → <em>Secret address in iCal format</em>
+                        </span>
+                        <button
+                          className="btn btn-ghost btn-small"
+                          onClick={() => handleRemoveIcalCalendar(calendar.id)}
+                          type="button"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="cal-option-actions cal-option-actions-stacked">
+                  <button className="btn btn-ghost" onClick={handleAddIcalCalendar} type="button">
+                    + Add calendar
+                  </button>
+                  <div className="cal-option-save-row">
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleSaveIcal}
+                      disabled={saving === 'ical'}
+                    >
+                      {saving === 'ical' ? 'Saving…' : 'Save iCal calendars'}
+                    </button>
+                    {saveResult === 'ical-ok' && <span className="cal-save-ok">Saved ✓</span>}
+                    {saveResult === 'ical-error' && <span className="cal-save-error">Save failed ✗</span>}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="cal-option-hint">
+                Switch to this backend by setting <code>CALENDAR_BACKEND=ical</code> in <code>.env</code> and restarting.
+              </p>
+            )}
           </div>
 
           <div className="cal-option-divider">or</div>
 
-          {/* Google API option */}
           <div className={`cal-option ${isGoogle ? 'cal-option-active' : ''}`}>
             <div className="cal-option-header">
               <span className="cal-option-title">Google Calendar API</span>
               {isGoogle && <span className="cal-option-badge">Active</span>}
             </div>
             <p className="cal-option-desc">
-              Uses OAuth — requires a Google Cloud project. Set <code>CALENDAR_BACKEND=google</code> in <code>.env</code> to activate.
+              Uses OAuth and <code>GOOGLE_CALENDAR_IDS</code>. In v1, membership is still controlled in <code>.env</code>; the app lets you label and color each configured Google calendar.
             </p>
             {isGoogle ? (
               status.connected ? (
-                <span className="cal-connected-label">Connected ✓</span>
+                googleCalendars.length > 0 ? (
+                  <>
+                    <div className="cal-editor-list">
+                      {googleCalendars.map((calendar, index) => (
+                        <div key={calendar.id} className="cal-editor-card">
+                          <div className="cal-editor-row">
+                            <label className="cal-option-label">
+                              Label
+                              <input
+                                className="cal-text-input"
+                                value={calendar.label || ''}
+                                onChange={e => updateGoogleCalendar(calendar.id, { label: e.target.value })}
+                                placeholder={calendar.calendarId || `Calendar ${index + 1}`}
+                              />
+                            </label>
+                            <label className="cal-option-label cal-color-field">
+                              Color
+                              <input
+                                className="cal-color-input"
+                                type="color"
+                                value={calendar.color || CALENDAR_COLORS[index % CALENDAR_COLORS.length]}
+                                onChange={e => updateGoogleCalendar(calendar.id, { color: e.target.value })}
+                              />
+                            </label>
+                          </div>
+
+                          <label className="cal-option-label">
+                            Calendar ID
+                            <input
+                              className="cal-text-input cal-readonly-input"
+                              value={calendar.calendarId || ''}
+                              readOnly
+                              spellCheck={false}
+                            />
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="cal-option-actions">
+                      <button
+                        className="btn btn-primary"
+                        onClick={handleSaveGoogle}
+                        disabled={saving === 'google'}
+                      >
+                        {saving === 'google' ? 'Saving…' : 'Save Google metadata'}
+                      </button>
+                      {saveResult === 'google-ok' && <span className="cal-save-ok">Saved ✓</span>}
+                      {saveResult === 'google-error' && <span className="cal-save-error">Save failed ✗</span>}
+                    </div>
+                  </>
+                ) : (
+                  <p className="cal-option-hint">
+                    Add one or more comma-separated ids to <code>GOOGLE_CALENDAR_IDS</code> in <code>.env</code>, then restart the app.
+                  </p>
+                )
               ) : status.authUrl ? (
                 <a href={status.authUrl} className="btn btn-primary">
                   Connect with Google
