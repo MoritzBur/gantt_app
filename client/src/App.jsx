@@ -11,6 +11,7 @@ const PHASE_COLORS = [
 
 const CALENDAR_PAST_BUFFER_DAYS = 30;
 const CALENDAR_FUTURE_BUFFER_DAYS = 180;
+const UNDO_STACK_LIMIT = 50;
 
 // Compute start/end bounds from a phase's tasks (includes milestones)
 function calcPhaseBounds(tasks) {
@@ -23,6 +24,14 @@ function calcPhaseBounds(tasks) {
       return e > m ? e : m;
     }, datable[0].end || datable[0].start),
   };
+}
+
+function cloneTaskData(value) {
+  return value ? JSON.parse(JSON.stringify(value)) : value;
+}
+
+function taskDataEquals(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export default function App() {
@@ -38,6 +47,9 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showCalendarSetup, setShowCalendarSetup] = useState(false);
   const [calendarConfig, setCalendarConfig] = useState(null);
+  const [undoStack, setUndoStack] = useState([]);
+  const [redoStack, setRedoStack] = useState([]);
+  const [historyFeedback, setHistoryFeedback] = useState(null);
 
   // Git status
   const [gitStatus, setGitStatus] = useState({
@@ -55,6 +67,9 @@ export default function App() {
   // PDF export
   const [exporting, setExporting] = useState(false);
   const uiStateSaveTimerRef = useRef(null);
+  const historyFeedbackTimerRef = useRef(null);
+  const dataRef = useRef(data);
+  const pendingDragSnapshotRef = useRef(null);
   const serverRestartNotice = 'The browser UI is newer than the local server process. Restart the app/server so the multi-calendar API loads, then open Connect Calendar and save again.';
 
   const normalizeUiState = useCallback((raw = {}) => {
@@ -134,6 +149,38 @@ export default function App() {
     }
   }, [normalizeUiState]);
 
+  const showHistoryFeedback = useCallback((kind) => {
+    setHistoryFeedback(kind);
+    if (historyFeedbackTimerRef.current) clearTimeout(historyFeedbackTimerRef.current);
+    historyFeedbackTimerRef.current = setTimeout(() => setHistoryFeedback(null), 900);
+  }, []);
+
+  const clearUndoHistory = useCallback(() => {
+    setUndoStack([]);
+    setRedoStack([]);
+    pendingDragSnapshotRef.current = null;
+  }, []);
+
+  const pushUndoSnapshot = useCallback((snapshot) => {
+    if (!snapshot) return;
+    const cloned = cloneTaskData(snapshot);
+    setUndoStack(prev => {
+      const next = [...prev, cloned];
+      return next.length > UNDO_STACK_LIMIT ? next.slice(next.length - UNDO_STACK_LIMIT) : next;
+    });
+    setRedoStack([]);
+  }, []);
+
+  const persistWholeTaskData = useCallback(async (nextData) => {
+    const res = await fetch('/api/tasks', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextData),
+    });
+    if (!res.ok) throw new Error('Server error');
+    return res.json();
+  }, []);
+
   // Load tasks on mount — retry a few times to handle the Express startup race
   useEffect(() => {
     const load = async (attempt = 0) => {
@@ -156,6 +203,7 @@ export default function App() {
               activeCalEvents: shouldClearLegacyServerActiveEvents ? [] : serverState.activeCalEvents,
             });
         setData(d);
+        clearUndoHistory();
         setUiState(nextUiState);
         setLoading(false);
         if (shouldMigrateLegacy && legacyState.hadLegacyActiveCalEvents) {
@@ -180,7 +228,11 @@ export default function App() {
       }
     };
     load();
-  }, [readLegacyUiState]);
+  }, [clearUndoHistory, readLegacyUiState, normalizeUiState]);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   // Load calendar status and config on mount
   useEffect(() => {
@@ -273,7 +325,8 @@ export default function App() {
   const handleAddPhase = async () => {
     const today = new Date().toISOString().slice(0, 10);
     const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const colorIdx = data ? data.phases.length % PHASE_COLORS.length : 0;
+    const currentData = dataRef.current;
+    const colorIdx = currentData ? currentData.phases.length % PHASE_COLORS.length : 0;
     try {
       const res = await fetch('/api/tasks/phase', {
         method: 'POST',
@@ -287,6 +340,7 @@ export default function App() {
       });
       if (!res.ok) throw new Error('Server error');
       const newPhase = await res.json();
+      pushUndoSnapshot(currentData);
       setData(prev => ({ ...prev, phases: [...prev.phases, newPhase] }));
       showSaveStatus('saved');
       setEditTarget({ type: 'phase', id: newPhase.id });
@@ -295,8 +349,12 @@ export default function App() {
     }
   };
 
-  const handleSaveTask = async (taskId, updates) => {
-    const affectedPhase = data?.phases.find(p => p.tasks.some(t => t.id === taskId));
+  const handleSaveTask = async (taskId, updates, options = {}) => {
+    const { captureUndo = true } = options;
+    const currentData = dataRef.current;
+    const affectedPhase = currentData?.phases.find(p => p.tasks.some(t => t.id === taskId));
+    if (!affectedPhase) return;
+
     const needsBoundsRecalc = affectedPhase && (updates.start !== undefined || updates.end !== undefined);
     let newBounds = null;
     if (needsBoundsRecalc) {
@@ -304,14 +362,26 @@ export default function App() {
       newBounds = calcPhaseBounds(projected);
     }
 
-    setData(prev => ({
-      ...prev,
-      phases: prev.phases.map(p => {
+    const nextData = {
+      ...currentData,
+      phases: currentData.phases.map(p => {
         if (!p.tasks.some(t => t.id === taskId)) return p;
         const updatedTasks = p.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
         return newBounds ? { ...p, tasks: updatedTasks, ...newBounds } : { ...p, tasks: updatedTasks };
       }),
-    }));
+    };
+
+    if (taskDataEquals(nextData, currentData)) {
+      if (!captureUndo) pendingDragSnapshotRef.current = null;
+      return;
+    }
+
+    if (captureUndo) pushUndoSnapshot(currentData);
+    else if (pendingDragSnapshotRef.current) {
+      pushUndoSnapshot(pendingDragSnapshotRef.current);
+      pendingDragSnapshotRef.current = null;
+    }
+    setData(nextData);
 
     try {
       const fetches = [
@@ -344,12 +414,15 @@ export default function App() {
       }));
       showSaveStatus('saved');
     } catch (err) {
+      if (!captureUndo) pendingDragSnapshotRef.current = null;
       showSaveStatus('failed');
     }
   };
 
   const handleDeleteTask = async (taskId) => {
-    const affectedPhase = data?.phases.find(p => p.tasks.some(t => t.id === taskId));
+    const currentData = dataRef.current;
+    const affectedPhase = currentData?.phases.find(p => p.tasks.some(t => t.id === taskId));
+    if (!affectedPhase) return;
     try {
       const res = await fetch(`/api/tasks/task/${taskId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Server error');
@@ -358,6 +431,7 @@ export default function App() {
         ? calcPhaseBounds(affectedPhase.tasks.filter(t => t.id !== taskId))
         : null;
 
+      pushUndoSnapshot(currentData);
       setData(prev => ({
         ...prev,
         phases: prev.phases.map(p => {
@@ -383,7 +457,17 @@ export default function App() {
     }
   };
 
-  const handleSavePhase = async (phaseId, updates) => {
+  const handleSavePhase = async (phaseId, updates, options = {}) => {
+    const { captureUndo = true } = options;
+    const currentData = dataRef.current;
+    const existingPhase = currentData?.phases.find(p => p.id === phaseId);
+    if (!existingPhase) return;
+    const candidatePhase = { ...existingPhase, ...updates };
+    if (taskDataEquals(existingPhase, candidatePhase)) {
+      if (!captureUndo) pendingDragSnapshotRef.current = null;
+      return;
+    }
+
     try {
       const res = await fetch(`/api/tasks/phase/${phaseId}`, {
         method: 'PUT',
@@ -392,20 +476,41 @@ export default function App() {
       });
       if (!res.ok) throw new Error('Server error');
       const updated = await res.json();
+      if (captureUndo) pushUndoSnapshot(currentData);
+      else if (pendingDragSnapshotRef.current) {
+        pushUndoSnapshot(pendingDragSnapshotRef.current);
+        pendingDragSnapshotRef.current = null;
+      }
       setData(prev => ({
         ...prev,
         phases: prev.phases.map(p => p.id === phaseId ? { ...p, ...updated } : p),
       }));
       showSaveStatus('saved');
     } catch (err) {
+      if (!captureUndo) pendingDragSnapshotRef.current = null;
       showSaveStatus('failed');
     }
   };
 
+  const handleTaskDragStart = useCallback(() => {
+    if (historicalSnapshot || !dataRef.current || pendingDragSnapshotRef.current) return;
+    pendingDragSnapshotRef.current = cloneTaskData(dataRef.current);
+  }, [historicalSnapshot]);
+
+  const handlePhaseDragStart = useCallback(() => {
+    if (historicalSnapshot || !dataRef.current || pendingDragSnapshotRef.current) return;
+    pendingDragSnapshotRef.current = cloneTaskData(dataRef.current);
+  }, [historicalSnapshot]);
+
   const handleDeletePhase = async (phaseId) => {
+    const currentData = dataRef.current;
+    const existingPhase = currentData?.phases.find(p => p.id === phaseId);
+    if (!existingPhase) return;
+
     try {
       const res = await fetch(`/api/tasks/phase/${phaseId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Server error');
+      pushUndoSnapshot(currentData);
       setData(prev => ({
         ...prev,
         phases: prev.phases.filter(p => p.id !== phaseId),
@@ -418,7 +523,8 @@ export default function App() {
   };
 
   const handleAddTask = async (phaseId) => {
-    const phase = data.phases.find(p => p.id === phaseId);
+    const currentData = dataRef.current;
+    const phase = currentData?.phases.find(p => p.id === phaseId);
     if (!phase) return;
     try {
       const res = await fetch(`/api/tasks/phase/${phaseId}/task`, {
@@ -428,6 +534,7 @@ export default function App() {
       });
       if (!res.ok) throw new Error('Server error');
       const newTask = await res.json();
+      pushUndoSnapshot(currentData);
       setData(prev => ({
         ...prev,
         phases: prev.phases.map(p => p.id === phaseId
@@ -443,6 +550,12 @@ export default function App() {
   };
 
   const handleReorderPhases = async (phaseOrder) => {
+    const currentData = dataRef.current;
+    if (!currentData) return;
+    const currentOrder = currentData.phases.map(p => p.id);
+    if (taskDataEquals(currentOrder, phaseOrder)) return;
+
+    pushUndoSnapshot(currentData);
     setData(prev => {
       const phaseMap = Object.fromEntries(prev.phases.map(p => [p.id, p]));
       return { ...prev, phases: phaseOrder.map(id => phaseMap[id]).filter(Boolean) };
@@ -462,6 +575,13 @@ export default function App() {
   };
 
   const handleReorderTasks = async (phaseId, taskOrder) => {
+    const currentData = dataRef.current;
+    const phase = currentData?.phases.find(p => p.id === phaseId);
+    if (!phase) return;
+    const currentOrder = phase.tasks.map(t => t.id);
+    if (taskDataEquals(currentOrder, taskOrder)) return;
+
+    pushUndoSnapshot(currentData);
     setData(prev => ({
       ...prev,
       phases: prev.phases.map(p => {
@@ -516,13 +636,61 @@ export default function App() {
     }
   }, [normalizeCalendarConfig, serverRestartNotice]);
 
+  const handleUndo = useCallback(async () => {
+    const currentData = dataRef.current;
+    if (!currentData || historicalSnapshot || undoStack.length === 0) return;
+
+    const previousSnapshot = undoStack[undoStack.length - 1];
+    const currentSnapshot = cloneTaskData(currentData);
+
+    try {
+      const restored = await persistWholeTaskData(previousSnapshot);
+      pendingDragSnapshotRef.current = null;
+      setData(restored);
+      setUndoStack(prev => prev.slice(0, -1));
+      setRedoStack(prev => {
+        const next = [...prev, currentSnapshot];
+        return next.length > UNDO_STACK_LIMIT ? next.slice(next.length - UNDO_STACK_LIMIT) : next;
+      });
+      showSaveStatus('saved');
+      showHistoryFeedback('undo');
+      setEditTarget(null);
+    } catch (err) {
+      showSaveStatus('failed');
+    }
+  }, [historicalSnapshot, persistWholeTaskData, showHistoryFeedback, showSaveStatus, undoStack]);
+
+  const handleRedo = useCallback(async () => {
+    const currentData = dataRef.current;
+    if (!currentData || historicalSnapshot || redoStack.length === 0) return;
+
+    const nextSnapshot = redoStack[redoStack.length - 1];
+    const currentSnapshot = cloneTaskData(currentData);
+
+    try {
+      const restored = await persistWholeTaskData(nextSnapshot);
+      pendingDragSnapshotRef.current = null;
+      setData(restored);
+      setRedoStack(prev => prev.slice(0, -1));
+      setUndoStack(prev => {
+        const next = [...prev, currentSnapshot];
+        return next.length > UNDO_STACK_LIMIT ? next.slice(next.length - UNDO_STACK_LIMIT) : next;
+      });
+      showSaveStatus('saved');
+      showHistoryFeedback('redo');
+      setEditTarget(null);
+    } catch (err) {
+      showSaveStatus('failed');
+    }
+  }, [historicalSnapshot, persistWholeTaskData, redoStack, showHistoryFeedback, showSaveStatus]);
+
   // ─── Historical snapshot handlers ────────────────────────────────────────────
 
   const handleReturnToCurrent = () => {
     setHistoricalSnapshot(null);
   };
 
-  const handleMakeCurrent = async () => {
+  const handleMakeCurrent = useCallback(async () => {
     if (!historicalSnapshot) return;
     try {
       const res = await fetch('/api/git/restore', {
@@ -535,13 +703,14 @@ export default function App() {
       });
       if (!res.ok) throw new Error('Server error');
       setData(historicalSnapshot.tasks);
+      clearUndoHistory();
       setUiState(historicalSnapshot.state || uiState);
       setHistoricalSnapshot(null);
       showSaveStatus('saved');
     } catch (err) {
       alert('Failed to restore snapshot');
     }
-  };
+  }, [clearUndoHistory, historicalSnapshot, showSaveStatus, uiState]);
 
   // ─── PDF export ──────────────────────────────────────────────────────────────
 
@@ -667,7 +836,39 @@ export default function App() {
 
   useEffect(() => () => {
     if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
+    if (historyFeedbackTimerRef.current) clearTimeout(historyFeedbackTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (historicalSnapshot) return;
+
+      const target = event.target;
+      const isEditable = target instanceof HTMLElement && (
+        target.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+      );
+      if (isEditable) return;
+
+      const primaryModifier = event.ctrlKey || event.metaKey;
+      if (!primaryModifier) return;
+
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      if ((key === 'z' && event.shiftKey) || key === 'y') {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRedo, handleUndo, historicalSnapshot]);
 
   if (loading) {
     return (
@@ -796,12 +997,19 @@ export default function App() {
             onPhaseClick={(phaseId) => !isHistorical && setEditTarget({ type: 'phase', id: phaseId })}
             onAddTask={handleAddTask}
             onTaskUpdate={handleSaveTask}
+            onTaskDragStart={handleTaskDragStart}
             onPhaseUpdate={handleSavePhase}
+            onPhaseDragStart={handlePhaseDragStart}
             onSaveStatus={showSaveStatus}
             onCalendarSetup={() => setShowCalendarSetup(true)}
             onReorderPhases={handleReorderPhases}
             onReorderTasks={handleReorderTasks}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
             onUiStateChange={!isHistorical ? handleUiStateChange : undefined}
+            canUndo={!isHistorical && undoStack.length > 0}
+            canRedo={!isHistorical && redoStack.length > 0}
+            historyFeedback={historyFeedback}
             readonly={isHistorical}
           />
         )}

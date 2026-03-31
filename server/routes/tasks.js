@@ -22,6 +22,22 @@ router.get('/', (req, res) => {
   }
 });
 
+// PUT /api/tasks — replace full tasks.json
+router.put('/', (req, res) => {
+  try {
+    const nextData = req.body;
+    if (!nextData || !Array.isArray(nextData.phases)) {
+      return res.status(400).json({ error: 'Invalid tasks payload' });
+    }
+
+    writeData(nextData);
+    res.json(nextData);
+  } catch (err) {
+    console.error('Failed to write tasks:', err);
+    res.status(500).json({ error: 'Failed to write tasks' });
+  }
+});
+
 // POST /api/tasks/phase — create new phase
 router.post('/phase', (req, res) => {
   try {

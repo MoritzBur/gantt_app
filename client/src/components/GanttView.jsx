@@ -220,18 +220,18 @@ function mergeOrderedIds(availableIds, preferredIds) {
 
 // ─── Gantt bar ────────────────────────────────────────────────────────────────
 
-function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragUpdate, onClick, onDoubleClick }) {
-  const startOffset = diffDays(startDate, parseDate(taskStart));
-  const duration = diffDays(parseDate(taskStart), parseDate(taskEnd)) + 1;
-  const left = startOffset * dayWidth;
-  const width = Math.max(duration * dayWidth, dayWidth);
-
-  const dragRef = useRef(null);
+function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragStart, onDragCommit, onClick, onDoubleClick }) {
   const didDragRef = useRef(false);
   const labelRef = useRef(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [labelFits, setLabelFits] = useState(true);
+  const displayStart = dragState?.newStart || taskStart;
+  const displayEnd = dragState?.newEnd || taskEnd;
+  const startOffset = diffDays(startDate, parseDate(displayStart));
+  const duration = diffDays(parseDate(displayStart), parseDate(displayEnd)) + 1;
+  const left = startOffset * dayWidth;
+  const width = Math.max(duration * dayWidth, dayWidth);
 
   // Re-measure whether the inside label fits whenever bar width, label, or duration changes
   useLayoutEffect(() => {
@@ -254,13 +254,19 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
     const startX = e.clientX;
     const origStart = taskStart;
     const origEnd = taskEnd;
+    let nextStart = origStart;
+    let nextEnd = origEnd;
 
     const onMouseMove = (ev) => {
       const dx = ev.clientX - startX;
       const daysDelta = Math.round(dx / dayWidth);
       if (daysDelta === 0) return;
 
-      didDragRef.current = true;
+      if (!didDragRef.current) {
+        didDragRef.current = true;
+        onDragStart?.();
+      }
+
       let newStart = origStart;
       let newEnd = origEnd;
 
@@ -275,28 +281,28 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
         if (newEnd < newStart) newEnd = newStart;
       }
 
+      nextStart = newStart;
+      nextEnd = newEnd;
       setDragState({ mode, newStart, newEnd });
-      onDragUpdate(newStart, newEnd);
     };
 
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       setDragState(null);
+      if (didDragRef.current) onDragCommit?.(nextStart, nextEnd);
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [taskStart, taskEnd, dayWidth, isReadOnly, onDragUpdate]);
+  }, [dayWidth, isLocked, isReadOnly, onDragCommit, onDragStart, taskEnd, taskStart]);
 
   const showLeftDate = dragState && (dragState.mode === 'resize-left' || dragState.mode === 'move');
   const showRightDate = dragState && (dragState.mode === 'resize-right' || dragState.mode === 'move');
   const noDrag = isReadOnly || isLocked;
 
   // For outside labels, live-update duration during drag
-  const liveDuration = dragState
-    ? diffDays(parseDate(dragState.newStart), parseDate(dragState.newEnd)) + 1
-    : duration;
+  const liveDuration = duration;
 
   return (
     <div
@@ -351,8 +357,10 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
 
 // ─── Milestone marker ─────────────────────────────────────────────────────────
 
-function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadOnly, label, diamondPx, onDragUpdate, onClick }) {
-  const offset = diffDays(startDate, parseDate(taskDate));
+function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadOnly, label, diamondPx, onDragStart, onDragCommit, onClick }) {
+  const [dragDate, setDragDate] = useState(null);
+  const displayDate = dragDate || taskDate;
+  const offset = diffDays(startDate, parseDate(displayDate));
   const left = offset * dayWidth + dayWidth / 2 - diamondPx / 2;
 
   const labelRef = useRef(null);
@@ -366,23 +374,32 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadO
     didDragRef.current = false;
     const startX = e.clientX;
     const origDate = taskDate;
+    let nextDate = origDate;
 
     const onMouseMove = (ev) => {
       const daysDelta = Math.round((ev.clientX - startX) / dayWidth);
       if (daysDelta === 0) return;
-      didDragRef.current = true;
+
+      if (!didDragRef.current) {
+        didDragRef.current = true;
+        onDragStart?.();
+      }
+
       const newDate = formatDate(addDays(parseDate(origDate), daysDelta));
-      onDragUpdate(newDate, newDate);
+      nextDate = newDate;
+      setDragDate(newDate);
     };
 
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      setDragDate(null);
+      if (didDragRef.current) onDragCommit?.(nextDate, nextDate);
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [taskDate, dayWidth, onDragUpdate]);
+  }, [dayWidth, onDragCommit, onDragStart, taskDate]);
 
   return (
     <div
@@ -431,11 +448,18 @@ export default function GanttView({
   onPhaseClick,
   onAddTask,
   onTaskUpdate,
+  onTaskDragStart,
   onPhaseUpdate,
+  onPhaseDragStart,
   onSaveStatus,
   onReorderPhases,
   onReorderTasks,
+  onUndo,
+  onRedo,
   onUiStateChange,
+  canUndo = false,
+  canRedo = false,
+  historyFeedback = null,
   readonly = false,
 }) {
   const [zoom, setZoom] = useState(uiState?.zoom && ZOOM_LEVELS[uiState.zoom] ? uiState.zoom : 'Month');
@@ -602,11 +626,11 @@ export default function GanttView({
   };
 
   const handleTaskDrag = useCallback(async (taskId, newStart, newEnd) => {
-    onTaskUpdate(taskId, { start: newStart, end: newEnd });
+    onTaskUpdate(taskId, { start: newStart, end: newEnd }, { captureUndo: false });
   }, [onTaskUpdate]);
 
   const handlePhaseDrag = useCallback(async (phaseId, newStart, newEnd) => {
-    onPhaseUpdate(phaseId, { start: newStart, end: newEnd });
+    onPhaseUpdate(phaseId, { start: newStart, end: newEnd }, { captureUndo: false });
   }, [onPhaseUpdate]);
 
   // ─── List resize ──────────────────────────────────────────────────────────
@@ -827,7 +851,27 @@ export default function GanttView({
         </div>
       )}
       {/* Toolbar */}
-      <div className="gantt-toolbar">
+      <div className={`gantt-toolbar${historyFeedback ? ` history-feedback history-feedback-${historyFeedback}` : ''}`}>
+        <div className="history-controls">
+          <button
+            className="btn btn-zoom history-btn"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+          >
+            ↶
+          </button>
+          <button
+            className="btn btn-zoom history-btn"
+            onClick={onRedo}
+            disabled={!canRedo}
+            title="Redo (Ctrl+Shift+Z / Ctrl+Y)"
+            aria-label="Redo"
+          >
+            ↷
+          </button>
+        </div>
         <div className="zoom-controls">
           {Object.keys(ZOOM_LEVELS).map(level => (
             <button
@@ -1167,7 +1211,8 @@ export default function GanttView({
                         labelOutside={true}
                         workDays={pDays?.work}
                         netDays={pDays?.net}
-                        onDragUpdate={(s, e) => handlePhaseDrag(row.phase.id, s, e)}
+                        onDragStart={onPhaseDragStart}
+                        onDragCommit={(s, e) => handlePhaseDrag(row.phase.id, s, e)}
                         onClick={() => onPhaseClick(row.phase.id)}
                       />
                     </div>
@@ -1192,7 +1237,8 @@ export default function GanttView({
                             isReadOnly={readonly}
                             label={taskLabel}
                             diamondPx={DIAMOND_PX}
-                            onDragUpdate={(s, e) => handleTaskDrag(row.task.id, s, e)}
+                            onDragStart={onTaskDragStart}
+                            onDragCommit={(s, e) => handleTaskDrag(row.task.id, s, e)}
                             onClick={() => !readonly && onTaskClick(row.task.id)}
                           />
                         : <GanttBar
@@ -1209,7 +1255,8 @@ export default function GanttView({
                             workDays={tDays?.work}
                             netDays={tDays?.net}
                             hasNotes={!!row.task.notes}
-                            onDragUpdate={(s, e) => handleTaskDrag(row.task.id, s, e)}
+                            onDragStart={onTaskDragStart}
+                            onDragCommit={(s, e) => handleTaskDrag(row.task.id, s, e)}
                             onClick={() => onTaskClick(row.task.id)}
                           />
                       }

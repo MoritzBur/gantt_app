@@ -168,6 +168,11 @@ a:hover {
   text-decoration: none;
 }
 
+.btn:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .btn-primary {
   background: var(--accent);
   color: #fff;
@@ -252,6 +257,35 @@ a:hover {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   gap: 12px;
+  transition: box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.gantt-toolbar.history-feedback-undo {
+  box-shadow: inset 0 0 0 1px rgba(74, 144, 217, 0.5);
+  background: rgba(74, 144, 217, 0.09);
+}
+
+.gantt-toolbar.history-feedback-redo {
+  box-shadow: inset 0 0 0 1px rgba(39, 174, 96, 0.42);
+  background: rgba(39, 174, 96, 0.08);
+}
+
+.history-controls {
+  display: flex;
+}
+
+.history-btn {
+  min-width: 36px;
+  padding: 0 8px;
+  font-size: 15px;
+}
+
+.history-btn:first-child {
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+.history-btn:last-child {
+  border-radius: 0 var(--radius) var(--radius) 0;
 }
 
 .zoom-controls {
