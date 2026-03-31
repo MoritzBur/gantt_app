@@ -161,12 +161,20 @@ begin
   end;
 end;
 
+function CurrentInstallDirText(): string;
+begin
+  Result := WizardDirValue();
+  if Result = '' then begin
+    Result := ExpandConstant('{localappdata}\Gantt App');
+  end;
+end;
+
 function BuildPreflightText(): string;
 begin
   Result :=
     'This installer is a per-user install. Admin rights are not required.' + #13#10#13#10 +
     'Install plan:' + #13#10 +
-    '- App files: ' + ExpandConstant('{app}') + #13#10 +
+    '- App files: ' + CurrentInstallDirText() + #13#10 +
     '- Data folder: ' + ExpandConstant('{userdocs}\Gantt App Data') + #13#10 +
     '- During setup: copy files, run npm install, generate .env, build the frontend, and create shortcuts.' + #13#10#13#10 +
     'Dependency check:' + #13#10 +
