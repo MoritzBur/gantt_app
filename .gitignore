@@ -5,6 +5,7 @@ server/tokens.json
 # Private task data
 data/tasks.json
 data/state.json
+data-dev/
 
 # Calendar config contains private iCal URLs — keep out of version control
 data/calendar-config.json
