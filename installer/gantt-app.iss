@@ -83,6 +83,7 @@ end;
 function ReadCommandOutput(const Command: string; var Output: string; var ResultCode: Integer): Boolean;
 var
   TempPath: string;
+  RawOutput: AnsiString;
 begin
   TempPath := ExpandConstant('{tmp}\gantt-installer-check.txt');
   if FileExists(TempPath) then begin
@@ -100,7 +101,9 @@ begin
 
   Output := '';
   if FileExists(TempPath) then begin
-    LoadStringFromFile(TempPath, Output);
+    RawOutput := '';
+    LoadStringFromFile(TempPath, RawOutput);
+    Output := RawOutput;
     DeleteFile(TempPath);
   end;
 
