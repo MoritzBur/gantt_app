@@ -224,6 +224,14 @@ To build the Windows installer from a Windows machine with Inno Setup 6 installe
 powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1
 ```
 
+To update a dedicated Windows checkout and build the installer in one step:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\fetch-and-build-installer.ps1 -Branch codex-cross-platform-polish
+```
+
+That helper clones the repo into `%USERPROFILE%\Apps\gantt-app-installer-build` the first time, reuses it on later runs, pulls the branch you specify, and then runs the normal installer build for you.
+
 Windows release checklist:
 
 1. Make sure the repo is on the commit you want to release and that `package.json` has the intended version.
