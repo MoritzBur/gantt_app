@@ -315,6 +315,7 @@ Run them with:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 powershell -ExecutionPolicy Bypass -File .\start.ps1
+powershell -ExecutionPolicy Bypass -File .\start.ps1 -Production
 ```
 
 **A launcher says the app is already running**

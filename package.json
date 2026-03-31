@@ -10,7 +10,7 @@
     "server": "node server/index.js",
     "client": "vite client/",
     "build": "vite build client/",
-    "start": "NODE_ENV=production node server/index.js"
+    "start": "node server/start-production.js"
   },
   "dependencies": {
     "concurrently": "^8.2.2",

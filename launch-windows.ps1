@@ -203,7 +203,7 @@ try {
   }
 
   if ($launcherProcess.HasExited) {
-    Show-Notification -Title "Gantt App" -Level "Error" -Message "Gantt App could not be started.`n`nRun .\start.ps1 -Production in PowerShell to see the error details."
+    Show-Notification -Title "Gantt App" -Level "Error" -Message "Gantt App could not be started.`n`nTo see the real error, run this in PowerShell from the install folder:`n`npowershell -ExecutionPolicy Bypass -File .\start.ps1 -Production"
     exit 1
   }
 
