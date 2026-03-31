@@ -16,6 +16,8 @@ node_modules/
 
 # Build output
 client/dist/
+installer/dist/
+installer/staging/
 
 # Atomic write temp files
 *.tmp.json

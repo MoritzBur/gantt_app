@@ -35,6 +35,46 @@ read_env_value() {
   printf '%s' "$line"
 }
 
+set_env_value() {
+  local key="$1"
+  local value="$2"
+  local tmp_file
+
+  if [ ! -f "$ENV_FILE" ]; then
+    printf '%s=%s\n' "$key" "$value" >"$ENV_FILE"
+    return 0
+  fi
+
+  tmp_file="$(mktemp)"
+  awk -v key="$key" -v value="$value" '
+    BEGIN { updated = 0 }
+    $0 ~ "^[[:space:]]*" key "=" {
+      print key "=" value
+      updated = 1
+      next
+    }
+    { print }
+    END {
+      if (!updated) {
+        print key "=" value
+      }
+    }
+  ' "$ENV_FILE" >"$tmp_file"
+  mv "$tmp_file" "$ENV_FILE"
+}
+
+looks_like_nested_zip_extract() {
+  local leaf_name
+  local parent_name
+  leaf_name="$(basename "$SCRIPT_DIR")"
+  parent_name="$(basename "$(dirname "$SCRIPT_DIR")")"
+  [[ "$leaf_name" = "gantt_app" && "$parent_name" =~ ^Gantt\ App(\ \([0-9]+\))?$ ]]
+}
+
+generate_session_secret() {
+  node -e "process.stdout.write(require('crypto').randomBytes(48).toString('hex'))"
+}
+
 say "Checking prerequisites..."
 
 require_command node "Node.js 20 or newer is required. Install it from https://nodejs.org/ and rerun this script."
@@ -47,6 +87,13 @@ fi
 
 say "Node: $(node -v)"
 say "npm:  $(npm -v)"
+
+say ""
+if looks_like_nested_zip_extract; then
+  say "Warning: this looks like the nested ZIP layout 'Gantt App/gantt_app/...'."
+  say "The app can still run here, but the cleaner fix is to move the inner gantt_app folder contents up one level."
+  say ""
+fi
 
 say ""
 say "Installing dependencies with npm..."
@@ -62,9 +109,13 @@ fi
 
 session_secret="$(read_env_value SESSION_SECRET)"
 if [ -z "$session_secret" ]; then
-  say "Reminder: set SESSION_SECRET in .env before starting the app."
+  generated_secret="$(generate_session_secret)"
+  set_env_value SESSION_SECRET "$generated_secret"
+  say "Generated SESSION_SECRET in .env."
 elif [ "$session_secret" = "change-this-to-any-long-random-string" ]; then
-  say "Reminder: replace the example SESSION_SECRET in .env with your own random string."
+  generated_secret="$(generate_session_secret)"
+  set_env_value SESSION_SECRET "$generated_secret"
+  say "Replaced the example SESSION_SECRET in .env with a random value."
 fi
 
 gantt_data_dir="$(read_env_value GANTT_DATA_DIR)"

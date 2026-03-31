@@ -1,4 +1,7 @@
-param()
+param(
+  [switch]$BuildProductionAssets,
+  [string]$DefaultDataDir
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -29,6 +32,44 @@ function Get-EnvValue([string]$Path, [string]$Key) {
   return ($line -replace "^\s*$Key=", "").Trim()
 }
 
+function Set-EnvValue([string]$Path, [string]$Key, [string]$Value) {
+  $escapedValue = [Regex]::Escape($Key)
+  $content = @()
+  if (Test-Path $Path) {
+    $content = Get-Content $Path
+  }
+
+  $updated = $false
+  for ($index = 0; $index -lt $content.Count; $index += 1) {
+    if ($content[$index] -match "^\s*$escapedValue=") {
+      $content[$index] = "$Key=$Value"
+      $updated = $true
+    }
+  }
+
+  if (-not $updated) {
+    $content += "$Key=$Value"
+  }
+
+  Set-Content -Path $Path -Value $content -Encoding ascii
+}
+
+function New-SessionSecret() {
+  $guidParts = 1..4 | ForEach-Object { [guid]::NewGuid().ToString("N") }
+  return ($guidParts -join "")
+}
+
+function Test-LooksLikeNestedZipExtract([string]$Path) {
+  $leafName = Split-Path -Leaf $Path
+  $parentName = Split-Path -Leaf (Split-Path -Parent $Path)
+
+  if ($leafName -ieq "gantt_app" -and $parentName -match '^Gantt App(?: \(\d+\))?$') {
+    return $true
+  }
+
+  return $false
+}
+
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $EnvFile = Join-Path $RepoRoot ".env"
 $EnvExampleFile = Join-Path $RepoRoot ".env.example"
@@ -47,6 +88,13 @@ if ($NodeMajor -lt 20) {
 Write-Step "Node: $NodeVersion"
 Write-Step "npm:  $((& npm -v).Trim())"
 Write-Step ""
+
+if (Test-LooksLikeNestedZipExtract -Path $RepoRoot) {
+  Write-Step "Warning: this looks like the nested ZIP layout 'Gantt App\\gantt_app\\...'."
+  Write-Step "The app can still run here, but the cleaner fix is to move the inner gantt_app folder contents up one level or use the Windows installer."
+  Write-Step ""
+}
+
 Write-Step "Installing dependencies with npm..."
 Push-Location $RepoRoot
 try {
@@ -65,9 +113,27 @@ if (-not (Test-Path $EnvFile)) {
 
 $SessionSecret = Get-EnvValue $EnvFile "SESSION_SECRET"
 if ([string]::IsNullOrWhiteSpace($SessionSecret)) {
-  Write-Step "Reminder: set SESSION_SECRET in .env before starting the app."
+  $SessionSecret = New-SessionSecret
+  Set-EnvValue -Path $EnvFile -Key "SESSION_SECRET" -Value $SessionSecret
+  Write-Step "Generated SESSION_SECRET in .env."
 } elseif ($SessionSecret -eq "change-this-to-any-long-random-string") {
-  Write-Step "Reminder: replace the example SESSION_SECRET in .env with your own random string."
+  $SessionSecret = New-SessionSecret
+  Set-EnvValue -Path $EnvFile -Key "SESSION_SECRET" -Value $SessionSecret
+  Write-Step "Replaced the example SESSION_SECRET in .env with a random value."
+}
+
+if (-not [string]::IsNullOrWhiteSpace($DefaultDataDir)) {
+  $ResolvedDefaultDataDir = [System.IO.Path]::GetFullPath($DefaultDataDir)
+  $ConfiguredDataDir = Get-EnvValue $EnvFile "GANTT_DATA_DIR"
+  if ([string]::IsNullOrWhiteSpace($ConfiguredDataDir)) {
+    Set-EnvValue -Path $EnvFile -Key "GANTT_DATA_DIR" -Value $ResolvedDefaultDataDir
+    Write-Step "Configured GANTT_DATA_DIR in .env."
+  }
+
+  if (-not (Test-Path $ResolvedDefaultDataDir)) {
+    New-Item -ItemType Directory -Path $ResolvedDefaultDataDir -Force | Out-Null
+    Write-Step "Created data directory at $ResolvedDefaultDataDir"
+  }
 }
 
 $DataDir = Get-EnvValue $EnvFile "GANTT_DATA_DIR"
@@ -85,6 +151,17 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 } else {
   Write-Step "Git was not found on PATH."
   Write-Step "Basic planning still works, but Git-backed snapshot/history workflows need Git installed."
+}
+
+if ($BuildProductionAssets) {
+  Write-Step ""
+  Write-Step "Building production frontend assets..."
+  Push-Location $RepoRoot
+  try {
+    & npm run build
+  } finally {
+    Pop-Location
+  }
 }
 
 Write-Step ""

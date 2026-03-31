@@ -12,7 +12,7 @@ It lets you plan tasks alongside your actual calendar, highlight events as block
 
 This is a focused personal planning tool. It runs locally on your own machine, stores your data in local JSON files, and optionally uses Git to keep a lightweight snapshot history of planning changes.
 
-The app is not a desktop-packaged product in this repo yet. It is a cross-platform Node/React app that you run locally on Windows, macOS, or Linux.
+Windows releases can be packaged as an installer. The app itself is still a cross-platform Node/React app that you run locally on Windows, macOS, or Linux.
 
 ## Why It Is Useful
 
@@ -67,25 +67,38 @@ If this is your first install, use the detailed Windows, macOS, or Linux install
 
 ## Install On Windows
 
+Preferred installer flow:
+
 1. Install Node.js 20+ from [nodejs.org](https://nodejs.org/).
 2. Optional: install Git from [git-scm.com](https://git-scm.com/) if you want snapshot history or a private Git-backed data repo. You can do this later.
-3. Download this repo as a ZIP and extract it.
-4. Move the extracted folder somewhere permanent before you continue.
-Suggested examples: `C:\Users\you\Programs\Gantt App` or `C:\Users\you\Documents\Gantt App`
-5. Open that folder in File Explorer, click the address bar, type `powershell`, and press Enter.
-6. Run setup:
+3. Download `GanttApp-Setup-<version>.exe` from the latest GitHub release and run it.
+4. Keep the default install path `%LOCALAPPDATA%\Gantt App` unless you have a reason to change it.
+5. Choose whether you want a Desktop shortcut and optional autostart on sign-in.
+6. Let the installer finish `npm install`, generate `.env`, build the frontend, and create the shortcuts for you.
+7. Launch `Gantt App` from the Start Menu or your Desktop shortcut.
+
+The installer keeps the app in `%LOCALAPPDATA%\Gantt App` and, by default, stores your planning data in `%USERPROFILE%\Documents\Gantt App Data` so uninstalling the app does not delete your plans.
+
+Manual ZIP fallback for contributors or manual installs:
+
+1. Download this repo as a ZIP and extract it.
+2. Move the extracted folder somewhere permanent before you continue.
+Suggested examples: `%LOCALAPPDATA%\Gantt App` or `%USERPROFILE%\Apps\Gantt App`
+3. If the extracted path looks like `Gantt App\gantt_app\...`, move the contents of the inner `gantt_app` folder up one level first.
+4. Open that folder in File Explorer, click the address bar, type `powershell`, and press Enter.
+5. Run setup:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
-7. Create the launcher shortcut:
+6. Create the launcher shortcut:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
 ```
 
-8. Double-click the new `Gantt App` desktop shortcut.
+7. Double-click the new `Gantt App` desktop shortcut.
 
 That shortcut uses the app icon and starts the single-port app without leaving a PowerShell window open. When the app is ready, Windows shows a notification with the local URL, usually `http://localhost:3000`. Bookmark that URL in your browser if you plan to use the app regularly. You can also pin the shortcut to Start or the taskbar from Windows Explorer.
 
@@ -173,7 +186,7 @@ cd gantt_app
 
 Simple everyday use:
 
-- Windows: double-click the shortcut created by `create-windows-shortcut.ps1`
+- Windows: launch `Gantt App` from the installer-created Start Menu/Desktop shortcut, or double-click the shortcut created by `create-windows-shortcut.ps1`
 - macOS: open the app created by `./create-launcher.sh`
 - Linux: open the launcher created by `./create-launcher.sh`
 
@@ -203,6 +216,21 @@ If you want a direct single-port console run instead of the normal launcher flow
 - Windows: `powershell -ExecutionPolicy Bypass -File .\start.ps1 -Production`
 - macOS/Linux: `./launch.sh`
 - Manual equivalent: `npm run build` then `npm start`
+
+To build the Windows installer from a Windows machine with Inno Setup 6 installed:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1
+```
+
+Windows release checklist:
+
+1. Make sure the repo is on the commit you want to release and that `package.json` has the intended version.
+2. On Windows, install Node.js 20+ and Inno Setup 6 if they are not installed yet.
+3. From the repo root, run `powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1`.
+4. Confirm the installer exists at `installer\dist\GanttApp-Setup-<version>.exe`.
+5. Run that installer on Windows and verify install, shortcut creation, launcher startup, and uninstall.
+6. Upload only the generated `.exe` as the Windows release artifact. Do not commit `installer/dist/` or `installer/staging/`.
 
 Optional calendar setup:
 
@@ -258,7 +286,7 @@ This is a strong setup for technical users because it gives you private local da
 
 ## Optional: Autostart On Login
 
-Autostart is intentionally separate from normal launch. Nothing in setup enables it automatically.
+Autostart is intentionally separate from normal launch. Nothing in the helper scripts enables it automatically, and the Windows installer only enables it if you opt in during setup.
 
 The default workflow is still:
 
@@ -268,7 +296,7 @@ The default workflow is still:
 
 If you want autostart later, keep it per-user and easy to undo:
 
-- Windows: create a quiet shortcut with `powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1 -Quiet`, then place that shortcut in your Startup folder
+- Windows: either enable the installer's `Start Gantt App when I sign in` option, or create a quiet shortcut with `powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1 -Quiet` and place that shortcut in your Startup folder
 - macOS: rebuild the launcher with `./create-launcher.sh --quiet`, then add `~/Applications/Gantt App.app` to Login Items
 - Linux: rebuild the launcher with `./create-launcher.sh --quiet`, then copy `~/.local/share/applications/gantt-app.desktop` to `~/.config/autostart/`
 
@@ -278,7 +306,7 @@ Some users want the backend to start quietly without opening a browser on login.
 
 **`node` or `npm` is not found**
 
-Install Node.js 20+ first, then rerun the setup helper.
+Install Node.js 20+ first, then rerun the setup helper or the Windows installer.
 
 **PowerShell blocks `setup.ps1` or `start.ps1`**
 
@@ -307,7 +335,7 @@ chmod +x setup.sh create-launcher.sh launch.sh start.sh
 
 **Missing `.env` or missing `SESSION_SECRET`**
 
-Run the setup helper. If `.env` already exists, make sure it contains a real `SESSION_SECRET`.
+Run the setup helper. It now creates `.env` automatically and replaces the example `SESSION_SECRET` with a random value if needed.
 
 **Port already in use**
 
@@ -323,7 +351,7 @@ The redirect URI in Google Cloud must exactly match `http://localhost:<PORT>/api
 
 ## Scope / Limitations
 
-- This repo is a local app, not a native packaged desktop installer yet.
+- Windows now has an Inno Setup installer, but macOS and Linux still use the helper scripts from this repo.
 - Launchers created by the helper scripts point at the current repo folder. If you move that folder later, rerun the launcher helper.
 - It is designed for personal and self-managed work, not team collaboration.
 - Calendar overlay is optional, but Google OAuth still requires a localhost callback setup.
