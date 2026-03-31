@@ -8,7 +8,7 @@ const PHASE_COLORS = [
 export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const modalRef = useRef(null);
+  const backdropMouseDownRef = useRef(false);
 
   useEffect(() => {
     if (!item) return;
@@ -23,9 +23,14 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Close on backdrop click
-  const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) onClose();
+  // Only close when the full click gesture starts and ends on the backdrop.
+  const handleBackdropMouseDown = (e) => {
+    backdropMouseDownRef.current = e.target === e.currentTarget;
+  };
+
+  const handleBackdropMouseUp = (e) => {
+    if (backdropMouseDownRef.current && e.target === e.currentTarget) onClose();
+    backdropMouseDownRef.current = false;
   };
 
   if (!item || !form) return null;
@@ -54,8 +59,12 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={handleBackdropClick}>
-      <div className="modal" ref={modalRef} role="dialog" aria-modal="true">
+    <div
+      className="modal-backdrop"
+      onMouseDown={handleBackdropMouseDown}
+      onMouseUp={handleBackdropMouseUp}
+    >
+      <div className="modal" role="dialog" aria-modal="true">
         <div className="modal-header">
           <h2 className="modal-title">
             {type === 'phase' ? 'Edit Phase' : 'Edit Task'}
