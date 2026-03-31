@@ -73,9 +73,10 @@ Preferred installer flow:
 2. Optional: install Git from [git-scm.com](https://git-scm.com/) if you want snapshot history or a private Git-backed data repo. You can do this later.
 3. Download `GanttApp-Setup-<version>.exe` from the latest GitHub release and run it.
 4. Keep the default install path `%LOCALAPPDATA%\Gantt App` unless you have a reason to change it.
-5. Choose whether you want a Desktop shortcut and optional autostart on sign-in.
-6. Let the installer finish `npm install`, generate `.env`, build the frontend, and create the shortcuts for you.
-7. Launch `Gantt App` from the Start Menu or your Desktop shortcut.
+5. Review the installer's system-check page. It shows whether Node.js 20+ and `npm` were detected and summarizes what setup will do.
+6. Choose whether you want a Desktop shortcut and optional autostart on sign-in.
+7. Let the installer finish `npm install`, generate `.env`, build the frontend, and create the shortcuts for you.
+8. Launch `Gantt App` from the Start Menu or your Desktop shortcut.
 
 The installer keeps the app in `%LOCALAPPDATA%\Gantt App` and, by default, stores your planning data in `%USERPROFILE%\Documents\Gantt App Data` so uninstalling the app does not delete your plans.
 
@@ -230,6 +231,7 @@ Windows release checklist:
 3. From the repo root, run `powershell -ExecutionPolicy Bypass -File .\installer\build-installer.ps1`.
 4. Confirm the installer exists at `installer\dist\GanttApp-Setup-<version>.exe`.
 5. Run that installer on Windows and verify install, shortcut creation, launcher startup, and uninstall.
+Note: the installer runs `npm install` and builds the frontend for you during setup.
 6. Upload only the generated `.exe` as the Windows release artifact. Do not commit `installer/dist/` or `installer/staging/`.
 
 Optional calendar setup:

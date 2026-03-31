@@ -57,6 +57,13 @@ const
 
 var
   SetupPrepared: Boolean;
+  PreflightPage: TWizardPage;
+  PreflightMemo: TNewMemo;
+  NodeDetected: Boolean;
+  NodeVersionValid: Boolean;
+  NpmDetected: Boolean;
+  NodeVersionText: string;
+  NpmVersionText: string;
 
 function OfferNodeDownload(const Message: string): Boolean;
 var
@@ -73,43 +80,156 @@ begin
   Result := False;
 end;
 
-function RunCmdCheck(const Parameters: string; const FailureMessage: string): Boolean;
+function ReadCommandOutput(const Command: string; var Output: string; var ResultCode: Integer): Boolean;
 var
+  TempPath: string;
+begin
+  TempPath := ExpandConstant('{tmp}\gantt-installer-check.txt');
+  if FileExists(TempPath) then begin
+    DeleteFile(TempPath);
+  end;
+
+  Result := Exec(
+    ExpandConstant('{cmd}'),
+    '/C ' + Command + ' > "' + TempPath + '" 2>&1',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  );
+
+  Output := '';
+  if FileExists(TempPath) then begin
+    LoadStringFromFile(TempPath, Output);
+    DeleteFile(TempPath);
+  end;
+
+  Output := Trim(Output);
+end;
+
+procedure DetectDependencies();
+var
+  Output: string;
   ResultCode: Integer;
 begin
-  Result :=
-    Exec(ExpandConstant('{cmd}'), Parameters, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) and
-    (ResultCode = 0);
+  NodeDetected := ReadCommandOutput('where node.exe', Output, ResultCode) and (ResultCode = 0);
+  if NodeDetected and ReadCommandOutput('node -v', Output, ResultCode) and (ResultCode = 0) then begin
+    NodeVersionText := Output;
+  end else if NodeDetected then begin
+    NodeVersionText := 'found on PATH';
+  end else begin
+    NodeVersionText := 'not found';
+  end;
 
-  if not Result then begin
-    Result := OfferNodeDownload(FailureMessage);
+  if NodeDetected then begin
+    NodeVersionValid :=
+      ReadCommandOutput(
+        'node -e "process.stdout.write(process.versions.node.split(''.'')[0])"',
+        Output,
+        ResultCode
+      ) and
+      (ResultCode = 0) and
+      (StrToIntDef(Output, 0) >= 20);
+  end else begin
+    NodeVersionValid := False;
+  end;
+
+  NpmDetected := ReadCommandOutput('where npm.cmd', Output, ResultCode) and (ResultCode = 0);
+  if NpmDetected and ReadCommandOutput('npm -v', Output, ResultCode) and (ResultCode = 0) then begin
+    NpmVersionText := Output;
+  end else if NpmDetected then begin
+    NpmVersionText := 'found on PATH';
+  end else begin
+    NpmVersionText := 'not found';
   end;
 end;
 
-function CheckNodeAndNpm(): Boolean;
+function DependenciesMet(): Boolean;
 begin
-  if not RunCmdCheck('/C where node.exe >nul 2>nul', 'Node.js 20 or newer is required to install Gantt App.') then begin
-    Result := False;
-    exit;
-  end;
+  Result := NodeDetected and NodeVersionValid and NpmDetected;
+end;
 
-  if not RunCmdCheck('/C node -e "process.exit(Number(process.versions.node.split(''.'')[0]) >= 20 ? 0 : 20)"', 'Detected Node.js is too old. Please install Node.js 20 or newer to continue.') then begin
-    Result := False;
-    exit;
+function NodeRequirementStatusText(): string;
+begin
+  if NodeVersionValid then begin
+    Result := 'met';
+  end else begin
+    Result := 'not met';
   end;
+end;
 
-  Result := RunCmdCheck('/C where npm.cmd >nul 2>nul', 'npm was not found. Please reinstall Node.js from nodejs.org and run this installer again.');
+function BuildPreflightText(): string;
+begin
+  Result :=
+    'This installer is a per-user install. Admin rights are not required.' + #13#10#13#10 +
+    'Install plan:' + #13#10 +
+    '- App files: ' + ExpandConstant('{app}') + #13#10 +
+    '- Data folder: ' + ExpandConstant('{userdocs}\Gantt App Data') + #13#10 +
+    '- During setup: copy files, run npm install, generate .env, build the frontend, and create shortcuts.' + #13#10#13#10 +
+    'Dependency check:' + #13#10 +
+    '- Node.js: ' + NodeVersionText + #13#10 +
+    '- Node.js >= 20 requirement: ' + NodeRequirementStatusText() + #13#10 +
+    '- npm: ' + NpmVersionText + #13#10#13#10;
+
+  if DependenciesMet() then begin
+    Result :=
+      Result +
+      'Status: prerequisites look good. You can continue with the installation.';
+  end else begin
+    Result :=
+      Result +
+      'Status: prerequisites are incomplete.' + #13#10 +
+      'Install Node.js 20 or newer from nodejs.org, then run this installer again.';
+  end;
+end;
+
+procedure RefreshPreflightPage();
+begin
+  DetectDependencies();
+  PreflightMemo.Text := BuildPreflightText();
+end;
+
+function BuildDependencyFailureMessage(): string;
+begin
+  Result :=
+    'Gantt App needs Node.js 20 or newer and npm before setup can continue.' + #13#10#13#10 +
+    'Detected Node.js: ' + NodeVersionText + #13#10 +
+    'Detected npm: ' + NpmVersionText;
 end;
 
 function InitializeSetup(): Boolean;
 begin
-  Result := CheckNodeAndNpm();
+  Result := True;
 end;
 
 function QuotePowerShellArgument(Value: string): string;
 begin
   StringChangeEx(Value, '"', '\"', True);
   Result := '"' + Value + '"';
+end;
+
+procedure InitializeWizard();
+begin
+  DetectDependencies();
+
+  PreflightPage :=
+    CreateCustomPage(
+      wpSelectTasks,
+      'System Check',
+      'Review the install plan and dependency status before continuing.'
+    );
+
+  PreflightMemo := TNewMemo.Create(PreflightPage);
+  PreflightMemo.Parent := PreflightPage.Surface;
+  PreflightMemo.Left := 0;
+  PreflightMemo.Top := 0;
+  PreflightMemo.Width := PreflightPage.SurfaceWidth;
+  PreflightMemo.Height := PreflightPage.SurfaceHeight;
+  PreflightMemo.ReadOnly := True;
+  PreflightMemo.WantReturns := False;
+  PreflightMemo.ScrollBars := ssVertical;
+
+  RefreshPreflightPage();
 end;
 
 procedure RunAppSetup();
@@ -137,7 +257,8 @@ begin
     ' -BuildProductionAssets -DefaultDataDir ' +
     QuotePowerShellArgument(DataDir);
 
-  WizardForm.StatusLabel.Caption := 'Installing dependencies and building Gantt App...';
+  WizardForm.StatusLabel.Caption :=
+    'Running app setup: npm install, environment setup, and frontend build. This can take a minute.';
   WizardForm.Update();
 
   if not Exec(PowerShellExe, Parameters, ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode) then begin
@@ -149,6 +270,26 @@ begin
       'Gantt App setup failed with exit code ' + IntToStr(ResultCode) + '.'#13#10#13#10 +
       'Please make sure Node.js and npm work in a normal PowerShell window, then run the installer again.'
     );
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+
+  if CurPageID = PreflightPage.ID then begin
+    RefreshPreflightPage();
+    if not DependenciesMet() then begin
+      OfferNodeDownload(BuildDependencyFailureMessage());
+      Result := False;
+    end;
+  end;
+end;
+
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = PreflightPage.ID then begin
+    RefreshPreflightPage();
   end;
 end;
 

@@ -13,6 +13,13 @@ function Fail([string]$Message) {
   throw $Message
 }
 
+function Invoke-CheckedCommand([string]$FilePath, [string[]]$Arguments, [string]$FailureMessage) {
+  & $FilePath @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    Fail "$FailureMessage (exit code $LASTEXITCODE)"
+  }
+}
+
 function Require-Command([string]$CommandName, [string]$Guidance) {
   if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
     Fail $Guidance
@@ -89,21 +96,32 @@ Write-Step "Node: $NodeVersion"
 Write-Step "npm:  $((& npm -v).Trim())"
 Write-Step ""
 
+if ($BuildProductionAssets) {
+  Write-Step "Installer mode: production assets will be built during setup."
+}
+if (-not [string]::IsNullOrWhiteSpace($DefaultDataDir)) {
+  Write-Step "Installer mode: default data directory requested at $DefaultDataDir"
+}
+if ($BuildProductionAssets -or -not [string]::IsNullOrWhiteSpace($DefaultDataDir)) {
+  Write-Step ""
+}
+
 if (Test-LooksLikeNestedZipExtract -Path $RepoRoot) {
   Write-Step "Warning: this looks like the nested ZIP layout 'Gantt App\\gantt_app\\...'."
   Write-Step "The app can still run here, but the cleaner fix is to move the inner gantt_app folder contents up one level or use the Windows installer."
   Write-Step ""
 }
 
-Write-Step "Installing dependencies with npm..."
+Write-Step "Installing npm dependencies... This can take a minute."
 Push-Location $RepoRoot
 try {
-  & npm install
+  Invoke-CheckedCommand -FilePath "npm" -Arguments @("install") -FailureMessage "npm install failed"
 } finally {
   Pop-Location
 }
 
 Write-Step ""
+Write-Step "Preparing local configuration..."
 if (-not (Test-Path $EnvFile)) {
   Copy-Item $EnvExampleFile $EnvFile
   Write-Step "Created .env from .env.example."
@@ -155,10 +173,10 @@ if (Get-Command git -ErrorAction SilentlyContinue) {
 
 if ($BuildProductionAssets) {
   Write-Step ""
-  Write-Step "Building production frontend assets..."
+  Write-Step "Building production frontend assets... This can also take a minute."
   Push-Location $RepoRoot
   try {
-    & npm run build
+    Invoke-CheckedCommand -FilePath "npm" -Arguments @("run", "build") -FailureMessage "npm run build failed"
   } finally {
     Pop-Location
   }

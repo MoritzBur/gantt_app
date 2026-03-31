@@ -12,6 +12,13 @@ function Fail([string]$Message) {
   throw $Message
 }
 
+function Invoke-CheckedCommand([string]$FilePath, [string[]]$Arguments, [string]$FailureMessage) {
+  & $FilePath @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    Fail "$FailureMessage (exit code $LASTEXITCODE)"
+  }
+}
+
 function Require-Command([string]$CommandName, [string]$Guidance) {
   if (-not (Get-Command $CommandName -ErrorAction SilentlyContinue)) {
     Fail $Guidance
@@ -34,6 +41,7 @@ function Get-EnvValue([string]$Path, [string]$Key) {
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $EnvFile = Join-Path $RepoRoot ".env"
 $NodeModules = Join-Path $RepoRoot "node_modules"
+$BuiltIndex = Join-Path $RepoRoot "client/dist/index.html"
 
 Require-Command "node" "Node.js 20 or newer is required. Install it from https://nodejs.org/ and rerun this script."
 Require-Command "npm" "npm is required. Install Node.js from https://nodejs.org/ and rerun this script."
@@ -79,14 +87,23 @@ try {
   if ($Production) {
     Write-Step "Mode: production"
     Write-Step "The app will be available at http://localhost:$Port"
-    & npm run build
-    & npm start
+
+    if (-not (Test-Path $BuiltIndex)) {
+      Write-Step "No built frontend found. Building it now..."
+      Invoke-CheckedCommand -FilePath "npm" -Arguments @("run", "build") -FailureMessage "npm run build failed"
+    } else {
+      Write-Step "Using existing built frontend in client/dist."
+    }
+
+    Write-Step "Starting production server..."
+    Invoke-CheckedCommand -FilePath "npm" -Arguments @("start") -FailureMessage "npm start failed"
   } else {
     Write-Step "Mode: development"
     Write-Step "Backend:  http://localhost:$Port"
     Write-Step "Frontend: http://localhost:5173"
     Write-Step "Open the frontend URL once Vite reports that it is ready."
-    & npm run dev
+    Write-Step "Starting development servers..."
+    Invoke-CheckedCommand -FilePath "npm" -Arguments @("run", "dev") -FailureMessage "npm run dev failed"
   }
 } finally {
   Pop-Location
