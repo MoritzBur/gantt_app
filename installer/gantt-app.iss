@@ -146,11 +146,8 @@ begin
 
   if ResultCode <> 0 then begin
     RaiseException(
-      Format(
-        'Gantt App setup failed with exit code %d.'#13#10#13#10 +
-        'Please make sure Node.js and npm work in a normal PowerShell window, then run the installer again.',
-        [ResultCode]
-      )
+      'Gantt App setup failed with exit code ' + IntToStr(ResultCode) + '.'#13#10#13#10 +
+      'Please make sure Node.js and npm work in a normal PowerShell window, then run the installer again.'
     );
   end;
 end;

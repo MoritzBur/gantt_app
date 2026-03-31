@@ -108,6 +108,10 @@ Write-Host "ISCC:           $CompilerPath"
   "/DOutputDir=$OutputDir" `
   $IssPath
 
+if ($LASTEXITCODE -ne 0) {
+  throw "ISCC.exe failed with exit code $LASTEXITCODE."
+}
+
 Write-Host ""
 Write-Host "Installer build complete."
 Write-Host "Expected output: $(Join-Path $OutputDir "GanttApp-Setup-$Version.exe")"
