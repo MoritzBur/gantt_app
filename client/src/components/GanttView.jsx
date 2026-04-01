@@ -427,6 +427,7 @@ export default function GanttView({
   onCalendarSetup,
   onNodeClick,
   onAddChild,
+  onQuickBatchCreate,
   onNodeUpdate,
   onDeleteNode,
   onSplitNode,
@@ -632,6 +633,11 @@ export default function GanttView({
     const items = [];
 
     if (node.type === 'group') {
+      items.push({
+        label: 'Batch create subtasks',
+        action: () => onQuickBatchCreate?.(node.id, { x: contextMenu.x, y: contextMenu.y }),
+      });
+      items.push({ separator: true });
       items.push({ label: 'Add task', action: () => onAddChild(node.id, 'task') });
       if (depth < MAX_UI_DEPTH - 1) {
         items.push({ label: 'Add sub-group', action: () => onAddChild(node.id, 'group') });
@@ -641,8 +647,15 @@ export default function GanttView({
       items.push({ label: 'Delete', action: () => onDeleteNode(node.id), danger: true });
     } else {
       // task
-      if (depth < MAX_UI_DEPTH - 1) {
-        items.push({ label: 'Split into subtasks', action: () => onSplitNode(node.id) });
+      if (depth < MAX_UI_DEPTH - 1 && !node.milestone) {
+        items.push({
+          label: 'Batch create subtasks',
+          action: () => onQuickBatchCreate?.(node.id, { x: contextMenu.x, y: contextMenu.y }),
+        });
+        items.push({ label: 'Convert to group', action: () => onSplitNode(node.id) });
+        items.push({ separator: true });
+      } else if (depth < MAX_UI_DEPTH - 1) {
+        items.push({ label: 'Convert to group', action: () => onSplitNode(node.id) });
         items.push({ separator: true });
       }
       items.push({
@@ -654,7 +667,7 @@ export default function GanttView({
     }
 
     return items;
-  }, [contextMenu, onAddChild, onNodeClick, onNodeUpdate, onDeleteNode, onSplitNode]);
+  }, [contextMenu, onAddChild, onNodeClick, onNodeUpdate, onDeleteNode, onQuickBatchCreate, onSplitNode]);
 
   useEffect(() => {
     const listEl = listRef.current;

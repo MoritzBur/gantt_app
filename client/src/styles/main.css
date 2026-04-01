@@ -569,6 +569,61 @@ a:hover {
   margin: 4px 0;
 }
 
+.quick-batch-panel {
+  position: fixed;
+  z-index: 10020;
+  width: min(320px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(22, 27, 34, 0.96);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.quick-batch-editor {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid rgba(125, 133, 144, 0.18);
+}
+
+.quick-batch-placeholder {
+  position: absolute;
+  inset: 11px 12px;
+  margin: 0;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  line-height: 1.7;
+  color: rgba(230, 237, 243, 0.16);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.quick-batch-textarea {
+  width: 100%;
+  min-height: 118px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  line-height: 1.7;
+  resize: none;
+}
+
+.quick-batch-textarea:focus {
+  outline: none;
+}
+
+.quick-batch-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
 /* ─── List resize handle ────────────────────────────────────────────────────── */
 
 .gantt-list-resizer {
@@ -1095,6 +1150,11 @@ a:hover {
   letter-spacing: 0;
 }
 
+.form-helper-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .form-input {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1127,6 +1187,46 @@ a:hover {
   resize: vertical;
   min-height: 88px;
   line-height: 1.5;
+}
+
+.batch-subtasks-group {
+  gap: 8px;
+}
+
+.batch-subtasks-editor {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.batch-subtasks-placeholder {
+  position: absolute;
+  inset: 10px 12px;
+  margin: 0;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(230, 237, 243, 0.16);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.batch-subtasks-textarea {
+  position: relative;
+  z-index: 1;
+  min-height: 120px;
+  font-family: var(--font-mono);
+  line-height: 1.65;
+  background: transparent;
+}
+
+.batch-subtasks-editor.is-empty .batch-subtasks-textarea {
+  color: var(--text);
+}
+
+.batch-subtasks-actions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .form-checkbox {

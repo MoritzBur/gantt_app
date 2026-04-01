@@ -3,6 +3,7 @@ import GanttView from './components/GanttView.jsx';
 import TaskEditor from './components/TaskEditor.jsx';
 import CalendarSetupModal from './components/CalendarSetupModal.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
+import QuickBatchSubtasks from './components/QuickBatchSubtasks.jsx';
 
 const PHASE_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
@@ -114,6 +115,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showCalendarSetup, setShowCalendarSetup] = useState(false);
   const [calendarConfig, setCalendarConfig] = useState(null);
+  const [quickBatchTarget, setQuickBatchTarget] = useState(null); // { id, x, y }
 
   const [gitDirty, setGitDirty] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
@@ -354,6 +356,26 @@ export default function App() {
     }
   };
 
+  const handleBatchCreateSubtasks = async (nodeId, markdown) => {
+    try {
+      const res = await fetch(`/api/tasks/node/${nodeId}/batch-subtasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markdown }),
+      });
+      if (!res.ok) throw new Error('Server error');
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
+      showSaveStatus('saved');
+      setEditTarget(null);
+      setQuickBatchTarget(null);
+      return true;
+    } catch (err) {
+      showSaveStatus('failed');
+      return false;
+    }
+  };
+
   const handleDisconnectCalendar = async () => {
     try {
       await fetch('/api/calendar/disconnect', { method: 'POST' });
@@ -512,7 +534,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="top-bar">
-      <div className="top-bar-left">
+        <div className="top-bar-left">
           <span className="app-title">Gantt</span>
         </div>
         <div className="top-bar-right">
@@ -601,6 +623,10 @@ export default function App() {
               if (node) setEditTarget({ type: node.type, id: nodeId });
             }}
             onAddChild={handleAddChild}
+            onQuickBatchCreate={(nodeId, position) => {
+              setEditTarget(null);
+              setQuickBatchTarget({ id: nodeId, ...position });
+            }}
             onNodeUpdate={handleSaveNode}
             onDeleteNode={handleDeleteNode}
             onSplitNode={handleSplitNode}
@@ -629,7 +655,17 @@ export default function App() {
           phaseColors={PHASE_COLORS}
           onSave={(updates) => handleSaveNode(editTarget.id, updates)}
           onDelete={() => handleDeleteNode(editTarget.id)}
+          onBatchCreate={(markdown) => handleBatchCreateSubtasks(editTarget.id, markdown)}
           onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {quickBatchTarget && !isHistorical && (
+        <QuickBatchSubtasks
+          x={quickBatchTarget.x}
+          y={quickBatchTarget.y}
+          onCreate={(markdown) => handleBatchCreateSubtasks(quickBatchTarget.id, markdown)}
+          onClose={() => setQuickBatchTarget(null)}
         />
       )}
 

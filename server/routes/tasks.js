@@ -3,6 +3,67 @@ const router = express.Router();
 const crypto = require('crypto');
 const store = require('../data-store');
 
+function parseDate(str) {
+  const [year, month, day] = String(str).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function diffDays(start, end) {
+  return Math.round((end - start) / (24 * 60 * 60 * 1000));
+}
+
+function parseMarkdownList(markdown) {
+  return String(markdown || '')
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = line.match(/^\s*[-*+](?:\s+(.*))?$/);
+      return match ? (match[1] || '').trim() : '';
+    })
+    .filter((name) => name && !/^[-*+\s]+$/.test(name));
+}
+
+function buildEvenlyDistributedSubtasks(node, names) {
+  const start = parseDate(node.start);
+  const end = parseDate(node.end || node.start);
+  const totalDays = Math.max(diffDays(start, end) + 1, 1);
+  const taskCount = names.length;
+  const segmentDays = Math.max(Math.ceil(totalDays / taskCount), 1);
+  const maxStartOffset = Math.max(totalDays - segmentDays, 0);
+
+  return names.map((name, index) => {
+    const startOffset = taskCount === 1
+      ? 0
+      : Math.round((index * maxStartOffset) / (taskCount - 1));
+    const taskStart = addDays(start, startOffset);
+    const taskEnd = addDays(taskStart, segmentDays - 1);
+
+    return {
+      id: crypto.randomUUID(),
+      type: 'task',
+      name,
+      start: formatDate(taskStart),
+      end: formatDate(taskEnd > end ? end : taskEnd),
+      done: false,
+      notes: '',
+      milestone: false,
+      children: [],
+    };
+  });
+}
+
 function readData() {
   return store.readTasks();
 }
@@ -198,6 +259,53 @@ router.post('/node/:id/split', (req, res) => {
   } catch (err) {
     console.error('Failed to split node:', err);
     res.status(500).json({ error: 'Failed to split node' });
+  }
+});
+
+// POST /api/tasks/node/:id/batch-subtasks — create child tasks from a markdown list
+// body: { markdown: "- First\n- Second" }
+router.post('/node/:id/batch-subtasks', (req, res) => {
+  try {
+    const data = readData();
+    const result = store.findNode(data.items, req.params.id);
+    if (!result) return res.status(404).json({ error: 'Node not found' });
+
+    const node = result.node;
+    if (node.type === 'task' && node.milestone) {
+      return res.status(400).json({ error: 'Milestones cannot be batch-converted into subtasks' });
+    }
+
+    const depth = store.getNodeDepth(data.items, node.id);
+    if (depth + 1 >= store.MAX_DEPTH) {
+      return res.status(400).json({ error: `Maximum nesting depth of ${store.MAX_DEPTH} reached` });
+    }
+
+    const names = parseMarkdownList(req.body?.markdown);
+    if (names.length === 0) {
+      return res.status(400).json({ error: 'No subtask names found in markdown list' });
+    }
+
+    const childTasks = buildEvenlyDistributedSubtasks(node, names);
+    if (node.type === 'task') {
+      const parentColor = result.parent?.color || '#4A90D9';
+      node.type = 'group';
+      node.color = parentColor;
+      node.prefix = result.parent?.prefix !== undefined ? result.parent.prefix : 'WP';
+      node.children = childTasks;
+      delete node.done;
+      delete node.notes;
+      delete node.milestone;
+    } else if (node.type === 'group') {
+      node.children = [...(node.children || []), ...childTasks];
+    } else {
+      return res.status(400).json({ error: 'Unsupported node type for batch subtasks' });
+    }
+
+    writeData(data);
+    res.json(node);
+  } catch (err) {
+    console.error('Failed to batch-create subtasks:', err);
+    res.status(500).json({ error: 'Failed to batch-create subtasks' });
   }
 });
 
