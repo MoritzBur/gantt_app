@@ -4,6 +4,7 @@ import TaskEditor from './components/TaskEditor.jsx';
 import CalendarSetupModal from './components/CalendarSetupModal.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import QuickBatchSubtasks from './components/QuickBatchSubtasks.jsx';
+import NotePanel from './components/NotePanel.jsx';
 
 const PHASE_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
@@ -11,6 +12,12 @@ const PHASE_COLORS = [
 ];
 
 const UNDO_STACK_LIMIT = 50;
+const DEFAULT_NOTE_PANEL = {
+  open: false,
+  width: 420,
+  tabs: [],
+  activeTabIndex: 0,
+};
 
 function getSystemTheme() {
   if (typeof window === 'undefined' || !window.matchMedia) return 'dark';
@@ -116,6 +123,63 @@ function cloneTaskData(value) {
 
 function taskDataEquals(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+function getDefaultNoteFilename(item) {
+  if (!item) return 'note.md';
+  return item.type === 'group' ? '_group.md' : `${item.id}.md`;
+}
+
+function getNodePrefix(node) {
+  return node.prefix !== undefined ? node.prefix : (node.type === 'group' ? 'WP' : '');
+}
+
+function getNodeNumber(numberPath) {
+  return numberPath.join('.');
+}
+
+function getNodeLabel(node, numberPath) {
+  const prefix = getNodePrefix(node);
+  const num = getNodeNumber(numberPath);
+  if (prefix) return `${prefix}\u00a0${num}\u2002${node.name}`;
+  return `${num}\u2002${node.name}`;
+}
+
+function buildNoteItemMeta(items, numberPath = [], meta = {}) {
+  for (let index = 0; index < (items || []).length; index += 1) {
+    const item = items[index];
+    const nextNumberPath = [...numberPath, index + 1];
+    meta[item.id] = {
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      number: getNodeNumber(nextNumberPath),
+      label: getNodeLabel(item, nextNumberPath),
+    };
+    if (item.children?.length) buildNoteItemMeta(item.children, nextNumberPath, meta);
+  }
+  return meta;
+}
+
+function normalizeNotePanel(panel) {
+  const tabs = Array.isArray(panel?.tabs)
+    ? panel.tabs
+      .filter((tab) => tab?.itemId && tab?.filename)
+      .map((tab) => ({
+        itemId: tab.itemId,
+        filename: tab.filename,
+        type: tab.type === 'related' ? 'related' : 'main',
+      }))
+    : [];
+
+  return {
+    open: !!panel?.open,
+    width: Number.isFinite(panel?.width) ? panel.width : DEFAULT_NOTE_PANEL.width,
+    tabs,
+    activeTabIndex: Number.isInteger(panel?.activeTabIndex)
+      ? Math.max(0, Math.min(panel.activeTabIndex, Math.max(tabs.length - 1, 0)))
+      : 0,
+  };
 }
 
 function DeleteConfirmModal({ target, onConfirm, onClose }) {
@@ -237,9 +301,18 @@ export default function App() {
         collapsed: collapsed && typeof collapsed === 'object' ? collapsed : {},
         activeCalEvents: Array.isArray(activeCalEvents) ? activeCalEvents : [],
         listWidth: Number.isFinite(listWidth) ? listWidth : 260,
+        notePanel: { ...DEFAULT_NOTE_PANEL },
       };
     } catch {
-      return { theme: getSystemTheme(), zoom: 'Month', density: 'Regular', collapsed: {}, activeCalEvents: [], listWidth: 260 };
+      return {
+        theme: getSystemTheme(),
+        zoom: 'Month',
+        density: 'Regular',
+        collapsed: {},
+        activeCalEvents: [],
+        listWidth: 260,
+        notePanel: { ...DEFAULT_NOTE_PANEL },
+      };
     }
   }, []);
 
@@ -264,6 +337,7 @@ export default function App() {
               collapsed: serverState.collapsed,
               activeCalEvents: serverState.activeCalEvents,
               listWidth: serverState.listWidth,
+              notePanel: normalizeNotePanel(serverState.notePanel),
             };
         setData(d);
         clearUndoHistory();
@@ -743,18 +817,93 @@ export default function App() {
   const handleUiStateChange = useCallback((nextUiState) => {
     setUiState(prev => {
       const current = prev || {};
-      if (JSON.stringify(current) === JSON.stringify(nextUiState)) return prev;
+      const merged = {
+        ...current,
+        ...nextUiState,
+        notePanel: normalizeNotePanel(nextUiState.notePanel ?? current.notePanel),
+      };
+      if (JSON.stringify(current) === JSON.stringify(merged)) return prev;
       if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
       uiStateSaveTimerRef.current = setTimeout(() => {
         fetch('/api/state', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(nextUiState),
+          body: JSON.stringify(merged),
         }).catch(() => {});
       }, 150);
-      return nextUiState;
+      return merged;
     });
   }, []);
+
+  const updateNotePanelState = useCallback((updater) => {
+    setUiState((prev) => {
+      const current = prev || {};
+      const nextPanel = normalizeNotePanel(
+        typeof updater === 'function'
+          ? updater(normalizeNotePanel(current.notePanel))
+          : updater
+      );
+      const merged = { ...current, notePanel: nextPanel };
+      if (JSON.stringify(current) === JSON.stringify(merged)) return prev;
+      if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
+      uiStateSaveTimerRef.current = setTimeout(() => {
+        fetch('/api/state', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(merged),
+        }).catch(() => {});
+      }, 150);
+      return merged;
+    });
+  }, []);
+
+  const openNoteTab = useCallback((itemId, options = {}) => {
+    const currentData = dataRef.current;
+    if (!currentData) return;
+
+    const item = findNodeInTree(currentData.items, itemId);
+    if (!item) return;
+
+    const descriptor = {
+      itemId,
+      filename: options.filename || item.noteFile || getDefaultNoteFilename(item),
+      type: options.type === 'related' ? 'related' : 'main',
+    };
+
+    updateNotePanelState((currentPanel) => {
+      const current = normalizeNotePanel(currentPanel);
+      const existingIndex = current.tabs.findIndex((tab) =>
+        tab.itemId === descriptor.itemId &&
+        tab.filename === descriptor.filename &&
+        tab.type === descriptor.type
+      );
+
+      if (existingIndex >= 0) {
+        return {
+          ...current,
+          open: true,
+          activeTabIndex: existingIndex,
+        };
+      }
+
+      const tabs = [...current.tabs];
+      let activeTabIndex = current.activeTabIndex;
+
+      if (options.replaceActive && tabs[activeTabIndex]) {
+        tabs[activeTabIndex] = descriptor;
+      } else {
+        tabs.push(descriptor);
+        activeTabIndex = tabs.length - 1;
+      }
+
+      return {
+        ...current,
+        open: true,
+        tabs,
+        activeTabIndex,
+      };
+    });
+  }, [updateNotePanelState]);
 
   useEffect(() => () => {
     if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
@@ -800,13 +949,15 @@ export default function App() {
     });
   }, [handleUiStateChange, uiState]);
 
-  if (loading) return <div className="app-loading"><p>Loading...</p></div>;
-  if (error) return <div className="app-error"><p>{error}</p></div>;
-
   const isHistorical = !!historicalSnapshot;
   const displayData = isHistorical ? historicalSnapshot.tasks : data;
   const displayUiState = isHistorical ? (historicalSnapshot.state || uiState) : uiState;
   const activeTheme = displayUiState?.theme || uiState?.theme || 'dark';
+  const notePanelState = normalizeNotePanel(uiState?.notePanel);
+  const noteItemMeta = useMemo(() => buildNoteItemMeta(displayData?.items || []), [displayData]);
+
+  if (loading) return <div className="app-loading"><p>Loading...</p></div>;
+  if (error) return <div className="app-error"><p>{error}</p></div>;
 
   return (
     <div className="app">
@@ -912,6 +1063,10 @@ export default function App() {
               setEditTarget(null);
               setQuickBatchTarget({ id: nodeId, ...position });
             }}
+            onOpenNote={(nodeId, options) => {
+              if (isHistorical) return;
+              openNoteTab(nodeId, options);
+            }}
             onNodeUpdate={handleSaveNode}
             onNodeBulkUpdate={handleSaveNodes}
             onDeleteNode={handleDeleteNode}
@@ -927,6 +1082,15 @@ export default function App() {
             canRedo={!isHistorical && redoStack.length > 0}
             historyFeedback={historyFeedback}
             readonly={isHistorical}
+          />
+        )}
+        {!isHistorical && (
+          <NotePanel
+            panelState={notePanelState}
+            theme={activeTheme}
+            itemMeta={noteItemMeta}
+            onPanelStateChange={updateNotePanelState}
+            onOpenNote={openNoteTab}
           />
         )}
       </main>
@@ -948,6 +1112,10 @@ export default function App() {
           onSave={(updates) => handleSaveNode(editTarget.id, updates)}
           onDelete={() => handleDeleteNode(editTarget.id)}
           onBatchCreate={(markdown) => handleBatchCreateSubtasks(editTarget.id, markdown)}
+          onOpenNote={() => {
+            openNoteTab(editTarget.id);
+            setEditTarget(null);
+          }}
           onClose={() => setEditTarget(null)}
         />
       )}

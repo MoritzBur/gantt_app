@@ -7,11 +7,12 @@ const PHASE_COLORS = [
 
 const BATCH_SUBTASK_EXAMPLE = ['- Draft API contract', '- Build timeline sync', '- Polish hover states'].join('\n');
 
-export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate, onClose }) {
+export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate, onOpenNote, onClose }) {
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [batchDraft, setBatchDraft] = useState('- ');
   const [isBatchCreating, setIsBatchCreating] = useState(false);
+  const [notePreview, setNotePreview] = useState({ loading: false, content: '', exists: false });
   const backdropMouseDownRef = useRef(false);
   const modalRef = useRef(null);
 
@@ -21,6 +22,36 @@ export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate
     setConfirmDelete(false);
     setBatchDraft('- ');
     setIsBatchCreating(false);
+    setNotePreview({ loading: false, content: '', exists: false });
+  }, [item]);
+
+  useEffect(() => {
+    if (!item) return undefined;
+
+    let cancelled = false;
+    setNotePreview((current) => ({ ...current, loading: true }));
+
+    fetch(`/api/notes/${item.id}`)
+      .then((response) => {
+        if (!response.ok) throw new Error('Failed to load note');
+        return response.json();
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        setNotePreview({
+          loading: false,
+          content: String(payload.content || ''),
+          exists: !!payload.exists,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setNotePreview({ loading: false, content: '', exists: false });
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [item]);
 
   // Close on Escape key
@@ -51,7 +82,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate
   const handleSave = () => {
     const isMilestone = type === 'task' && !!form.milestone;
     onSave(type === 'task'
-      ? { name: form.name, start: form.start, end: isMilestone ? form.start : form.end, done: form.done, notes: form.notes, milestone: isMilestone }
+      ? { name: form.name, start: form.start, end: isMilestone ? form.start : form.end, done: form.done, milestone: isMilestone }
       : { name: form.name, start: form.start, end: form.end, color: form.color, prefix: form.prefix ?? 'WP' }
     );
     // type === 'group' uses same fields as old 'phase'
@@ -97,6 +128,11 @@ export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate
     })
     .filter((name) => name && !/^[-*+\s]+$/.test(name));
   const canBatchCreate = type === 'task' && !form.milestone;
+  const notePreviewLines = notePreview.content
+    .split(/\r?\n/)
+    .slice(0, 3)
+    .join('\n')
+    .trim();
 
   return (
     <div
@@ -250,17 +286,22 @@ export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate
             </div>
           )}
 
-          {/* Notes — tasks only */}
-          {type === 'task' && (
+          {/* Notes preview — tasks only */}
+          {(type === 'task' || type === 'group') && (
             <div className="form-group">
-              <label className="form-label">Notes</label>
-              <textarea
-                className="form-input form-textarea"
-                value={form.notes || ''}
-                onChange={(e) => handleChange('notes', e.target.value)}
-                rows={4}
-                placeholder="Add notes here..."
-              />
+              <label className="form-label">Note</label>
+              <div className="task-note-preview">
+                {notePreview.loading ? 'Loading note preview…' : (notePreviewLines || 'No note yet')}
+              </div>
+              <div className="batch-subtasks-actions">
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={onOpenNote}
+                >
+                  {notePreview.exists ? 'Open in Editor' : 'Create & Open in Editor'}
+                </button>
+              </div>
             </div>
           )}
 

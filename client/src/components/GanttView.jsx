@@ -323,7 +323,7 @@ function GanttBar({
       style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight }}
       title={dragTitle}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
-      onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
+      onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(e); }}
       onContextMenu={(e) => onContextMenu?.(e)}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
@@ -434,7 +434,7 @@ function MilestoneMarker({
       style={{ left, cursor: isReadOnly ? 'default' : 'grab' }}
       onMouseDown={handleMouseDown}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
-      onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
+      onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(e); }}
       onContextMenu={(e) => onContextMenu?.(e)}
     >
       <div className="milestone-diamond" style={{ backgroundColor: color, width: diamondPx, height: diamondPx }} />
@@ -529,6 +529,7 @@ export default function GanttView({
   onNodeClick,
   onAddChild,
   onQuickBatchCreate,
+  onOpenNote,
   onNodeUpdate,
   onNodeBulkUpdate,
   onDeleteNode,
@@ -852,6 +853,7 @@ export default function GanttView({
         items.push({ label: 'Add sub-group', action: () => onAddChild(node.id, 'group') });
       }
       items.push({ separator: true });
+      items.push({ label: 'Show Note', action: () => onOpenNote?.(node.id) });
       items.push({ label: 'Edit', action: () => onNodeClick(node.id) });
       items.push({ label: 'Delete', action: () => onDeleteNode(node.id), danger: true });
     } else {
@@ -882,12 +884,13 @@ export default function GanttView({
           danger: true,
         });
       }
+      items.push({ label: 'Show Note', action: () => onOpenNote?.(node.id) });
       items.push({ label: 'Edit', action: () => onNodeClick(node.id) });
       items.push({ label: 'Delete', action: () => onDeleteNode(node.id), danger: true });
     }
 
     return items;
-  }, [clearTaskSelection, contextMenu, onAddChild, onDeleteNode, onDeleteNodes, onNodeClick, onNodeUpdate, onQuickBatchCreate, onSplitNode, selectedTaskIds]);
+  }, [clearTaskSelection, contextMenu, onAddChild, onDeleteNode, onDeleteNodes, onNodeClick, onNodeUpdate, onOpenNote, onQuickBatchCreate, onSplitNode, selectedTaskIds]);
 
   useEffect(() => {
     const listEl = listRef.current;
@@ -1018,7 +1021,11 @@ export default function GanttView({
                     className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.color}`, paddingLeft: row.depth * INDENT_PX }}
                     onClick={clearTaskSelection}
-                    onDoubleClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
+                    onDoubleClick={(e) => {
+                      if (readonly || draggingItem) return;
+                      if (e.shiftKey) onOpenNote?.(row.node.id);
+                      else onNodeClick(row.node.id);
+                    }}
                     onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                     onMouseEnter={() => setHoveredGroupNode(row.node)}
                     onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
@@ -1069,7 +1076,11 @@ export default function GanttView({
                     className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${isSelected ? ' selected' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX }}
                     onClick={(e) => !readonly && !draggingItem && selectTask(row.node.id, e.shiftKey)}
-                    onDoubleClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
+                    onDoubleClick={(e) => {
+                      if (readonly || draggingItem) return;
+                      if (e.shiftKey) onOpenNote?.(row.node.id);
+                      else onNodeClick(row.node.id);
+                    }}
                     onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                   >
                     <span className="task-indent" />
@@ -1163,7 +1174,11 @@ export default function GanttView({
                       className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`}
                       style={rowStyle}
                       onClick={clearTaskSelection}
-                      onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                      onDoubleClick={(e) => {
+                        if (readonly) return;
+                        if (e.shiftKey) onOpenNote?.(row.node.id);
+                        else onNodeClick(row.node.id);
+                      }}
                     >
                       {descendantHighlighted && hoveredGroup?.start && hoveredGroup?.end && (
                         <div
@@ -1192,7 +1207,11 @@ export default function GanttView({
                         netDays={pDays?.net}
                         onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
                         onClick={clearTaskSelection}
-                        onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                        onDoubleClick={(e) => {
+                          if (readonly) return;
+                          if (e.shiftKey) onOpenNote?.(row.node.id);
+                          else onNodeClick(row.node.id);
+                        }}
                         onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                         onMouseEnter={() => setHoveredGroupNode(row.node)}
                         onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
@@ -1273,10 +1292,14 @@ export default function GanttView({
                             labelOutside={true}
                             workDays={tDays?.work}
                             netDays={tDays?.net}
-                            hasNotes={!!row.node.notes}
+                            hasNotes={!!row.node.noteFile}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
                             onClick={(e) => !readonly && selectTask(row.node.id, e.shiftKey)}
-                            onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                            onDoubleClick={(e) => {
+                              if (readonly) return;
+                              if (e.shiftKey) onOpenNote?.(row.node.id);
+                              else onNodeClick(row.node.id);
+                            }}
                             onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                             selectionMove={selectionMove}
                           />

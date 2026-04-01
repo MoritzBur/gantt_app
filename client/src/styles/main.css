@@ -259,6 +259,301 @@ a:hover {
   display: flex;
 }
 
+.app-main > .gantt-view {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.task-note-preview {
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-row);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.note-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  min-width: 32px;
+  border-left: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-sidebar) 92%, transparent), color-mix(in srgb, var(--bg) 96%, transparent));
+  position: relative;
+}
+
+.note-panel-collapsed {
+  width: 32px;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.note-panel-resizer {
+  position: absolute;
+  top: 0;
+  left: -3px;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 4;
+}
+
+.note-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-sidebar) 88%, transparent);
+}
+
+.note-panel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  min-width: 0;
+  flex: 1;
+}
+
+.note-panel-tab-button {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+}
+
+.note-panel-tab-button.active {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.note-panel-tab-select,
+.note-panel-tab-close,
+.note-panel-toggle {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.note-panel-tab-select {
+  min-width: 0;
+  padding: 8px 0 8px 12px;
+  color: inherit;
+}
+
+.note-panel-tab-close {
+  padding: 8px 10px 8px 8px;
+  font-size: 15px;
+}
+
+.note-panel-tab-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+  color: var(--text);
+}
+
+.note-panel-toggle {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+
+.note-save-indicator {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.note-save-indicator.saved {
+  color: var(--success);
+}
+
+.note-save-indicator.error {
+  color: var(--danger);
+}
+
+.note-panel-empty,
+.note-panel-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 24px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.note-panel-status.error {
+  color: var(--danger);
+}
+
+.note-panel-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.note-panel-tab-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.note-panel-tab-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.note-panel-tab-path {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+.note-panel-editor-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+.markdown-editor {
+  height: 100%;
+}
+
+.note-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-sidebar) 84%, transparent);
+}
+
+.note-toolbar-button {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-row);
+  color: var(--text-muted);
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.note-toolbar-button:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}
+
+.note-toolbar-button::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(4px);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  z-index: 5;
+}
+
+.note-toolbar-button:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.note-panel-related {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 14px;
+  background: color-mix(in srgb, var(--bg-sidebar) 86%, transparent);
+}
+
+.note-panel-related-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.note-panel-related-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.note-panel-related-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-row);
+  color: var(--text);
+}
+
+.note-panel-related-input::placeholder {
+  color: var(--text-dim);
+}
+
+.note-panel-related-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.note-panel-related-item {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-row);
+  color: var(--text);
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.note-panel-related-item-main {
+  flex: 0 0 auto;
+}
+
+.note-panel-related-empty {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
 /* ─── Gantt view ────────────────────────────────────────────────────────────── */
 
 .gantt-view {

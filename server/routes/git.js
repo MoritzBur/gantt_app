@@ -6,7 +6,7 @@ const router = express.Router();
 const DATA_ROOT = store.DATA_DIR;
 const TASKS_FILE = store.FILES.tasks;
 const STATE_FILE = store.FILES.state;
-const TRACKED_FILES = ['tasks.json', 'state.json'];
+const TRACKED_FILES = ['tasks.json', 'state.json', 'notes'];
 
 function runGit(args, callback) {
   try {

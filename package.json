@@ -16,7 +16,13 @@
     "build:windows:installer": "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-installer.ps1"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.18.6",
+    "@codemirror/commands": "^6.8.1",
+    "@codemirror/lang-markdown": "^6.3.4",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/view": "^6.38.6",
     "concurrently": "^8.2.2",
+    "codemirror": "^6.0.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
