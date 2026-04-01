@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import ContextMenu from './ContextMenu.jsx';
 
 // ─── Date helpers ───────────────────────────────────────────────────────────
 
@@ -25,11 +26,7 @@ function diffDays(a, b) {
   return Math.round((b - a) / msPerDay);
 }
 
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
-}
-
-// ─── Duration breakdown helpers ───────────────────────────────────────────────
+// ─── Duration breakdown ─────────────────────────────────────────────────────
 
 function calcTaskDays(startStr, endStr, activeCalEventIds, calendarEvents) {
   const start = parseDate(startStr);
@@ -48,9 +45,7 @@ function calcTaskDays(startStr, endStr, activeCalEventIds, calendarEvents) {
   }
 
   for (const evId of activeCalEventIds) {
-    const ev = calendarEvents instanceof Map
-      ? calendarEvents.get(evId)
-      : calendarEvents.find(e => e.id === evId);
+    const ev = calendarEvents.find(e => e.id === evId);
     if (!ev) continue;
     const evStart = parseDate(ev.start);
     const evEnd = parseDate(ev.end || ev.start);
@@ -67,19 +62,21 @@ function calcTaskDays(startStr, endStr, activeCalEventIds, calendarEvents) {
   return { total, work, net };
 }
 
-// ─── Numbering helpers ────────────────────────────────────────────────────────
+// ─── Numbering / labeling ───────────────────────────────────────────────────
 
-function getPhasePrefix(phase) {
-  return phase.prefix !== undefined ? phase.prefix : 'WP';
+function getNodePrefix(node) {
+  return node.prefix !== undefined ? node.prefix : (node.type === 'group' ? 'WP' : '');
 }
 
-function getPhaseLabel(phase, phaseIndex) {
-  const prefix = getPhasePrefix(phase);
-  return prefix ? `${prefix} ${phaseIndex + 1}\u2002${phase.name}` : `${phaseIndex + 1}\u2002${phase.name}`;
+function getNodeNumber(numberPath) {
+  return numberPath.join('.');
 }
 
-function getTaskLabel(task, phaseIndex, taskIndex) {
-  return `${phaseIndex + 1}.${taskIndex + 1}\u2002${task.name}`;
+function getNodeLabel(node, numberPath) {
+  const prefix = getNodePrefix(node);
+  const num = getNodeNumber(numberPath);
+  if (prefix) return `${prefix}\u00a0${num}\u2002${node.name}`;
+  return `${num}\u2002${node.name}`;
 }
 
 function formatShortDate(str) {
@@ -87,16 +84,22 @@ function formatShortDate(str) {
   return d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-// ─── Zoom levels ─────────────────────────────────────────────────────────────
+// ─── Color inheritance ──────────────────────────────────────────────────────
+
+function resolveColor(node, parentColor) {
+  return node.color || parentColor || '#4A90D9';
+}
+
+// ─── Zoom levels ────────────────────────────────────────────────────────────
 
 const ZOOM_LEVELS = {
-  Day:     { dayWidth: 40,  headerFormat: 'day' },
-  Week:    { dayWidth: 20,  headerFormat: 'week' },
-  Month:   { dayWidth: 8,   headerFormat: 'month' },
-  Quarter: { dayWidth: 4,   headerFormat: 'month' },
+  Day:     { dayWidth: 40 },
+  Week:    { dayWidth: 20 },
+  Month:   { dayWidth: 8  },
+  Quarter: { dayWidth: 4  },
 };
 
-// ─── Timeline header ─────────────────────────────────────────────────────────
+// ─── Timeline header ────────────────────────────────────────────────────────
 
 function TimelineHeader({ startDate, totalDays, dayWidth, zoom }) {
   const months = [];
@@ -108,7 +111,7 @@ function TimelineHeader({ startDate, totalDays, dayWidth, zoom }) {
     const visStart = cursor > monthStart ? cursor : monthStart;
     const visEnd = monthEnd < addDays(startDate, totalDays) ? monthEnd : addDays(startDate, totalDays - 1);
     const days = diffDays(visStart, visEnd) + 1;
-    months.push({ label: cursor.toLocaleString('default', { month: 'short', year: 'numeric' }), days, date: new Date(cursor) });
+    months.push({ label: cursor.toLocaleString('default', { month: 'short', year: 'numeric' }), days });
     cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
   }
 
@@ -159,7 +162,7 @@ function getWeekNumber(date) {
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
 
-// ─── Contrast text color ─────────────────────────────────────────────────────
+// ─── Contrast text color ────────────────────────────────────────────────────
 
 function getContrastColor(bgColor) {
   if (!bgColor || !bgColor.startsWith('#')) return 'rgba(255,255,255,0.92)';
@@ -172,33 +175,6 @@ function getContrastColor(bgColor) {
   return L > 0.179 ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.92)';
 }
 
-// ─── Calendar lane packing ────────────────────────────────────────────────────
-
-function computeCalendarLanes(events) {
-  const sorted = [...events].sort((a, b) => a.start.localeCompare(b.start));
-  const lanes = [];
-  const laneEnds = [];
-
-  for (const ev of sorted) {
-    const evStart = ev.start;
-    const evEnd = ev.end || ev.start;
-    let placed = false;
-    for (let i = 0; i < lanes.length; i++) {
-      if (laneEnds[i] < evStart) {
-        lanes[i].push(ev);
-        laneEnds[i] = evEnd;
-        placed = true;
-        break;
-      }
-    }
-    if (!placed) {
-      lanes.push([ev]);
-      laneEnds.push(evEnd);
-    }
-  }
-  return lanes;
-}
-
 function rgbaFromHex(hexColor, alpha) {
   if (!hexColor || !hexColor.startsWith('#') || hexColor.length !== 7) {
     return `rgba(100, 160, 220, ${alpha})`;
@@ -209,44 +185,67 @@ function rgbaFromHex(hexColor, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function mergeOrderedIds(availableIds, preferredIds) {
-  const availableSet = new Set(availableIds);
-  const ordered = Array.isArray(preferredIds)
-    ? preferredIds.filter(id => availableSet.has(id))
-    : [];
-  const missing = availableIds.filter(id => !ordered.includes(id));
-  return [...ordered, ...missing];
-}
+// ─── Gantt bar ──────────────────────────────────────────────────────────────
 
-// ─── Gantt bar ────────────────────────────────────────────────────────────────
-
-function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragStart, onDragCommit, onClick, onDoubleClick }) {
+function GanttBar({
+  startDate,
+  taskStart,
+  taskEnd,
+  previewStart,
+  previewEnd,
+  dayWidth,
+  color,
+  isReadOnly,
+  isLocked,
+  canResize = true,
+  requiresShiftToMove = false,
+  isDone,
+  isSelected,
+  label,
+  barHeight,
+  labelOutside,
+  isActive,
+  workDays,
+  netDays,
+  hasNotes,
+  onDragStart,
+  onDragCommit,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+  onMouseEnter,
+  onMouseLeave,
+  selectionMove,
+  onBlockedMoveAttempt,
+  dragTitle,
+}) {
   const didDragRef = useRef(false);
   const labelRef = useRef(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [labelFits, setLabelFits] = useState(true);
-  const displayStart = dragState?.newStart || taskStart;
-  const displayEnd = dragState?.newEnd || taskEnd;
+  const displayStart = dragState?.newStart || previewStart || taskStart;
+  const displayEnd = dragState?.newEnd || previewEnd || taskEnd;
   const startOffset = diffDays(startDate, parseDate(displayStart));
   const duration = diffDays(parseDate(displayStart), parseDate(displayEnd)) + 1;
   const left = startOffset * dayWidth;
   const width = Math.max(duration * dayWidth, dayWidth);
 
-  // Re-measure whether the inside label fits whenever bar width, label, or duration changes
   useLayoutEffect(() => {
     if (!labelOutside || !labelRef.current) return;
     setLabelFits(labelRef.current.scrollWidth <= labelRef.current.clientWidth);
   }, [label, width, duration, labelOutside]);
 
-  const handleLabelMouseEnter = () => {
-    const el = labelRef.current;
-    if (el && el.scrollWidth > el.clientWidth) setTooltipVisible(true);
-  };
-  const handleLabelMouseLeave = () => setTooltipVisible(false);
-
   const handleMouseDown = useCallback((e, mode) => {
-    if (isReadOnly || isLocked) return;
+    if (isReadOnly) return;
+    if (mode !== 'move' && (isLocked || !canResize)) return;
+    if (mode === 'move' && isLocked) return;
+    if (mode === 'move' && requiresShiftToMove && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      onBlockedMoveAttempt?.(e);
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
 
@@ -256,6 +255,8 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
     const origEnd = taskEnd;
     let nextStart = origStart;
     let nextEnd = origEnd;
+    const useSelectionMove = mode === 'move' && selectionMove;
+    let selectionDelta = 0;
 
     const onMouseMove = (ev) => {
       const dx = ev.clientX - startX;
@@ -265,6 +266,12 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
       if (!didDragRef.current) {
         didDragRef.current = true;
         onDragStart?.();
+      }
+
+      if (useSelectionMove) {
+        selectionDelta = daysDelta;
+        selectionMove.onPreview(daysDelta);
+        return;
       }
 
       let newStart = origStart;
@@ -289,38 +296,44 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      setDragState(null);
-      if (didDragRef.current) onDragCommit?.(nextStart, nextEnd);
+      if (useSelectionMove) {
+        selectionMove.onPreview(null);
+        if (didDragRef.current) selectionMove.onCommit(selectionDelta);
+      } else {
+        setDragState(null);
+        if (didDragRef.current) onDragCommit?.(nextStart, nextEnd);
+      }
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [dayWidth, isLocked, isReadOnly, onDragCommit, onDragStart, taskEnd, taskStart]);
+  }, [canResize, dayWidth, isLocked, isReadOnly, onBlockedMoveAttempt, onDragCommit, onDragStart, requiresShiftToMove, selectionMove, taskEnd, taskStart]);
 
   const showLeftDate = dragState && (dragState.mode === 'resize-left' || dragState.mode === 'move');
   const showRightDate = dragState && (dragState.mode === 'resize-right' || dragState.mode === 'move');
   const noDrag = isReadOnly || isLocked;
-
-  // For outside labels, live-update duration during drag
   const liveDuration = duration;
+  const labelTooSlim = barHeight <= 16;
+  const shouldShowOutsideLabel = !!labelOutside && (!labelFits || labelTooSlim);
+  const moveCursor = noDrag ? 'default' : (requiresShiftToMove ? 'default' : 'grab');
 
   return (
     <div
-      className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''} ${hasNotes ? 'has-notes' : ''}`}
+      className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${hasNotes ? 'has-notes' : ''}`}
       style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight }}
-      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
+      title={dragTitle}
+      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
+      onContextMenu={(e) => onContextMenu?.(e)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
-      {showLeftDate && (
-        <div className="drag-date-label drag-date-left">{formatShortDate(dragState.newStart)}</div>
-      )}
-      {!noDrag && (
-        <div className="gantt-bar-handle left" onMouseDown={(e) => handleMouseDown(e, 'resize-left')} />
-      )}
+      {showLeftDate && <div className="drag-date-label drag-date-left">{formatShortDate(dragState.newStart)}</div>}
+      {!noDrag && canResize && <div className="gantt-bar-handle left" onMouseDown={(e) => handleMouseDown(e, 'resize-left')} />}
       <div
         className="gantt-bar-inner"
         onMouseDown={(e) => handleMouseDown(e, 'move')}
-        style={{ cursor: noDrag ? 'default' : 'grab' }}
+        style={{ cursor: moveCursor }}
       >
         {label && (
           <span
@@ -328,26 +341,16 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
             className="gantt-bar-label"
             style={{
               color: getContrastColor(color),
-              // Keep in DOM for measurement; hide when outside label takes over
-              visibility: (labelOutside && !labelFits) ? 'hidden' : 'visible',
+              visibility: shouldShowOutsideLabel ? 'hidden' : 'visible',
             }}
-            onMouseEnter={!labelOutside ? handleLabelMouseEnter : undefined}
-            onMouseLeave={!labelOutside ? handleLabelMouseLeave : undefined}
           >{label}{!labelOutside && <span className="gantt-bar-duration"> ({duration}d{workDays != null && workDays !== duration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? duration) ? <span className="dur-net"> {netDays}d</span> : null})</span>}</span>
         )}
       </div>
-      {!noDrag && (
-        <div className="gantt-bar-handle right" onMouseDown={(e) => handleMouseDown(e, 'resize-right')} />
-      )}
-      {showRightDate && (
-        <div className="drag-date-label drag-date-right">{formatShortDate(dragState.newEnd)}</div>
-      )}
+      {!noDrag && canResize && <div className="gantt-bar-handle right" onMouseDown={(e) => handleMouseDown(e, 'resize-right')} />}
+      {showRightDate && <div className="drag-date-label drag-date-right">{formatShortDate(dragState.newEnd)}</div>}
       {labelOutside && label && (
-        <div
-          className="gantt-bar-outside-label"
-          style={{ left: showRightDate ? 'calc(100% + 95px)' : 'calc(100% + 8px)' }}
-        >
-          {!labelFits && <>{label} </>}<span className="gantt-bar-duration">({liveDuration}d{workDays != null && workDays !== liveDuration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? liveDuration) ? <span className="dur-net"> {netDays}d</span> : null})</span>
+        <div className="gantt-bar-outside-label" style={{ left: showRightDate ? 'calc(100% + 95px)' : 'calc(100% + 8px)' }}>
+          {shouldShowOutsideLabel && <>{label} </>}<span className="gantt-bar-duration">({liveDuration}d{workDays != null && workDays !== liveDuration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? liveDuration) ? <span className="dur-net"> {netDays}d</span> : null})</span>
         </div>
       )}
       {tooltipVisible && label && !labelOutside && <div className="gantt-bar-tooltip">{label}</div>}
@@ -355,17 +358,31 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
   );
 }
 
-// ─── Milestone marker ─────────────────────────────────────────────────────────
+// ─── Milestone marker ───────────────────────────────────────────────────────
 
-function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadOnly, label, diamondPx, onDragStart, onDragCommit, onClick }) {
+function MilestoneMarker({
+  startDate,
+  taskDate,
+  previewDate,
+  dayWidth,
+  color,
+  isDone,
+  isReadOnly,
+  isSelected,
+  label,
+  diamondPx,
+  onDragStart,
+  onDragCommit,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+  selectionMove,
+}) {
   const [dragDate, setDragDate] = useState(null);
-  const displayDate = dragDate || taskDate;
+  const displayDate = dragDate || previewDate || taskDate;
   const offset = diffDays(startDate, parseDate(displayDate));
   const left = offset * dayWidth + dayWidth / 2 - diamondPx / 2;
-
-  const labelRef = useRef(null);
   const didDragRef = useRef(false);
-  const [tooltipVisible, setTooltipVisible] = useState(false);
 
   const handleMouseDown = useCallback((e) => {
     if (isReadOnly) return;
@@ -375,16 +392,21 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadO
     const startX = e.clientX;
     const origDate = taskDate;
     let nextDate = origDate;
+    const useSelectionMove = !!selectionMove;
+    let selectionDelta = 0;
 
     const onMouseMove = (ev) => {
       const daysDelta = Math.round((ev.clientX - startX) / dayWidth);
       if (daysDelta === 0) return;
-
       if (!didDragRef.current) {
         didDragRef.current = true;
         onDragStart?.();
       }
-
+      if (useSelectionMove) {
+        selectionDelta = daysDelta;
+        selectionMove.onPreview(daysDelta);
+        return;
+      }
       const newDate = formatDate(addDays(parseDate(origDate), daysDelta));
       nextDate = newDate;
       setDragDate(newDate);
@@ -393,39 +415,35 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadO
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      setDragDate(null);
-      if (didDragRef.current) onDragCommit?.(nextDate, nextDate);
+      if (useSelectionMove) {
+        selectionMove.onPreview(null);
+        if (didDragRef.current) selectionMove.onCommit(selectionDelta);
+      } else {
+        setDragDate(null);
+        if (didDragRef.current) onDragCommit?.(nextDate, nextDate);
+      }
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [dayWidth, onDragCommit, onDragStart, taskDate]);
+  }, [dayWidth, isReadOnly, onDragCommit, onDragStart, selectionMove, taskDate]);
 
   return (
     <div
-      className={`milestone-marker ${isDone ? 'done' : ''}`}
-      style={{ left, cursor: isReadOnly ? 'default' : 'grab', zIndex: tooltipVisible ? 1000 : 2 }}
+      className={`milestone-marker ${isDone ? 'done' : ''} ${isSelected ? 'selected' : ''}`}
+      style={{ left, cursor: isReadOnly ? 'default' : 'grab' }}
       onMouseDown={handleMouseDown}
-      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
+      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
+      onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
+      onContextMenu={(e) => onContextMenu?.(e)}
     >
       <div className="milestone-diamond" style={{ backgroundColor: color, width: diamondPx, height: diamondPx }} />
-      <span
-        ref={labelRef}
-        className="milestone-label"
-        onMouseEnter={() => {
-          if (labelRef.current && labelRef.current.scrollWidth > labelRef.current.clientWidth)
-            setTooltipVisible(true);
-        }}
-        onMouseLeave={() => setTooltipVisible(false)}
-      >
-        {label}
-      </span>
-      {tooltipVisible && <div className="gantt-bar-tooltip">{label}</div>}
+      <span className="milestone-label">{label}</span>
     </div>
   );
 }
 
-// ─── Today line ───────────────────────────────────────────────────────────────
+// ─── Today line ─────────────────────────────────────────────────────────────
 
 function TodayLine({ startDate, dayWidth, totalDays }) {
   const today = new Date();
@@ -435,28 +453,92 @@ function TodayLine({ startDate, dayWidth, totalDays }) {
   return <div className="today-line" style={{ left: offset * dayWidth + dayWidth / 2 }} />;
 }
 
-// ─── Main GanttView ───────────────────────────────────────────────────────────
+// ─── Recursive row building ─────────────────────────────────────────────────
+
+const MAX_UI_DEPTH = 5;
+
+function buildRows(items, collapsed, parentColor, numberPath = [], depth = 0) {
+  const rows = [];
+  items.forEach((node, index) => {
+    const currentPath = [...numberPath, index + 1];
+    const color = resolveColor(node, parentColor);
+    const hasChildren = node.children && node.children.length > 0;
+    const isCollapsed = !!collapsed[node.id];
+
+    if (node.type === 'group') {
+      rows.push({
+        key: node.id,
+        rowType: 'group',
+        node,
+        depth,
+        numberPath: currentPath,
+        color,
+        childCount: node.children ? node.children.length : 0,
+      });
+      if (!isCollapsed) {
+        if (node.children) {
+          rows.push(...buildRows(node.children, collapsed, color, currentPath, depth + 1));
+        }
+      }
+    } else {
+      rows.push({
+        key: node.id,
+        rowType: 'task',
+        node,
+        depth,
+        numberPath: currentPath,
+        color,
+      });
+    }
+  });
+  return rows;
+}
+
+function collectDescendantIds(node) {
+  const ids = new Set();
+  const walk = (current) => {
+    if (!current?.children) return;
+    current.children.forEach((child) => {
+      ids.add(child.id);
+      walk(child);
+    });
+  };
+  walk(node);
+  return ids;
+}
+
+/** Collect all dates from the tree for timeline range */
+function collectTreeDates(items) {
+  const dates = [];
+  for (const item of items) {
+    if (item.start) dates.push(item.start);
+    if (item.end) dates.push(item.end);
+    if (item.children) dates.push(...collectTreeDates(item.children));
+  }
+  return dates;
+}
+
+// ─── Main GanttView ─────────────────────────────────────────────────────────
 
 export default function GanttView({
   data,
   uiState,
-  calendarConfig,
   calendarEvents,
   calendarConnected,
   onCalendarSetup,
-  onTaskClick,
-  onPhaseClick,
-  onAddTask,
-  onTaskUpdate,
-  onTaskDragStart,
-  onPhaseUpdate,
-  onPhaseDragStart,
+  onNodeClick,
+  onAddChild,
+  onQuickBatchCreate,
+  onNodeUpdate,
+  onNodeBulkUpdate,
+  onDeleteNode,
+  onDeleteNodes,
+  onSplitNode,
   onSaveStatus,
-  onReorderPhases,
-  onReorderTasks,
+  onReorder,
+  onUiStateChange,
   onUndo,
   onRedo,
-  onUiStateChange,
   canUndo = false,
   canRedo = false,
   historyFeedback = null,
@@ -464,96 +546,51 @@ export default function GanttView({
 }) {
   const [zoom, setZoom] = useState(uiState?.zoom && ZOOM_LEVELS[uiState.zoom] ? uiState.zoom : 'Month');
   const [collapsed, setCollapsed] = useState(uiState?.collapsed || {});
-  const [calendarCollapsed, setCalendarCollapsed] = useState(uiState?.calendarCollapsed || {});
-  const [calendarOrder, setCalendarOrder] = useState(Array.isArray(uiState?.calendarOrder) ? uiState.calendarOrder : []);
   const [density, setDensity] = useState(uiState?.density === 'Compact' ? 'Compact' : 'Regular');
   const [dropIndicator, setDropIndicatorState] = useState(null);
   const [draggingItem, setDraggingItem] = useState(null);
   const [activeCalEvents, setActiveCalEvents] = useState(() => new Set(Array.isArray(uiState?.activeCalEvents) ? uiState.activeCalEvents : []));
-  const [missingCalWarning, setMissingCalWarning] = useState(null);
-
-  const toggleCalEvent = useCallback((evId) => {
-    setActiveCalEvents(prev => {
-      const next = new Set(prev);
-      if (next.has(evId)) next.delete(evId); else next.add(evId);
-      return next;
-    });
-  }, []);
   const [listWidth, setListWidth] = useState(Number.isFinite(uiState?.listWidth) ? uiState.listWidth : 260);
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, target: 'node'|'root', node?, depth? }
+  const [hoveredGroup, setHoveredGroup] = useState(null); // { id, start, end, descendants }
+  const [selectedTaskIds, setSelectedTaskIds] = useState(() => new Set());
+  const [selectionDragDaysDelta, setSelectionDragDaysDelta] = useState(null);
+  const [groupDragHint, setGroupDragHint] = useState(null);
 
+  const listRef = useRef(null);
   const timelineRef = useRef(null);
   const dragRef = useRef(null);
   const dropIndicatorRef = useRef(null);
   const dataRef = useRef(data);
-  const calendarDefsRef = useRef([]);
-
-  const calendarDefinitions = React.useMemo(() => {
-    const configuredCalendars = Array.isArray(calendarConfig?.calendars) ? calendarConfig.calendars : [];
-    const missingCalendars = [...new Set(calendarEvents.map(event => event.calendarKey).filter(Boolean))]
-      .filter(calendarKey => !configuredCalendars.some(calendar => calendar.id === calendarKey))
-      .map((calendarKey, index) => ({
-        id: calendarKey,
-        label: calendarKey,
-        color: '#4A90D9',
-        source: 'ical',
-        enabled: true,
-        _derived: true,
-        _index: configuredCalendars.length + index,
-      }));
-
-    return [...configuredCalendars, ...missingCalendars];
-  }, [calendarConfig, calendarEvents]);
-
-  const orderedCalendarIds = React.useMemo(
-    () => mergeOrderedIds(calendarDefinitions.map(calendar => calendar.id), calendarOrder),
-    [calendarDefinitions, calendarOrder]
-  );
-
-  const orderedCalendars = React.useMemo(
-    () => orderedCalendarIds
-      .map(calendarId => calendarDefinitions.find(calendar => calendar.id === calendarId))
-      .filter(Boolean),
-    [calendarDefinitions, orderedCalendarIds]
-  );
-
-  const calendarEventsById = React.useMemo(() => {
-    const grouped = new Map(orderedCalendars.map(calendar => [calendar.id, []]));
-    for (const event of calendarEvents) {
-      const calendarKey = event.calendarKey;
-      if (!calendarKey) continue;
-      if (!grouped.has(calendarKey)) grouped.set(calendarKey, []);
-      grouped.get(calendarKey).push(event);
-    }
-    for (const events of grouped.values()) {
-      events.sort((a, b) => (
-        a.start.localeCompare(b.start) ||
-        (a.end || a.start).localeCompare(b.end || b.start) ||
-        a.title.localeCompare(b.title)
-      ));
-    }
-    return grouped;
-  }, [orderedCalendars, calendarEvents]);
-
-  const calendarEventLookup = React.useMemo(
-    () => new Map(calendarEvents.map(event => [event.id, event])),
-    [calendarEvents]
-  );
+  const syncSourceRef = useRef(null);
+  const groupDragHintTimerRef = useRef(null);
 
   useEffect(() => { dataRef.current = data; }, [data]);
-  useEffect(() => { calendarDefsRef.current = orderedCalendars; }, [orderedCalendars]);
+
+  useEffect(() => () => {
+    if (groupDragHintTimerRef.current) clearTimeout(groupDragHintTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    const validTaskIds = new Set();
+    const collectTaskIds = (nodes) => {
+      nodes.forEach((node) => {
+        if (node.type === 'task') validTaskIds.add(node.id);
+        if (node.children?.length) collectTaskIds(node.children);
+      });
+    };
+    collectTaskIds(data.items || []);
+    setSelectedTaskIds((current) => {
+      const next = new Set([...current].filter((id) => validTaskIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [data]);
 
   useEffect(() => {
     if (!uiState) return;
     if (uiState.zoom && uiState.zoom !== zoom && ZOOM_LEVELS[uiState.zoom]) setZoom(uiState.zoom);
     if (uiState.density && uiState.density !== density) setDensity(uiState.density === 'Compact' ? 'Compact' : 'Regular');
     if (uiState.collapsed && JSON.stringify(uiState.collapsed) !== JSON.stringify(collapsed)) setCollapsed(uiState.collapsed);
-    if (uiState.calendarCollapsed && JSON.stringify(uiState.calendarCollapsed) !== JSON.stringify(calendarCollapsed)) {
-      setCalendarCollapsed(uiState.calendarCollapsed);
-    }
-    const nextCalendarOrder = Array.isArray(uiState.calendarOrder) ? uiState.calendarOrder : [];
-    if (JSON.stringify(nextCalendarOrder) !== JSON.stringify(calendarOrder)) {
-      setCalendarOrder(nextCalendarOrder);
-    }
     const nextActive = Array.isArray(uiState.activeCalEvents) ? uiState.activeCalEvents : [];
     if (JSON.stringify([...activeCalEvents]) !== JSON.stringify(nextActive)) {
       setActiveCalEvents(new Set(nextActive));
@@ -562,44 +599,21 @@ export default function GanttView({
   }, [uiState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    const mergedOrder = mergeOrderedIds(calendarDefinitions.map(calendar => calendar.id), calendarOrder);
-    if (JSON.stringify(mergedOrder) !== JSON.stringify(calendarOrder)) {
-      setCalendarOrder(mergedOrder);
-    }
-  }, [calendarDefinitions, calendarOrder]);
-
-  useEffect(() => {
     if (!onUiStateChange) return;
     onUiStateChange({
       zoom,
       density,
       collapsed,
-      calendarCollapsed,
-      calendarOrder: orderedCalendarIds,
       activeCalEvents: [...activeCalEvents],
-      calendarEventIdsVersion: 2,
       listWidth,
     });
-  }, [zoom, density, collapsed, calendarCollapsed, orderedCalendarIds, activeCalEvents, listWidth, onUiStateChange]);
-
-  // Validate stored active calendar events against fetched events
-  useEffect(() => {
-    if (!calendarEvents || calendarEvents.length === 0) return;
-    const existingIds = new Set(calendarEvents.map(e => e.id));
-    setActiveCalEvents(prev => {
-      const missing = [...prev].filter(id => !existingIds.has(id));
-      if (missing.length === 0) return prev;
-      setMissingCalWarning(
-        `${missing.length} previously activated calendar event${missing.length > 1 ? 's' : ''} no longer exist${missing.length > 1 ? '' : 's'} and ${missing.length > 1 ? 'were' : 'was'} removed.`
-      );
-      return new Set([...prev].filter(id => existingIds.has(id)));
-    });
-  }, [calendarEvents]);
+  }, [zoom, density, collapsed, activeCalEvents, listWidth, onUiStateChange]);
 
   const { dayWidth } = ZOOM_LEVELS[zoom];
 
+  const items = data.items || [];
   const allDates = [
-    ...data.phases.flatMap(p => [p.start, p.end, ...p.tasks.flatMap(t => [t.start, t.end])]),
+    ...collectTreeDates(items),
     ...calendarEvents.flatMap(e => [e.start, e.end || e.start]),
   ].filter(Boolean).sort();
 
@@ -608,7 +622,6 @@ export default function GanttView({
 
   let rangeStart = allDates.length > 0 ? parseDate(allDates[0]) : new Date(today.getFullYear(), today.getMonth(), 1);
   let rangeEnd = allDates.length > 0 ? parseDate(allDates[allDates.length - 1]) : addDays(today, 90);
-
   rangeStart = addDays(rangeStart, -14);
   rangeEnd = addDays(rangeEnd, 30);
   rangeStart = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
@@ -617,21 +630,71 @@ export default function GanttView({
   const totalDays = diffDays(rangeStart, rangeEnd) + 1;
   const totalWidth = totalDays * dayWidth;
 
-  const toggleCollapse = (phaseId) => {
-    setCollapsed(prev => ({ ...prev, [phaseId]: !prev[phaseId] }));
+  const toggleCollapse = (nodeId) => {
+    setCollapsed(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
   };
 
-  const toggleCalendarGroupCollapse = (calendarId) => {
-    setCalendarCollapsed(prev => ({ ...prev, [calendarId]: !prev[calendarId] }));
-  };
+  const handleNodeDrag = useCallback(async (nodeId, newStart, newEnd) => {
+    onNodeUpdate(nodeId, { start: newStart, end: newEnd });
+  }, [onNodeUpdate]);
 
-  const handleTaskDrag = useCallback(async (taskId, newStart, newEnd) => {
-    onTaskUpdate(taskId, { start: newStart, end: newEnd }, { captureUndo: false });
-  }, [onTaskUpdate]);
+  const clearTaskSelection = useCallback(() => {
+    setSelectionDragDaysDelta(null);
+    setSelectedTaskIds(new Set());
+  }, []);
 
-  const handlePhaseDrag = useCallback(async (phaseId, newStart, newEnd) => {
-    onPhaseUpdate(phaseId, { start: newStart, end: newEnd }, { captureUndo: false });
-  }, [onPhaseUpdate]);
+  const selectTask = useCallback((nodeId, additive) => {
+    setSelectionDragDaysDelta(null);
+    setSelectedTaskIds((current) => {
+      if (!additive) return new Set([nodeId]);
+      const next = new Set(current);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
+  const commitSelectionDrag = useCallback((daysDelta) => {
+    if (daysDelta == null || daysDelta === 0) return;
+    const updatesByNodeId = [...selectedTaskIds]
+      .map((selectedId) => {
+        const node = findNodeById(items, selectedId);
+        if (!node) return null;
+        return {
+          nodeId: selectedId,
+          updates: {
+            start: formatDate(addDays(parseDate(node.start), daysDelta)),
+            end: formatDate(addDays(parseDate(node.end || node.start), daysDelta)),
+          },
+        };
+      })
+      .filter(Boolean);
+    setSelectionDragDaysDelta(null);
+    if (updatesByNodeId.length > 0) onNodeBulkUpdate?.(updatesByNodeId);
+  }, [items, onNodeBulkUpdate, selectedTaskIds]);
+
+  const setHoveredGroupNode = useCallback((node) => {
+    if (!node || node.type !== 'group') return;
+    setHoveredGroup({
+      id: node.id,
+      start: node.start,
+      end: node.end,
+      descendants: collectDescendantIds(node),
+    });
+  }, []);
+
+  const showGroupDragHint = useCallback((event) => {
+    if (groupDragHintTimerRef.current) clearTimeout(groupDragHintTimerRef.current);
+    setGroupDragHint({
+      x: event.clientX + 14,
+      y: event.clientY + 18,
+      message: 'Hold Shift to drag this group',
+    });
+    groupDragHintTimerRef.current = setTimeout(() => {
+      setGroupDragHint(null);
+      groupDragHintTimerRef.current = null;
+    }, 1400);
+  }, []);
 
   // ─── List resize ──────────────────────────────────────────────────────────
 
@@ -645,7 +708,7 @@ export default function GanttView({
       setListWidth(newWidth);
     };
 
-    const onMouseUp = (mv) => {
+    const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
@@ -663,68 +726,37 @@ export default function GanttView({
     setDropIndicatorState(val);
   }, []);
 
-  const startListDrag = useCallback((e, type, id, phaseId) => {
+  const startListDrag = useCallback((e, nodeId, parentId) => {
     e.preventDefault();
     e.stopPropagation();
-    dragRef.current = { type, id, phaseId };
-    setDraggingItem({ type, id });
+    dragRef.current = { nodeId, parentId };
+    setDraggingItem({ nodeId });
     document.body.style.cursor = 'grabbing';
 
     const onMouseMove = (mv) => {
       const el = document.elementFromPoint(mv.clientX, mv.clientY);
       if (!el) return;
-      const rowEl = el.closest('[data-row-type]');
+      const rowEl = el.closest('[data-row-id]');
       if (!rowEl) return;
 
-      const rowType = rowEl.dataset.rowType;
       const rowId = rowEl.dataset.rowId;
-      const rowPhaseId = rowEl.dataset.phaseId;
+      const rowParentId = rowEl.dataset.parentId || null;
       const rect = rowEl.getBoundingClientRect();
       const isTopHalf = mv.clientY < rect.top + rect.height / 2;
       const drag = dragRef.current;
-      if (!drag) return;
+      if (!drag || drag.parentId !== rowParentId) return; // only reorder within same parent
 
-      let indicator = null;
-
-      if (drag.type === 'calendar') {
-        if (rowType === 'calendar') {
-          if (isTopHalf) {
-            indicator = { type: 'calendar', insertBeforeCalendarId: rowId };
-          } else {
-            const calendars = calendarDefsRef.current;
-            const idx = calendars.findIndex(calendar => calendar.id === rowId);
-            const next = calendars[idx + 1];
-            indicator = { type: 'calendar', insertBeforeCalendarId: next ? next.id : null };
-          }
-        } else if (rowType === 'phase' || rowType === 'task' || rowType === 'add-task') {
-          indicator = { type: 'calendar', insertBeforeCalendarId: null };
-        }
-      } else if (drag.type === 'phase' && rowType === 'phase') {
-        if (isTopHalf) {
-          indicator = { type: 'phase', insertBeforePhaseId: rowId };
-        } else {
-          const d = dataRef.current;
-          const idx = d.phases.findIndex(p => p.id === rowId);
-          const next = d.phases[idx + 1];
-          indicator = { type: 'phase', insertBeforePhaseId: next ? next.id : null };
-        }
-      } else if (drag.type === 'task') {
-        if (rowType === 'task' && rowPhaseId === drag.phaseId) {
-          if (isTopHalf) {
-            indicator = { type: 'task', phaseId: drag.phaseId, insertBeforeTaskId: rowId };
-          } else {
-            const d = dataRef.current;
-            const phase = d.phases.find(p => p.id === drag.phaseId);
-            const idx = phase ? phase.tasks.findIndex(t => t.id === rowId) : -1;
-            const next = phase && idx !== -1 ? phase.tasks[idx + 1] : null;
-            indicator = { type: 'task', phaseId: drag.phaseId, insertBeforeTaskId: next ? next.id : null };
-          }
-        } else if (rowType === 'add-task' && rowPhaseId === drag.phaseId) {
-          indicator = { type: 'task', phaseId: drag.phaseId, insertBeforeTaskId: null };
-        }
+      if (isTopHalf) {
+        setDropIndicator({ parentId: rowParentId, insertBeforeId: rowId });
+      } else {
+        // Find next sibling
+        const d = dataRef.current;
+        const parentItems = rowParentId ? findNodeById(d.items, rowParentId)?.children : d.items;
+        if (!parentItems) return;
+        const idx = parentItems.findIndex(n => n.id === rowId);
+        const next = parentItems[idx + 1];
+        setDropIndicator({ parentId: rowParentId, insertBeforeId: next ? next.id : null });
       }
-
-      if (indicator) setDropIndicator(indicator);
     };
 
     const onMouseUp = () => {
@@ -735,49 +767,21 @@ export default function GanttView({
       const drag = dragRef.current;
       const indicator = dropIndicatorRef.current;
 
-      if (drag && indicator) {
+      if (drag && indicator && drag.parentId === indicator.parentId) {
         const d = dataRef.current;
-        if (drag.type === 'calendar' && indicator.type === 'calendar') {
-          const ids = calendarDefsRef.current.map(calendar => calendar.id);
-          const fromIdx = ids.indexOf(drag.id);
+        const parentItems = drag.parentId ? findNodeById(d.items, drag.parentId)?.children : d.items;
+        if (parentItems) {
+          const ids = parentItems.map(n => n.id);
+          const fromIdx = ids.indexOf(drag.nodeId);
           if (fromIdx !== -1) {
             ids.splice(fromIdx, 1);
-            if (indicator.insertBeforeCalendarId === null) {
-              ids.push(drag.id);
+            if (indicator.insertBeforeId === null) {
+              ids.push(drag.nodeId);
             } else {
-              const toIdx = ids.indexOf(indicator.insertBeforeCalendarId);
-              ids.splice(toIdx >= 0 ? toIdx : ids.length, 0, drag.id);
+              const toIdx = ids.indexOf(indicator.insertBeforeId);
+              ids.splice(toIdx >= 0 ? toIdx : ids.length, 0, drag.nodeId);
             }
-            setCalendarOrder(ids);
-          }
-        } else if (drag.type === 'phase' && indicator.type === 'phase') {
-          const ids = d.phases.map(p => p.id);
-          const fromIdx = ids.indexOf(drag.id);
-          if (fromIdx !== -1) {
-            ids.splice(fromIdx, 1);
-            if (indicator.insertBeforePhaseId === null) {
-              ids.push(drag.id);
-            } else {
-              const toIdx = ids.indexOf(indicator.insertBeforePhaseId);
-              ids.splice(toIdx >= 0 ? toIdx : ids.length, 0, drag.id);
-            }
-            onReorderPhases(ids);
-          }
-        } else if (drag.type === 'task' && indicator.type === 'task') {
-          const phase = d.phases.find(p => p.id === drag.phaseId);
-          if (phase) {
-            const ids = phase.tasks.map(t => t.id);
-            const fromIdx = ids.indexOf(drag.id);
-            if (fromIdx !== -1) {
-              ids.splice(fromIdx, 1);
-              if (indicator.insertBeforeTaskId === null) {
-                ids.push(drag.id);
-              } else {
-                const toIdx = ids.indexOf(indicator.insertBeforeTaskId);
-                ids.splice(toIdx >= 0 ? toIdx : ids.length, 0, drag.id);
-              }
-              onReorderTasks(drag.phaseId, ids);
-            }
+            onReorder(drag.parentId, ids);
           }
         }
       }
@@ -789,7 +793,119 @@ export default function GanttView({
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [onReorderPhases, onReorderTasks, setDropIndicator]);
+  }, [onReorder, setDropIndicator]);
+
+  // ─── Context menu ─────────────────────────────────────────────────────────
+
+  const handleContextMenu = useCallback((e, node, depth) => {
+    if (readonly) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (node.type === 'task' && !selectedTaskIds.has(node.id)) {
+      setSelectedTaskIds(new Set([node.id]));
+    }
+    setContextMenu({ x: e.clientX, y: e.clientY, target: 'node', node, depth });
+  }, [readonly, selectedTaskIds]);
+
+  const handleRootContextMenu = useCallback((e) => {
+    if (readonly) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, target: 'root' });
+  }, [readonly]);
+
+  const buildContextMenuItems = useCallback(() => {
+    if (!contextMenu) return [];
+    if (contextMenu.target === 'root') {
+      return [
+        { label: 'Add group', action: () => onAddChild(null, 'group') },
+      ];
+    }
+
+    const { node, depth } = contextMenu;
+    const items = [];
+
+    if (node.type === 'group') {
+      const isCollapsed = !!collapsed[node.id];
+      items.push({
+        label: isCollapsed ? 'Expand group' : 'Collapse group',
+        action: () => toggleCollapse(node.id),
+      });
+      items.push({ separator: true });
+      items.push({
+        label: 'Batch create subtasks',
+        action: () => onQuickBatchCreate?.(node.id, { x: contextMenu.x, y: contextMenu.y }),
+      });
+      items.push({ separator: true });
+      items.push({ label: 'Add task', action: () => onAddChild(node.id, 'task') });
+      if (depth < MAX_UI_DEPTH - 1) {
+        items.push({ label: 'Add sub-group', action: () => onAddChild(node.id, 'group') });
+      }
+      items.push({ separator: true });
+      items.push({ label: 'Edit', action: () => onNodeClick(node.id) });
+      items.push({ label: 'Delete', action: () => onDeleteNode(node.id), danger: true });
+    } else {
+      // task
+      const hasSelectedTasks = selectedTaskIds.size > 1 && selectedTaskIds.has(node.id);
+      if (depth < MAX_UI_DEPTH - 1 && !node.milestone) {
+        items.push({
+          label: 'Batch create subtasks',
+          action: () => onQuickBatchCreate?.(node.id, { x: contextMenu.x, y: contextMenu.y }),
+        });
+        items.push({ label: 'Convert to group', action: () => onSplitNode(node.id) });
+        items.push({ separator: true });
+      } else if (depth < MAX_UI_DEPTH - 1) {
+        items.push({ label: 'Convert to group', action: () => onSplitNode(node.id) });
+        items.push({ separator: true });
+      }
+      items.push({
+        label: node.done ? 'Mark as not done' : 'Mark as done',
+        action: () => onNodeUpdate(node.id, { done: !node.done }),
+      });
+      if (hasSelectedTasks) {
+        items.push({
+          label: `Delete selected tasks (${selectedTaskIds.size})`,
+          action: () => {
+            onDeleteNodes?.([...selectedTaskIds]);
+            clearTaskSelection();
+          },
+          danger: true,
+        });
+      }
+      items.push({ label: 'Edit', action: () => onNodeClick(node.id) });
+      items.push({ label: 'Delete', action: () => onDeleteNode(node.id), danger: true });
+    }
+
+    return items;
+  }, [clearTaskSelection, contextMenu, onAddChild, onDeleteNode, onDeleteNodes, onNodeClick, onNodeUpdate, onQuickBatchCreate, onSplitNode, selectedTaskIds]);
+
+  useEffect(() => {
+    const listEl = listRef.current;
+    const timelineEl = timelineRef.current;
+    if (!listEl || !timelineEl) return undefined;
+
+    const syncFromList = () => {
+      if (syncSourceRef.current === 'timeline') return;
+      syncSourceRef.current = 'list';
+      timelineEl.scrollTop = listEl.scrollTop;
+      syncSourceRef.current = null;
+    };
+
+    const syncFromTimeline = () => {
+      if (syncSourceRef.current === 'list') return;
+      syncSourceRef.current = 'timeline';
+      listEl.scrollTop = timelineEl.scrollTop;
+      syncSourceRef.current = null;
+    };
+
+    listEl.addEventListener('scroll', syncFromList);
+    timelineEl.addEventListener('scroll', syncFromTimeline);
+
+    return () => {
+      listEl.removeEventListener('scroll', syncFromList);
+      timelineEl.removeEventListener('scroll', syncFromTimeline);
+    };
+  }, []);
 
   // Scroll to today on mount
   useEffect(() => {
@@ -798,58 +914,25 @@ export default function GanttView({
       const viewWidth = timelineRef.current.clientWidth;
       timelineRef.current.scrollLeft = Math.max(0, todayOffset - viewWidth / 2);
     }
-  }, [zoom]);
+  }, [zoom]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Build rows ───────────────────────────────────────────────────────────
 
-  const rows = [];
-
-  rows.push({ type: 'cal-header' });
-
-  if (!calendarConnected) {
-    rows.push({ type: 'cal-connect' });
-  } else if (orderedCalendars.length === 0) {
-    rows.push({ type: 'cal-none' });
-  } else {
-    orderedCalendars.forEach((calendar, calendarIndex) => {
-      const events = calendarEventsById.get(calendar.id) || [];
-      rows.push({ type: 'calendar-header', calendar, calendarIndex, eventCount: events.length });
-      if (!calendarCollapsed[calendar.id]) {
-        if (events.length === 0) {
-          rows.push({ type: 'calendar-empty', calendar });
-        } else {
-          const lanes = computeCalendarLanes(events);
-          lanes.forEach((laneEvents, laneIndex) => {
-            rows.push({ type: 'calendar-lane', calendar, events: laneEvents, laneIndex });
-          });
-        }
-      }
-    });
-  }
-
-  data.phases.forEach((phase, phaseIndex) => {
-    rows.push({ type: 'phase', phase, phaseIndex });
-    if (!collapsed[phase.id]) {
-      phase.tasks.forEach((task, taskIndex) =>
-        rows.push({ type: 'task', task, phase, phaseIndex, taskIndex })
-      );
-      rows.push({ type: 'add-task', phase, phaseIndex });
-    }
-  });
+  const rows = buildRows(items, collapsed, null);
 
   const DENSITY_LEVELS = { Regular: 40, Compact: 28 };
   const ROW_HEIGHT = DENSITY_LEVELS[density];
-  const BAR_HEIGHT = density === 'Compact' ? 18 : 24;
-  const DIAMOND_PX = density === 'Compact' ? 12 : 16;
+  const BASE_BAR_HEIGHT = density === 'Compact' ? 18 : 24;
+  const BASE_DIAMOND_PX = density === 'Compact' ? 12 : 16;
+  const INDENT_PX = 20;
+
+  // Depth-based visual scaling
+  const DEPTH_STEP_PX = density === 'Compact' ? 3 : 4;
+  const depthBarHeight = (depth) => Math.max(BASE_BAR_HEIGHT - depth * DEPTH_STEP_PX, 10);
+  const depthDiamondPx = (depth) => Math.max(BASE_DIAMOND_PX - depth * DEPTH_STEP_PX, 8);
 
   return (
     <div className="gantt-view">
-      {missingCalWarning && (
-        <div className="cal-missing-warning">
-          <span>⚠ {missingCalWarning}</span>
-          <button className="cal-missing-dismiss" onClick={() => setMissingCalWarning(null)}>✕</button>
-        </div>
-      )}
       {/* Toolbar */}
       <div className={`gantt-toolbar${historyFeedback ? ` history-feedback history-feedback-${historyFeedback}` : ''}`}>
         <div className="history-controls">
@@ -898,203 +981,109 @@ export default function GanttView({
 
       <div className="gantt-body">
         {/* Left panel: task list */}
-        <div className="gantt-list" style={{ width: listWidth, minWidth: listWidth }}>
-          <div className="gantt-list-header">Tasks</div>
+        <div
+          ref={listRef}
+          className="gantt-list"
+          style={{ width: listWidth, minWidth: listWidth }}
+          onContextMenu={handleRootContextMenu}
+          onClick={(e) => { if (e.target === e.currentTarget) clearTaskSelection(); }}
+        >
+          <div className="gantt-list-header" onClick={clearTaskSelection}>Tasks</div>
 
-          {rows.map((row, i) => {
-            if (row.type === 'cal-header') {
-              return (
-                <div key="cal-header" className="gantt-row gantt-section-header" style={{ height: ROW_HEIGHT }}>
-                  <span className="section-icon">📅</span>
-                  <span>Calendars</span>
-                </div>
-              );
-            }
-            if (row.type === 'cal-connect') {
-              return (
-                <div key="cal-connect" className="gantt-row gantt-cal-connect" style={{ height: ROW_HEIGHT }}>
-                  <button className="cal-connect-link" onClick={onCalendarSetup}>Connect Calendar →</button>
-                </div>
-              );
-            }
-            if (row.type === 'cal-none') {
-              return (
-                <div key="cal-none" className="gantt-row gantt-cal-empty" style={{ height: ROW_HEIGHT }}>
-                  <span className="muted">No calendars configured</span>
-                </div>
-              );
-            }
-            if (row.type === 'calendar-header') {
-              const isCollapsed = calendarCollapsed[row.calendar.id];
-              const isDragging = draggingItem?.type === 'calendar' && draggingItem?.id === row.calendar.id;
+          {rows.map((row) => {
+            if (row.rowType === 'group') {
+              const isCollapsed = collapsed[row.node.id];
+              const isDragging = draggingItem?.nodeId === row.node.id;
               const showIndicatorBefore =
-                dropIndicator?.type === 'calendar' &&
-                dropIndicator.insertBeforeCalendarId === row.calendar.id &&
-                draggingItem?.id !== row.calendar.id;
+                dropIndicator?.insertBeforeId === row.node.id &&
+                draggingItem?.nodeId !== row.node.id;
+              const parentId = row.depth === 0 ? null : findParentId(items, row.node.id);
 
               return (
-                <React.Fragment key={`calendar-header-${row.calendar.id}`}>
-                  {showIndicatorBefore && <div className="list-drop-indicator list-drop-indicator--calendar" />}
-                  <div
-                    data-row-type="calendar"
-                    data-row-id={row.calendar.id}
-                    className={`gantt-row gantt-calendar-row${isDragging ? ' is-dragging' : ''}`}
-                    style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.calendar.color}` }}
-                  >
-                    {!readonly && (
-                      <div
-                        className="drag-handle"
-                        onMouseDown={(e) => startListDrag(e, 'calendar', row.calendar.id, null)}
-                        onClick={(e) => e.stopPropagation()}
-                        title="Drag to reorder"
-                      >⠿</div>
-                    )}
-                    <button
-                      className="collapse-btn"
-                      onClick={(e) => { e.stopPropagation(); toggleCalendarGroupCollapse(row.calendar.id); }}
-                      title={isCollapsed ? 'Expand' : 'Collapse'}
-                    >
-                      {isCollapsed ? '▶' : '▼'}
-                    </button>
-                    <span className="phase-label" title={row.calendar.label}>
-                      <span className="item-name">{row.calendar.label}</span>
-                    </span>
-                    <span className="calendar-source-pill">{row.calendar.source === 'google' ? 'Google' : 'iCal'}</span>
-                    <span className="phase-task-count muted">({row.eventCount})</span>
-                  </div>
-                </React.Fragment>
-              );
-            }
-            if (row.type === 'calendar-empty') {
-              return (
-                <div
-                  key={`calendar-empty-${row.calendar.id}`}
-                  className="gantt-row gantt-cal-empty"
-                  style={{ height: ROW_HEIGHT }}
-                >
-                  <span className="task-indent" />
-                  <span className="muted">No events in range</span>
-                </div>
-              );
-            }
-            if (row.type === 'calendar-lane') {
-              return (
-                <div
-                  key={`cal-lane-${row.calendar.id}-${row.laneIndex}`}
-                  className="gantt-row gantt-cal-lane-row"
-                  style={{ height: ROW_HEIGHT }}
-                />
-              );
-            }
-
-            if (row.type === 'phase') {
-              const isCollapsed = collapsed[row.phase.id];
-              const isDragging = draggingItem?.type === 'phase' && draggingItem?.id === row.phase.id;
-              const showIndicatorBefore =
-                dropIndicator?.type === 'phase' &&
-                dropIndicator.insertBeforePhaseId === row.phase.id &&
-                draggingItem?.id !== row.phase.id;
-
-              return (
-                <React.Fragment key={row.phase.id}>
+                <React.Fragment key={row.key}>
                   {showIndicatorBefore && <div className="list-drop-indicator" />}
                   <div
-                    data-row-type="phase"
-                    data-row-id={row.phase.id}
-                    className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}`}
-                    style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.phase.color}` }}
-                    onClick={() => !readonly && !draggingItem && onPhaseClick(row.phase.id)}
+                    data-row-id={row.node.id}
+                    data-parent-id={parentId || ''}
+                    className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
+                    style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.color}`, paddingLeft: row.depth * INDENT_PX }}
+                    onClick={clearTaskSelection}
+                    onDoubleClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
+                    onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                    onMouseEnter={() => setHoveredGroupNode(row.node)}
+                    onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
                   >
                     {!readonly && (
                       <div
                         className="drag-handle"
-                        onMouseDown={(e) => startListDrag(e, 'phase', row.phase.id, null)}
+                        onMouseDown={(e) => startListDrag(e, row.node.id, parentId)}
                         onClick={(e) => e.stopPropagation()}
                         title="Drag to reorder"
-                      >⠿</div>
+                      >&#10303;</div>
                     )}
                     <button
                       className="collapse-btn"
-                      onClick={(e) => { e.stopPropagation(); toggleCollapse(row.phase.id); }}
+                      onClick={(e) => { e.stopPropagation(); toggleCollapse(row.node.id); }}
                       title={isCollapsed ? 'Expand' : 'Collapse'}
                     >
-                      {isCollapsed ? '▶' : '▼'}
+                      {isCollapsed ? '\u25B6' : '\u25BC'}
                     </button>
-                    <span className="phase-label" title={getPhaseLabel(row.phase, row.phaseIndex)}>
-                      <span className="item-number">{(() => { const p = getPhasePrefix(row.phase); return p ? `${p}\u00a0${row.phaseIndex + 1}` : `${row.phaseIndex + 1}`; })()}</span>
-                      <span className="item-name">{row.phase.name}</span>
+                    <span className="phase-label" title="Right-click for add, edit, and delete actions">
+                      <span className="item-number">{(() => {
+                        const p = getNodePrefix(row.node);
+                        const num = getNodeNumber(row.numberPath);
+                        return p ? `${p}\u00a0${num}` : num;
+                      })()}</span>
+                      <span className="item-name">{row.node.name}</span>
                     </span>
-                    <span className="phase-task-count muted">({row.phase.tasks.length})</span>
+                    <span className="phase-task-count muted">({row.childCount})</span>
                   </div>
                 </React.Fragment>
               );
             }
 
-            if (row.type === 'task') {
-              const isDragging = draggingItem?.type === 'task' && draggingItem?.id === row.task.id;
+            if (row.rowType === 'task') {
+              const isDragging = draggingItem?.nodeId === row.node.id;
               const showIndicatorBefore =
-                dropIndicator?.type === 'task' &&
-                dropIndicator.insertBeforeTaskId === row.task.id &&
-                draggingItem?.id !== row.task.id;
-              const taskLabel = getTaskLabel(row.task, row.phaseIndex, row.taskIndex);
+                dropIndicator?.insertBeforeId === row.node.id &&
+                draggingItem?.nodeId !== row.node.id;
+              const parentId = findParentId(items, row.node.id);
+              const isSelected = selectedTaskIds.has(row.node.id);
 
               return (
-                <React.Fragment key={row.task.id}>
+                <React.Fragment key={row.key}>
                   {showIndicatorBefore && <div className="list-drop-indicator list-drop-indicator--task" />}
                   <div
-                    data-row-type="task"
-                    data-row-id={row.task.id}
-                    data-phase-id={row.phase.id}
-                    className={`gantt-row gantt-task-row${row.task.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}`}
-                    style={{ height: ROW_HEIGHT }}
-                    onClick={() => !readonly && !draggingItem && onTaskClick(row.task.id)}
+                    data-row-id={row.node.id}
+                    data-parent-id={parentId || ''}
+                    className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${isSelected ? ' selected' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
+                    style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX }}
+                    onClick={(e) => !readonly && !draggingItem && selectTask(row.node.id, e.shiftKey)}
+                    onDoubleClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
+                    onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                   >
                     <span className="task-indent" />
                     {!readonly && (
                       <div
                         className="drag-handle"
-                        onMouseDown={(e) => startListDrag(e, 'task', row.task.id, row.phase.id)}
+                        onMouseDown={(e) => startListDrag(e, row.node.id, parentId)}
                         onClick={(e) => e.stopPropagation()}
                         title="Drag to reorder"
-                      >⠿</div>
+                      >&#10303;</div>
                     )}
-                    {row.task.milestone
-                      ? <span className="task-milestone-dot" style={{ color: row.phase.color }}>◆</span>
-                      : <span className="task-done-indicator" style={{ backgroundColor: row.phase.color }} />
+                    {row.node.milestone
+                      ? <span className="task-milestone-dot" style={{ color: row.color }}>&#9670;</span>
+                      : <span className="task-done-indicator" style={{ backgroundColor: row.color }} />
                     }
-                    <span className="task-label" title={taskLabel}>
-                      <span className="item-number">{row.phaseIndex + 1}.{row.taskIndex + 1}</span>
+                    <span className="task-label" title="Right-click for status, edit, and more actions">
+                      <span className="item-number">{getNodeNumber(row.numberPath)}</span>
                       <span className="item-name">
-                        {row.task.done ? <s>{row.task.name}</s> : row.task.name}
+                        {row.node.name}
                       </span>
                     </span>
                     <span className="task-dates muted">
-                      {row.task.milestone ? row.task.start : `${row.task.start} – ${row.task.end}`}
+                      {row.node.milestone ? row.node.start : `${row.node.start} – ${row.node.end}`}
                     </span>
-                  </div>
-                </React.Fragment>
-              );
-            }
-
-            if (row.type === 'add-task') {
-              if (readonly) return null;
-              const showTaskEndIndicator =
-                dropIndicator?.type === 'task' &&
-                dropIndicator.phaseId === row.phase.id &&
-                dropIndicator.insertBeforeTaskId === null;
-
-              return (
-                <React.Fragment key={`add-task-${row.phase.id}`}>
-                  {showTaskEndIndicator && <div className="list-drop-indicator list-drop-indicator--task" />}
-                  <div
-                    data-row-type="add-task"
-                    data-phase-id={row.phase.id}
-                    className="gantt-row gantt-add-task-row"
-                    style={{ height: ROW_HEIGHT }}
-                    onClick={() => onAddTask(row.phase.id)}
-                  >
-                    <span className="task-indent" />
-                    <span className="add-task-btn">+ Add task</span>
                   </div>
                 </React.Fragment>
               );
@@ -1103,11 +1092,8 @@ export default function GanttView({
             return null;
           })}
 
-          {dropIndicator?.type === 'calendar' && dropIndicator.insertBeforeCalendarId === null && draggingItem?.type === 'calendar' && (
-            <div className="list-drop-indicator list-drop-indicator--calendar" />
-          )}
-          {/* Drop indicator after last phase */}
-          {dropIndicator?.type === 'phase' && dropIndicator.insertBeforePhaseId === null && draggingItem?.type === 'phase' && (
+          {/* Drop indicator after last top-level item */}
+          {dropIndicator?.parentId === null && dropIndicator.insertBeforeId === null && draggingItem && (
             <div className="list-drop-indicator" />
           )}
         </div>
@@ -1130,7 +1116,7 @@ export default function GanttView({
 
               {/* Active calendar event overlays */}
               {activeCalEvents.size > 0 && [...activeCalEvents].map(evId => {
-                const ev = calendarEventLookup.get(evId);
+                const ev = calendarEvents.find(e => e.id === evId);
                 if (!ev) return null;
                 const evEnd = ev.end || ev.start;
                 const startOff = diffDays(rangeStart, parseDate(ev.start));
@@ -1152,128 +1138,193 @@ export default function GanttView({
                 );
               })}
 
-              {rows.map((row, i) => {
+              {rows.map((row) => {
                 const rowStyle = { height: ROW_HEIGHT, position: 'relative' };
 
-                if (
-                  row.type === 'cal-header' ||
-                  row.type === 'cal-connect' ||
-                  row.type === 'cal-none' ||
-                  row.type === 'calendar-header' ||
-                  row.type === 'calendar-empty'
-                ) {
-                  return <div key={i} className="gantt-timeline-row empty-row" style={rowStyle} />;
-                }
-
-                if (row.type === 'calendar-lane') {
-                  return (
-                    <div key={`cal-lane-${row.calendar.id}-${row.laneIndex}`} className="gantt-timeline-row" style={rowStyle}>
-                      {row.events.map(ev => (
-                        <GanttBar
-                          key={ev.id}
-                          startDate={rangeStart}
-                          taskStart={ev.start}
-                          taskEnd={ev.end || ev.start}
-                          dayWidth={dayWidth}
-                          color={rgbaFromHex(row.calendar.color, activeCalEvents.has(ev.id) ? 0.62 : 0.45)}
-                          isReadOnly={true}
-                          isDone={false}
-                          label={ev.title}
-                          barHeight={BAR_HEIGHT}
-                          isActive={activeCalEvents.has(ev.id)}
-                          onDragUpdate={() => {}}
-                          onClick={null}
-                          onDoubleClick={() => toggleCalEvent(ev.id)}
-                        />
-                      ))}
-                    </div>
-                  );
-                }
-
-                if (row.type === 'phase') {
-                  const phaseHasTasks = row.phase.tasks && row.phase.tasks.length > 0;
-                  const pDays = row.phase.start && row.phase.end
-                    ? calcTaskDays(row.phase.start, row.phase.end, activeCalEvents, calendarEventLookup)
+                if (row.rowType === 'group') {
+                  const hasChildren = row.node.children && row.node.children.length > 0;
+                  const pDays = row.node.start && row.node.end
+                    ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
                     : null;
+                  const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   return (
-                    <div key={row.phase.id} className="gantt-timeline-row" style={rowStyle}>
+                    <div
+                      key={row.key}
+                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`}
+                      style={rowStyle}
+                      onClick={clearTaskSelection}
+                      onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                    >
+                      {descendantHighlighted && hoveredGroup?.start && hoveredGroup?.end && (
+                        <div
+                          className="descendant-range-highlight"
+                          style={{
+                            left: diffDays(rangeStart, parseDate(hoveredGroup.start)) * dayWidth,
+                            width: Math.max((diffDays(parseDate(hoveredGroup.start), parseDate(hoveredGroup.end)) + 1) * dayWidth, dayWidth),
+                          }}
+                        />
+                      )}
                       <GanttBar
                         startDate={rangeStart}
-                        taskStart={row.phase.start}
-                        taskEnd={row.phase.end}
+                        taskStart={row.node.start}
+                        taskEnd={row.node.end}
                         dayWidth={dayWidth}
-                        color={row.phase.color}
+                        color={row.color}
                         isReadOnly={readonly}
-                        isLocked={phaseHasTasks}
+                        isLocked={false}
+                        canResize={false}
+                        requiresShiftToMove={true}
                         isDone={false}
-                        label={getPhaseLabel(row.phase, row.phaseIndex)}
-                        barHeight={BAR_HEIGHT}
+                        label={getNodeLabel(row.node, row.numberPath)}
+                        barHeight={depthBarHeight(row.depth)}
                         labelOutside={true}
                         workDays={pDays?.work}
                         netDays={pDays?.net}
-                        onDragStart={onPhaseDragStart}
-                        onDragCommit={(s, e) => handlePhaseDrag(row.phase.id, s, e)}
-                        onClick={() => onPhaseClick(row.phase.id)}
+                        onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
+                        onClick={clearTaskSelection}
+                        onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                        onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                        onMouseEnter={() => setHoveredGroupNode(row.node)}
+                        onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
+                        onBlockedMoveAttempt={showGroupDragHint}
+                        dragTitle={hasChildren ? 'Hold Shift to drag group' : 'Hold Shift to drag this group'}
                       />
                     </div>
                   );
                 }
 
-                if (row.type === 'task') {
-                  const taskColor = row.task.done ? '#555' : row.phase.color;
-                  const taskLabel = getTaskLabel(row.task, row.phaseIndex, row.taskIndex);
-                  const tDays = !row.task.milestone && row.task.start && row.task.end
-                    ? calcTaskDays(row.task.start, row.task.end, activeCalEvents, calendarEventLookup)
+                if (row.rowType === 'task') {
+                  const taskColor = row.node.done ? '#555' : row.color;
+                  const taskLabel = getNodeLabel(row.node, row.numberPath);
+                  const tDays = !row.node.milestone && row.node.start && row.node.end
+                    ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
+                    : null;
+                  const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
+                  const isSelected = selectedTaskIds.has(row.node.id);
+                  const previewStart = isSelected && selectionDragDaysDelta != null
+                    ? formatDate(addDays(parseDate(row.node.start), selectionDragDaysDelta))
+                    : null;
+                  const previewEnd = isSelected && selectionDragDaysDelta != null
+                    ? formatDate(addDays(parseDate(row.node.end || row.node.start), selectionDragDaysDelta))
+                    : null;
+                  const selectionMove = !readonly && selectedTaskIds.size > 1 && isSelected
+                    ? {
+                        onPreview: setSelectionDragDaysDelta,
+                        onCommit: commitSelectionDrag,
+                      }
                     : null;
                   return (
-                    <div key={row.task.id} className="gantt-timeline-row" style={rowStyle}>
-                      {row.task.milestone
+                    <div
+                      key={row.key}
+                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}${isSelected ? ' selected' : ''}`}
+                      style={rowStyle}
+                      onClick={clearTaskSelection}
+                    >
+                      {descendantHighlighted && hoveredGroup?.start && hoveredGroup?.end && (
+                        <div
+                          className="descendant-range-highlight"
+                          style={{
+                            left: diffDays(rangeStart, parseDate(hoveredGroup.start)) * dayWidth,
+                            width: Math.max((diffDays(parseDate(hoveredGroup.start), parseDate(hoveredGroup.end)) + 1) * dayWidth, dayWidth),
+                          }}
+                        />
+                      )}
+                      {row.node.milestone
                         ? <MilestoneMarker
                             startDate={rangeStart}
-                            taskDate={row.task.start}
+                            taskDate={row.node.start}
+                            previewDate={previewStart}
                             dayWidth={dayWidth}
                             color={taskColor}
-                            isDone={row.task.done}
+                            isDone={row.node.done}
                             isReadOnly={readonly}
+                            isSelected={isSelected}
                             label={taskLabel}
-                            diamondPx={DIAMOND_PX}
-                            onDragStart={onTaskDragStart}
-                            onDragCommit={(s, e) => handleTaskDrag(row.task.id, s, e)}
-                            onClick={() => !readonly && onTaskClick(row.task.id)}
+                            diamondPx={depthDiamondPx(row.depth)}
+                            onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
+                            onClick={(e) => !readonly && selectTask(row.node.id, e.shiftKey)}
+                            onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                            onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                            selectionMove={selectionMove}
                           />
                         : <GanttBar
                             startDate={rangeStart}
-                            taskStart={row.task.start}
-                            taskEnd={row.task.end}
+                            taskStart={row.node.start}
+                            taskEnd={row.node.end}
+                            previewStart={previewStart}
+                            previewEnd={previewEnd}
                             dayWidth={dayWidth}
                             color={taskColor}
                             isReadOnly={readonly}
-                            isDone={row.task.done}
+                            isDone={row.node.done}
+                            isSelected={isSelected}
                             label={taskLabel}
-                            barHeight={BAR_HEIGHT}
+                            barHeight={depthBarHeight(row.depth)}
                             labelOutside={true}
                             workDays={tDays?.work}
                             netDays={tDays?.net}
-                            hasNotes={!!row.task.notes}
-                            onDragStart={onTaskDragStart}
-                            onDragCommit={(s, e) => handleTaskDrag(row.task.id, s, e)}
-                            onClick={() => onTaskClick(row.task.id)}
+                            hasNotes={!!row.node.notes}
+                            onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
+                            onClick={(e) => !readonly && selectTask(row.node.id, e.shiftKey)}
+                            onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                            onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                            selectionMove={selectionMove}
                           />
                       }
                     </div>
                   );
                 }
 
-                if (row.type === 'add-task') {
-                  return <div key={`add-task-${row.phase.id}`} className="gantt-timeline-row empty-row" style={rowStyle} />;
-                }
-
-                return <div key={i} className="gantt-timeline-row empty-row" style={rowStyle} />;
+                return <div key={row.key} className="gantt-timeline-row empty-row" style={rowStyle} />;
               })}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Context menu */}
+      {contextMenu && !readonly && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          items={buildContextMenuItems()}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {groupDragHint && (
+        <div
+          className="group-drag-hint"
+          style={{ left: groupDragHint.x, top: groupDragHint.y }}
+        >
+          {groupDragHint.message}
+        </div>
+      )}
     </div>
   );
+}
+
+// ─── Utility: find node by id in tree ───────────────────────────────────────
+
+function findNodeById(items, id) {
+  for (const item of items) {
+    if (item.id === id) return item;
+    if (item.children) {
+      const found = findNodeById(item.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** Find the parentId of a node, or null if top-level */
+function findParentId(items, id, parentId = null) {
+  for (const item of items) {
+    if (item.id === id) return parentId;
+    if (item.children) {
+      const found = findParentId(item.children, id, item.id);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
 }

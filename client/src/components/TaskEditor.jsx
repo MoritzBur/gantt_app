@@ -5,15 +5,22 @@ const PHASE_COLORS = [
   '#E74C3C', '#16A085', '#F39C12', '#2C3E50',
 ];
 
-export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
+const BATCH_SUBTASK_EXAMPLE = ['- Draft API contract', '- Build timeline sync', '- Polish hover states'].join('\n');
+
+export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate, onClose }) {
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [batchDraft, setBatchDraft] = useState('- ');
+  const [isBatchCreating, setIsBatchCreating] = useState(false);
   const backdropMouseDownRef = useRef(false);
+  const modalRef = useRef(null);
 
   useEffect(() => {
     if (!item) return;
     setForm({ ...item });
     setConfirmDelete(false);
+    setBatchDraft('- ');
+    setIsBatchCreating(false);
   }, [item]);
 
   // Close on Escape key
@@ -23,7 +30,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  // Only close when the full click gesture starts and ends on the backdrop.
+  // Only close when pointer down and up both happen on the backdrop.
   const handleBackdropMouseDown = (e) => {
     backdropMouseDownRef.current = e.target === e.currentTarget;
   };
@@ -35,7 +42,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
 
   if (!item || !form) return null;
 
-  const phaseDatesLocked = type === 'phase' && item.tasks && item.tasks.length > 0;
+  const groupDatesLocked = type === 'group' && item.children && item.children.length > 0;
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -47,6 +54,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
       ? { name: form.name, start: form.start, end: isMilestone ? form.start : form.end, done: form.done, notes: form.notes, milestone: isMilestone }
       : { name: form.name, start: form.start, end: form.end, color: form.color, prefix: form.prefix ?? 'WP' }
     );
+    // type === 'group' uses same fields as old 'phase'
     onClose();
   };
 
@@ -58,16 +66,48 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
     onDelete();
   };
 
+  const handleBatchDraftKeyDown = (e) => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    e.preventDefault();
+
+    const { selectionStart, selectionEnd, value } = e.currentTarget;
+    const insertion = '\n- ';
+    const nextValue = `${value.slice(0, selectionStart)}${insertion}${value.slice(selectionEnd)}`;
+    setBatchDraft(nextValue);
+
+    requestAnimationFrame(() => {
+      e.currentTarget.selectionStart = selectionStart + insertion.length;
+      e.currentTarget.selectionEnd = selectionStart + insertion.length;
+    });
+  };
+
+  const handleBatchCreate = async () => {
+    if (!onBatchCreate || isBatchCreating) return;
+    setIsBatchCreating(true);
+    const ok = await onBatchCreate(batchDraft);
+    setIsBatchCreating(false);
+    if (ok) onClose();
+  };
+
+  const batchLines = batchDraft
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = line.trim().match(/^[-*+](?:\s+(.*))?$/);
+      return match ? (match[1] || '').trim() : '';
+    })
+    .filter((name) => name && !/^[-*+\s]+$/.test(name));
+  const canBatchCreate = type === 'task' && !form.milestone;
+
   return (
     <div
       className="modal-backdrop"
       onMouseDown={handleBackdropMouseDown}
       onMouseUp={handleBackdropMouseUp}
     >
-      <div className="modal" role="dialog" aria-modal="true">
+      <div className="modal" ref={modalRef} role="dialog" aria-modal="true">
         <div className="modal-header">
           <h2 className="modal-title">
-            {type === 'phase' ? 'Edit Phase' : 'Edit Task'}
+            {type === 'group' ? 'Edit Group' : 'Edit Task'}
           </h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
@@ -118,27 +158,27 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
               <div className="form-group">
                 <label className="form-label">
                   Start date
-                  {phaseDatesLocked && <span className="form-label-note"> — set by tasks</span>}
+                  {groupDatesLocked && <span className="form-label-note"> — set by tasks</span>}
                 </label>
                 <input
                   className="form-input form-input-date"
                   type="date"
                   value={form.start || ''}
-                  disabled={phaseDatesLocked}
+                  disabled={groupDatesLocked}
                   onChange={(e) => handleChange('start', e.target.value)}
                 />
               </div>
               <div className="form-group">
                 <label className="form-label">
                   End date
-                  {phaseDatesLocked && <span className="form-label-note"> — set by tasks</span>}
+                  {groupDatesLocked && <span className="form-label-note"> — set by tasks</span>}
                 </label>
                 <input
                   className="form-input form-input-date"
                   type="date"
                   value={form.end || ''}
                   min={form.start || ''}
-                  disabled={phaseDatesLocked}
+                  disabled={groupDatesLocked}
                   onChange={(e) => handleChange('end', e.target.value)}
                 />
               </div>
@@ -146,7 +186,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
           )}
 
           {/* Phase prefix */}
-          {type === 'phase' && (
+          {type === 'group' && (
             <div className="form-group">
               <label className="form-label">Prefix</label>
               <div className="prefix-picker">
@@ -172,7 +212,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
           )}
 
           {/* Phase color picker */}
-          {type === 'phase' && (
+          {type === 'group' && (
             <div className="form-group">
               <label className="form-label">Color</label>
               <div className="color-picker">
@@ -221,6 +261,44 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
                 rows={4}
                 placeholder="Add notes here..."
               />
+            </div>
+          )}
+
+          {type === 'task' && (
+            <div className="form-group batch-subtasks-group">
+              <label className="form-label">Batch Create Subtasks</label>
+              {!canBatchCreate ? (
+                <p className="form-helper-text">Turn off milestone mode to generate a subtask list.</p>
+              ) : (
+                <>
+                  <div className={`batch-subtasks-editor${batchDraft.trim() === '-' ? ' is-empty' : ''}`}>
+                    {batchDraft.trim() === '-' && (
+                      <pre className="batch-subtasks-placeholder" aria-hidden="true">{BATCH_SUBTASK_EXAMPLE}</pre>
+                    )}
+                    <textarea
+                      className="form-input form-textarea batch-subtasks-textarea"
+                      value={batchDraft}
+                      onChange={(e) => setBatchDraft(e.target.value)}
+                      onKeyDown={handleBatchDraftKeyDown}
+                      rows={5}
+                      spellCheck={false}
+                    />
+                  </div>
+                  <p className="form-helper-text">
+                    One markdown bullet per line. Press Enter to continue the list automatically.
+                  </p>
+                  <div className="batch-subtasks-actions">
+                    <button
+                      className="btn btn-secondary"
+                      type="button"
+                      disabled={batchLines.length === 0 || isBatchCreating}
+                      onClick={handleBatchCreate}
+                    >
+                      {isBatchCreating ? 'Creating…' : 'Create subtasks'}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

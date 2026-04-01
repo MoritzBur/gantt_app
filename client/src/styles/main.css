@@ -26,6 +26,7 @@
   --row-height:   40px;
   --list-width:   260px;
   --header-height: 52px;
+  --timeline-header-height: 54px;
 }
 
 html, body {
@@ -319,10 +320,13 @@ a:hover {
 }
 
 .gantt-list-header {
-  height: 56px; /* matches timeline header */
+  position: sticky;
+  top: 0;
+  z-index: 11;
+  height: var(--timeline-header-height);
   display: flex;
-  align-items: flex-end;
-  padding: 0 12px 8px;
+  align-items: center;
+  padding: 0 12px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -330,6 +334,7 @@ a:hover {
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  background: var(--bg-sidebar);
 }
 
 .gantt-row {
@@ -345,6 +350,10 @@ a:hover {
 
 .gantt-row:hover {
   background: var(--bg-row-hover);
+}
+
+.gantt-row.descendant-highlight {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .gantt-section-header {
@@ -410,18 +419,6 @@ a:hover {
 
 .gantt-task-row {
   padding-left: 0;
-}
-
-.gantt-task-row.done .task-name {
-  color: var(--text-muted);
-}
-
-.gantt-add-task-row {
-  cursor: pointer;
-}
-
-.gantt-add-task-row:hover {
-  background: var(--bg-row-hover);
 }
 
 .collapse-btn {
@@ -542,6 +539,17 @@ a:hover {
   color: var(--text-muted);
 }
 
+.gantt-task-row.done .item-number,
+.gantt-task-row.done .task-done-indicator,
+.gantt-task-row.done .task-milestone-dot {
+  opacity: 0.65;
+}
+
+.gantt-task-row.selected {
+  background: rgba(74, 144, 217, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(74, 144, 217, 0.45);
+}
+
 .phase-task-count {
   font-size: 11px;
   font-family: var(--font-mono);
@@ -581,17 +589,107 @@ a:hover {
   display: block;
 }
 
-.add-task-btn {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.gantt-add-task-row:hover .add-task-btn {
-  color: var(--accent);
-}
-
 .muted {
   color: var(--text-muted);
+}
+
+/* ─── Context menu ─────────────────────────────────────────────────────────── */
+
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 0;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.context-menu-item:hover {
+  background: var(--bg-row-hover);
+}
+
+.context-menu-item.danger {
+  color: var(--danger);
+}
+
+.context-menu-item.danger:hover {
+  background: rgba(231, 76, 60, 0.12);
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.quick-batch-panel {
+  position: fixed;
+  z-index: 10020;
+  width: min(320px, calc(100vw - 24px));
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(22, 27, 34, 0.96);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.quick-batch-editor {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid rgba(125, 133, 144, 0.18);
+}
+
+.quick-batch-placeholder {
+  position: absolute;
+  inset: 11px 12px;
+  margin: 0;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  line-height: 1.7;
+  color: rgba(230, 237, 243, 0.16);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.quick-batch-textarea {
+  width: 100%;
+  min-height: 118px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  line-height: 1.7;
+  resize: none;
+}
+
+.quick-batch-textarea:focus {
+  outline: none;
+}
+
+.quick-batch-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
 }
 
 /* ─── List resize handle ────────────────────────────────────────────────────── */
@@ -704,8 +802,27 @@ a:hover {
   background: rgba(255, 255, 255, 0.015);
 }
 
+.gantt-timeline-row.descendant-highlight {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.gantt-timeline-row.selected {
+  background: rgba(74, 144, 217, 0.08);
+}
+
 .gantt-timeline-row.empty-row {
   background: transparent;
+}
+
+.descendant-range-highlight {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ─── Gantt bar ──────────────────────────────────────────────────────────────── */
@@ -721,6 +838,11 @@ a:hover {
   overflow: visible;
   transition: filter 0.1s;
   z-index: 2;
+}
+
+.gantt-timeline-row.descendant-highlight .gantt-bar,
+.gantt-timeline-row.descendant-highlight .milestone-diamond {
+  filter: brightness(1.08);
 }
 
 .gantt-bar:hover {
@@ -741,6 +863,11 @@ a:hover {
   box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(220, 70, 50, 0.75);
   opacity: 1 !important;
   z-index: 3 !important;
+}
+
+.gantt-bar.selected {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 4px rgba(74, 144, 217, 0.45);
+  z-index: 4;
 }
 
 /* Dog-ear note indicator — folded corner in the top-right of the bar */
@@ -795,6 +922,21 @@ a:hover {
   z-index: 50;
   pointer-events: none;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.group-drag-hint {
+  position: fixed;
+  z-index: 10030;
+  padding: 6px 10px;
+  border: 1px solid rgba(74, 144, 217, 0.45);
+  border-radius: 8px;
+  background: rgba(22, 27, 34, 0.96);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(8px);
 }
 
 .gantt-bar-duration {
@@ -907,6 +1049,10 @@ a:hover {
 
 .milestone-marker.done {
   opacity: 0.5;
+}
+
+.milestone-marker.selected .milestone-diamond {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(74, 144, 217, 0.45);
 }
 
 .milestone-diamond {
@@ -1073,6 +1219,20 @@ a:hover {
   margin-left: auto;
 }
 
+.delete-confirm-modal {
+  width: 420px;
+}
+
+.delete-confirm-copy {
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.delete-confirm-copy strong {
+  color: #fff;
+  font-weight: 600;
+}
+
 /* ─── Form elements ──────────────────────────────────────────────────────────── */
 
 .form-group {
@@ -1120,6 +1280,11 @@ a:hover {
   letter-spacing: 0;
 }
 
+.form-helper-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
 .form-input {
   background: var(--bg);
   border: 1px solid var(--border);
@@ -1152,6 +1317,46 @@ a:hover {
   resize: vertical;
   min-height: 88px;
   line-height: 1.5;
+}
+
+.batch-subtasks-group {
+  gap: 8px;
+}
+
+.batch-subtasks-editor {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.batch-subtasks-placeholder {
+  position: absolute;
+  inset: 10px 12px;
+  margin: 0;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(230, 237, 243, 0.16);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.batch-subtasks-textarea {
+  position: relative;
+  z-index: 1;
+  min-height: 120px;
+  font-family: var(--font-mono);
+  line-height: 1.65;
+  background: transparent;
+}
+
+.batch-subtasks-editor.is-empty .batch-subtasks-textarea {
+  color: var(--text);
+}
+
+.batch-subtasks-actions {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .form-checkbox {

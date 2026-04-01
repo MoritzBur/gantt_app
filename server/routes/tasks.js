@@ -3,6 +3,77 @@ const router = express.Router();
 const crypto = require('crypto');
 const store = require('../data-store');
 
+function parseDate(str) {
+  const [year, month, day] = String(str).split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function diffDays(start, end) {
+  return Math.round((end - start) / (24 * 60 * 60 * 1000));
+}
+
+function parseMarkdownList(markdown) {
+  return String(markdown || '')
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = line.match(/^\s*[-*+](?:\s+(.*))?$/);
+      return match ? (match[1] || '').trim() : '';
+    })
+    .filter((name) => name && !/^[-*+\s]+$/.test(name));
+}
+
+function buildEvenlyDistributedSubtasks(node, names) {
+  const start = parseDate(node.start);
+  const end = parseDate(node.end || node.start);
+  const totalDays = Math.max(diffDays(start, end) + 1, 1);
+  const taskCount = names.length;
+  const segmentDays = Math.max(Math.ceil(totalDays / taskCount), 1);
+  const maxStartOffset = Math.max(totalDays - segmentDays, 0);
+
+  return names.map((name, index) => {
+    const startOffset = taskCount === 1
+      ? 0
+      : Math.round((index * maxStartOffset) / (taskCount - 1));
+    const taskStart = addDays(start, startOffset);
+    const taskEnd = addDays(taskStart, segmentDays - 1);
+
+    return {
+      id: crypto.randomUUID(),
+      type: 'task',
+      name,
+      start: formatDate(taskStart),
+      end: formatDate(taskEnd > end ? end : taskEnd),
+      done: false,
+      notes: '',
+      milestone: false,
+      children: [],
+    };
+  });
+}
+
+function shiftNodeTree(node, daysDelta) {
+  if (node.start) {
+    node.start = formatDate(addDays(parseDate(node.start), daysDelta));
+  }
+  if (node.end) {
+    node.end = formatDate(addDays(parseDate(node.end || node.start), daysDelta));
+  }
+  (node.children || []).forEach((child) => shiftNodeTree(child, daysDelta));
+}
+
 function readData() {
   return store.readTasks();
 }
@@ -11,7 +82,7 @@ function writeData(data) {
   store.writeTasks(data);
 }
 
-// GET /api/tasks — return full tasks.json
+// GET /api/tasks — return full tasks.json (v2 format)
 router.get('/', (req, res) => {
   try {
     const data = readData();
@@ -26,10 +97,10 @@ router.get('/', (req, res) => {
 router.put('/', (req, res) => {
   try {
     const nextData = req.body;
-    if (!nextData || !Array.isArray(nextData.phases)) {
-      return res.status(400).json({ error: 'Invalid tasks payload' });
+    if (!nextData || !Array.isArray(nextData.items)) {
+      return res.status(400).json({ error: 'Invalid tasks payload (expected { version: 2, items: [...] })' });
     }
-
+    nextData.version = 2;
     writeData(nextData);
     res.json(nextData);
   } catch (err) {
@@ -38,137 +109,265 @@ router.put('/', (req, res) => {
   }
 });
 
-// POST /api/tasks/phase — create new phase
-router.post('/phase', (req, res) => {
+// POST /api/tasks/node — create a new node (group or task) under a parent
+// body: { parentId: null | string, type: 'group' | 'task', name, color, start, end, ... }
+router.post('/node', (req, res) => {
   try {
     const data = readData();
-    const { name, color, start, end } = req.body;
-    const phase = {
+    const { parentId, type, name, color, start, end, prefix } = req.body;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    // Check depth limit
+    if (parentId) {
+      const depth = store.getNodeDepth(data.items, parentId);
+      if (depth === -1) return res.status(404).json({ error: 'Parent not found' });
+      if (depth + 1 >= store.MAX_DEPTH) {
+        return res.status(400).json({ error: `Maximum nesting depth of ${store.MAX_DEPTH} reached` });
+      }
+    }
+
+    const node = {
       id: crypto.randomUUID(),
-      name: name || 'New Phase',
-      color: color || '#4A90D9',
-      start: start || new Date().toISOString().slice(0, 10),
-      end: end || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      tasks: [],
+      name: name || (type === 'group' ? 'New Group' : 'New Task'),
+      type: type || 'task',
+      start: start || today,
+      end: end || nextMonth,
+      children: [],
     };
-    data.phases.push(phase);
+
+    if (node.type === 'group') {
+      node.color = color || '#4A90D9';
+      node.prefix = prefix !== undefined ? prefix : 'WP';
+    } else {
+      node.done = false;
+      node.notes = '';
+      node.milestone = false;
+    }
+
+    if (parentId) {
+      const result = store.findNode(data.items, parentId);
+      if (!result) return res.status(404).json({ error: 'Parent not found' });
+      if (result.node.type !== 'group') {
+        return res.status(400).json({ error: 'Cannot add children to a task node' });
+      }
+      if (node.type === 'task') {
+        node.start = start || result.node.start || today;
+        node.end = end || result.node.end || nextMonth;
+      }
+      result.node.children.push(node);
+      store.recomputeAncestorBounds(data, node.id);
+    } else {
+      data.items.push(node);
+    }
+
     writeData(data);
-    res.status(201).json(phase);
+    res.status(201).json(node);
   } catch (err) {
-    console.error('Failed to create phase:', err);
-    res.status(500).json({ error: 'Failed to create phase' });
+    console.error('Failed to create node:', err);
+    res.status(500).json({ error: 'Failed to create node' });
   }
 });
 
-// PUT /api/tasks/phase/:id — update phase name/color/dates
-router.put('/phase/:id', (req, res) => {
+// PUT /api/tasks/node/:id — update a node
+router.put('/node/:id', (req, res) => {
   try {
     const data = readData();
-    const phase = data.phases.find(p => p.id === req.params.id);
-    if (!phase) return res.status(404).json({ error: 'Phase not found' });
+    const result = store.findNode(data.items, req.params.id);
+    if (!result) return res.status(404).json({ error: 'Node not found' });
 
-    const { name, color, start, end, prefix } = req.body;
-    if (name !== undefined) phase.name = name;
-    if (color !== undefined) phase.color = color;
-    if (start !== undefined) phase.start = start;
-    if (end !== undefined) phase.end = end;
-    if (prefix !== undefined) phase.prefix = prefix;
+    const node = result.node;
+    const updates = req.body;
+    const prevStart = node.start;
+    const prevEnd = node.end;
+
+    for (const [key, value] of Object.entries(updates)) {
+      if (key === 'id' || key === 'children' || key === 'type') continue;
+      node[key] = value;
+    }
+
+    if (
+      node.type === 'group' &&
+      node.children?.length &&
+      updates.start !== undefined &&
+      updates.end !== undefined &&
+      prevStart &&
+      prevEnd
+    ) {
+      const startDelta = diffDays(parseDate(prevStart), parseDate(updates.start));
+      const endDelta = diffDays(parseDate(prevEnd), parseDate(updates.end));
+      if (startDelta === endDelta && startDelta !== 0) {
+        node.children.forEach((child) => shiftNodeTree(child, startDelta));
+      }
+    }
+
+    if (updates.start !== undefined || updates.end !== undefined) {
+      store.recomputeAncestorBounds(data, node.id);
+    }
 
     writeData(data);
-    res.json(phase);
+    res.json(node);
   } catch (err) {
-    console.error('Failed to update phase:', err);
-    res.status(500).json({ error: 'Failed to update phase' });
+    console.error('Failed to update node:', err);
+    res.status(500).json({ error: 'Failed to update node' });
   }
 });
 
-// DELETE /api/tasks/phase/:id — delete phase and all its tasks
-router.delete('/phase/:id', (req, res) => {
+// DELETE /api/tasks/node/:id — delete a node and all its children
+router.delete('/node/:id', (req, res) => {
   try {
     const data = readData();
-    const idx = data.phases.findIndex(p => p.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'Phase not found' });
+    const result = store.findNode(data.items, req.params.id);
+    if (!result) return res.status(404).json({ error: 'Node not found' });
 
-    data.phases.splice(idx, 1);
+    const parentId = result.parent?.id;
+    result.siblings.splice(result.index, 1);
+
+    if (parentId) {
+      store.recomputeAncestorBounds(data, parentId);
+    }
+
     writeData(data);
     res.json({ ok: true });
   } catch (err) {
-    console.error('Failed to delete phase:', err);
-    res.status(500).json({ error: 'Failed to delete phase' });
+    console.error('Failed to delete node:', err);
+    res.status(500).json({ error: 'Failed to delete node' });
   }
 });
 
-// POST /api/tasks/phase/:phaseId/task — create new task in a phase
-router.post('/phase/:phaseId/task', (req, res) => {
+// POST /api/tasks/node/:id/split — convert a task into a group, preserving original as first child
+router.post('/node/:id/split', (req, res) => {
   try {
     const data = readData();
-    const phase = data.phases.find(p => p.id === req.params.phaseId);
-    if (!phase) return res.status(404).json({ error: 'Phase not found' });
+    const result = store.findNode(data.items, req.params.id);
+    if (!result) return res.status(404).json({ error: 'Node not found' });
 
-    const { name, start, end, notes } = req.body;
-    const task = {
-      id: crypto.randomUUID(),
-      name: name || 'New Task',
-      start: start || phase.start,
-      end: end || phase.end,
-      done: false,
-      notes: notes || '',
-    };
-    phase.tasks.push(task);
-    writeData(data);
-    res.status(201).json(task);
-  } catch (err) {
-    console.error('Failed to create task:', err);
-    res.status(500).json({ error: 'Failed to create task' });
-  }
-});
-
-// PUT /api/tasks/task/:id — update task
-router.put('/task/:id', (req, res) => {
-  try {
-    const data = readData();
-    let foundTask = null;
-    for (const phase of data.phases) {
-      const task = phase.tasks.find(t => t.id === req.params.id);
-      if (task) { foundTask = task; break; }
+    const node = result.node;
+    if (node.type !== 'task') {
+      return res.status(400).json({ error: 'Only tasks can be split' });
     }
-    if (!foundTask) return res.status(404).json({ error: 'Task not found' });
 
-    const { name, start, end, done, notes, milestone } = req.body;
-    if (name !== undefined) foundTask.name = name;
-    if (start !== undefined) foundTask.start = start;
-    if (end !== undefined) foundTask.end = end;
-    if (done !== undefined) foundTask.done = done;
-    if (notes !== undefined) foundTask.notes = notes;
-    if (milestone !== undefined) foundTask.milestone = milestone;
+    // Check depth: the new children will be one level deeper
+    const depth = store.getNodeDepth(data.items, node.id);
+    if (depth + 1 >= store.MAX_DEPTH) {
+      return res.status(400).json({ error: `Maximum nesting depth of ${store.MAX_DEPTH} reached` });
+    }
+
+    // Create child task with original task data
+    const childTask = {
+      id: crypto.randomUUID(),
+      type: 'task',
+      name: node.name,
+      start: node.start,
+      end: node.end,
+      done: node.done || false,
+      notes: node.notes || '',
+      milestone: node.milestone || false,
+      children: [],
+    };
+
+    // Inherit color from parent group (if any)
+    const parentColor = result.parent?.color || '#4A90D9';
+
+    // Convert node to group
+    node.type = 'group';
+    node.color = parentColor;
+    node.prefix = result.parent?.prefix !== undefined ? result.parent.prefix : 'WP';
+    node.children = [childTask];
+
+    // Remove task-specific fields from the group
+    delete node.done;
+    delete node.notes;
+    delete node.milestone;
 
     writeData(data);
-    res.json(foundTask);
+    res.json(node);
   } catch (err) {
-    console.error('Failed to update task:', err);
-    res.status(500).json({ error: 'Failed to update task' });
+    console.error('Failed to split node:', err);
+    res.status(500).json({ error: 'Failed to split node' });
   }
 });
 
-// PUT /api/tasks/reorder — reorder phases and/or tasks within phases
+// POST /api/tasks/node/:id/batch-subtasks — create child tasks from a markdown list
+// body: { markdown: "- First\n- Second" }
+router.post('/node/:id/batch-subtasks', (req, res) => {
+  try {
+    const data = readData();
+    const result = store.findNode(data.items, req.params.id);
+    if (!result) return res.status(404).json({ error: 'Node not found' });
+
+    const node = result.node;
+    if (node.type === 'task' && node.milestone) {
+      return res.status(400).json({ error: 'Milestones cannot be batch-converted into subtasks' });
+    }
+
+    const depth = store.getNodeDepth(data.items, node.id);
+    if (depth + 1 >= store.MAX_DEPTH) {
+      return res.status(400).json({ error: `Maximum nesting depth of ${store.MAX_DEPTH} reached` });
+    }
+
+    const names = parseMarkdownList(req.body?.markdown);
+    if (names.length === 0) {
+      return res.status(400).json({ error: 'No subtask names found in markdown list' });
+    }
+
+    const childTasks = buildEvenlyDistributedSubtasks(node, names);
+    if (node.type === 'task') {
+      const parentColor = result.parent?.color || '#4A90D9';
+      node.type = 'group';
+      node.color = parentColor;
+      node.prefix = result.parent?.prefix !== undefined ? result.parent.prefix : 'WP';
+      node.children = childTasks;
+      delete node.done;
+      delete node.notes;
+      delete node.milestone;
+    } else if (node.type === 'group') {
+      node.children = [...(node.children || []), ...childTasks];
+    } else {
+      return res.status(400).json({ error: 'Unsupported node type for batch subtasks' });
+    }
+
+    writeData(data);
+    res.json(node);
+  } catch (err) {
+    console.error('Failed to batch-create subtasks:', err);
+    res.status(500).json({ error: 'Failed to batch-create subtasks' });
+  }
+});
+
+// PUT /api/tasks/reorder — reorder children within a parent
+// body: { parentId: null | string, childOrder: [id, id, ...] }
 router.put('/reorder', (req, res) => {
   try {
     const data = readData();
-    const { phaseOrder, taskOrders } = req.body;
+    const { parentId, childOrder } = req.body;
 
-    if (phaseOrder && Array.isArray(phaseOrder)) {
-      const phaseMap = Object.fromEntries(data.phases.map(p => [p.id, p]));
-      data.phases = phaseOrder.map(id => phaseMap[id]).filter(Boolean);
+    if (!Array.isArray(childOrder)) {
+      return res.status(400).json({ error: 'childOrder must be an array' });
     }
 
-    if (taskOrders && typeof taskOrders === 'object') {
-      for (const [phaseId, taskOrder] of Object.entries(taskOrders)) {
-        const phase = data.phases.find(p => p.id === phaseId);
-        if (phase && Array.isArray(taskOrder)) {
-          const taskMap = Object.fromEntries(phase.tasks.map(t => [t.id, t]));
-          phase.tasks = taskOrder.map(id => taskMap[id]).filter(Boolean);
-        }
-      }
+    let siblings;
+    if (parentId) {
+      const result = store.findNode(data.items, parentId);
+      if (!result) return res.status(404).json({ error: 'Parent not found' });
+      siblings = result.node.children;
+    } else {
+      siblings = data.items;
+    }
+
+    const map = Object.fromEntries(siblings.map(n => [n.id, n]));
+    const reordered = childOrder.map(id => map[id]).filter(Boolean);
+    const orderedSet = new Set(childOrder);
+    for (const item of siblings) {
+      if (!orderedSet.has(item.id)) reordered.push(item);
+    }
+
+    if (parentId) {
+      const result = store.findNode(data.items, parentId);
+      result.node.children = reordered;
+    } else {
+      data.items = reordered;
     }
 
     writeData(data);
@@ -176,29 +375,6 @@ router.put('/reorder', (req, res) => {
   } catch (err) {
     console.error('Failed to reorder:', err);
     res.status(500).json({ error: 'Failed to reorder' });
-  }
-});
-
-// DELETE /api/tasks/task/:id — delete task
-router.delete('/task/:id', (req, res) => {
-  try {
-    const data = readData();
-    let deleted = false;
-    for (const phase of data.phases) {
-      const idx = phase.tasks.findIndex(t => t.id === req.params.id);
-      if (idx !== -1) {
-        phase.tasks.splice(idx, 1);
-        deleted = true;
-        break;
-      }
-    }
-    if (!deleted) return res.status(404).json({ error: 'Task not found' });
-
-    writeData(data);
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('Failed to delete task:', err);
-    res.status(500).json({ error: 'Failed to delete task' });
   }
 });
 
