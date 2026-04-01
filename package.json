@@ -5,12 +5,15 @@
   "engines": {
     "node": ">=20"
   },
+  "bin": "server/prod.js",
   "scripts": {
     "dev": "concurrently --kill-others \"npm run server\" \"npm run client\"",
     "server": "node server/index.js",
     "client": "vite client/",
     "build": "vite build client/",
-    "start": "node server/start-production.js"
+    "start": "node server/prod.js",
+    "build:windows:exe": "npm run build && pkg . --targets node18-win-x64 --output \"dist/windows/Gantt App.exe\" --public --public-packages \"*\" --compress GZip",
+    "build:windows:installer": "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-installer.ps1"
   },
   "dependencies": {
     "concurrently": "^8.2.2",
@@ -26,9 +29,18 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "pkg": "^5.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "vite": "^5.1.6",
     "wx-react-gantt": "^1.3.1"
+  },
+  "pkg": {
+    "scripts": [
+      "server/**/*.js"
+    ],
+    "assets": [
+      "client/dist/**/*"
+    ]
   }
 }

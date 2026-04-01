@@ -1,2 +1,8 @@
 const backend = process.env.CALENDAR_BACKEND || 'ical';
-module.exports = require(`./${backend}`);
+
+const backends = {
+  ical: require('./ical'),
+  google: require('./google'),
+};
+
+module.exports = backends[backend] || backends.ical;

@@ -1,12 +1,15 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const fs = require('fs');
 const express = require('express');
 const session = require('express-session');
 const cors = require('cors');
 const path = require('path');
-const store = require('./data-store');
+const runtimePaths = require('./runtime-paths');
 
-const ENV_PATH = path.join(__dirname, '../.env');
+runtimePaths.ensurePackagedEnvFile();
+require('dotenv').config({ path: runtimePaths.ENV_PATH });
+
+const store = require('./data-store');
+const ENV_PATH = runtimePaths.ENV_PATH;
 const isProduction = process.env.GANTT_APP_MODE === 'production' || process.env.NODE_ENV === 'production';
 
 // Validate required env vars before doing anything else
@@ -47,12 +50,11 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // set true if using HTTPS
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    secure: false,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
   },
 }));
 
-// API routes
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/state', require('./routes/state'));
 app.use('/api/calendar', require('./routes/calendar'));
@@ -63,9 +65,8 @@ app.post('/api/restart', (req, res) => {
   setTimeout(() => process.exit(0), 200);
 });
 
-// In production, serve the built Vite frontend
 if (isProduction) {
-  const distPath = path.join(__dirname, '../client/dist');
+  const distPath = runtimePaths.DIST_DIR;
   app.use(express.static(distPath));
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
@@ -73,12 +74,12 @@ if (isProduction) {
 }
 
 const server = app.listen(PORT, () => {
-  console.log(`\n✅ Gantt server running at http://localhost:${PORT}`);
+  console.log(`\nGantt server running at http://localhost:${PORT}`);
   if (!isProduction) {
-    console.log(`   Frontend dev server: http://localhost:5173`);
+    console.log('   Frontend dev server: http://localhost:5173');
   }
   console.log(`   Data directory: ${store.DATA_DIR}`);
-  console.log(`   Press Ctrl+C to stop.\n`);
+  console.log('   Press Ctrl+C to stop.\n');
 });
 
 server.on('error', (err) => {
