@@ -1160,6 +1160,20 @@ a:hover {
   margin-left: auto;
 }
 
+.delete-confirm-modal {
+  width: 420px;
+}
+
+.delete-confirm-copy {
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.delete-confirm-copy strong {
+  color: #fff;
+  font-weight: 600;
+}
+
 /* ─── Form elements ──────────────────────────────────────────────────────────── */
 
 .form-group {

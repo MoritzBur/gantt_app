@@ -103,6 +103,51 @@ function buildPdfRows(items, depth = 0) {
   return rows;
 }
 
+function DeleteConfirmModal({ target, onConfirm, onClose }) {
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  if (!target) return null;
+
+  const { name, childCount } = target;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal delete-confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-confirm-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2 className="modal-title" id="delete-confirm-title">Delete Group</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="modal-body">
+          <p className="delete-confirm-copy">
+            <strong>{name}</strong> contains {childCount} child item{childCount === 1 ? '' : 's'}.
+          </p>
+          <p className="delete-confirm-copy">
+            Deleting it will remove the whole group and all nested tasks.
+          </p>
+        </div>
+        <div className="modal-footer">
+          <div className="modal-footer-right">
+            <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button className="btn btn-danger" onClick={onConfirm}>Delete Group</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [uiState, setUiState] = useState(null);
@@ -121,6 +166,7 @@ export default function App() {
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
   const [historicalSnapshot, setHistoricalSnapshot] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
   const uiStateSaveTimerRef = useRef(null);
   const dataRef = useRef(data);
 
@@ -299,7 +345,7 @@ export default function App() {
     }
   };
 
-  const handleDeleteNode = async (nodeId) => {
+  const performDeleteNode = async (nodeId) => {
     try {
       const res = await fetch(`/api/tasks/node/${nodeId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Server error');
@@ -311,6 +357,20 @@ export default function App() {
     } catch (err) {
       showSaveStatus('failed');
     }
+  };
+
+  const handleDeleteNode = async (nodeId) => {
+    const node = dataRef.current ? findNodeInTree(dataRef.current.items, nodeId) : null;
+    const childCount = node?.children?.length || 0;
+    if (node?.type === 'group' && childCount > 0) {
+      setDeleteConfirmTarget({
+        id: nodeId,
+        name: node.name,
+        childCount,
+      });
+      return;
+    }
+    await performDeleteNode(nodeId);
   };
 
   const handleDeleteNodes = async (nodeIds) => {
@@ -705,6 +765,18 @@ export default function App() {
           y={quickBatchTarget.y}
           onCreate={(markdown) => handleBatchCreateSubtasks(quickBatchTarget.id, markdown)}
           onClose={() => setQuickBatchTarget(null)}
+        />
+      )}
+
+      {deleteConfirmTarget && !isHistorical && (
+        <DeleteConfirmModal
+          target={deleteConfirmTarget}
+          onClose={() => setDeleteConfirmTarget(null)}
+          onConfirm={async () => {
+            const nodeId = deleteConfirmTarget.id;
+            setDeleteConfirmTarget(null);
+            await performDeleteNode(nodeId);
+          }}
         />
       )}
 
