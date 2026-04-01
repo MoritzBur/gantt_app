@@ -3,9 +3,6 @@ const express = require('express');
 const store = require('../data-store');
 
 const router = express.Router();
-const DATA_ROOT = store.DATA_DIR;
-const TASKS_FILE = store.FILES.tasks;
-const STATE_FILE = store.FILES.state;
 const TRACKED_FILES = ['tasks.json', 'state.json', 'notes'];
 
 function runGit(args, callback) {
@@ -15,7 +12,7 @@ function runGit(args, callback) {
     process.nextTick(() => callback(err));
     return;
   }
-  execFile('git', args, { cwd: DATA_ROOT }, callback);
+  execFile('git', args, { cwd: store.DATA_DIR }, callback);
 }
 
 function snapshotUnavailable(message, extras = {}) {
@@ -61,8 +58,8 @@ function ensureGitRepo(res, callback) {
 
 function ensureTrackedFiles() {
   store.ensureDataDir();
-  if (!require('fs').existsSync(TASKS_FILE)) store.writeTasks(store.readTasks());
-  if (!require('fs').existsSync(STATE_FILE)) store.writeUiState(store.readUiState());
+  if (!require('fs').existsSync(store.FILES.tasks)) store.writeTasks(store.readTasks());
+  if (!require('fs').existsSync(store.FILES.state)) store.writeUiState(store.readUiState());
 }
 
 // GET /api/git/status — { available, repo, dirty, message }

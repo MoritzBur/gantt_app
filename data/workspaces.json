@@ -1,0 +1,15 @@
+{
+  "activeWorkspaceId": "example",
+  "workspaces": [
+    {
+      "id": "main",
+      "name": "Main Workspace",
+      "kind": "user"
+    },
+    {
+      "id": "example",
+      "name": "Example Project",
+      "kind": "example"
+    }
+  ]
+}

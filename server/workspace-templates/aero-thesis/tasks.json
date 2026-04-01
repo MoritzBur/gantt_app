@@ -1,0 +1,319 @@
+{
+  "version": 2,
+  "items": [
+    {
+      "id": "group-milestones",
+      "name": "Milestones",
+      "prefix": "",
+      "color": "#1E6F9F",
+      "start": "2026-04-06",
+      "end": "2026-10-02",
+      "type": "group",
+      "children": [
+        {
+          "id": "ms-proposal",
+          "name": "Thesis proposal signed",
+          "start": "2026-04-06",
+          "end": "2026-04-06",
+          "done": true,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        },
+        {
+          "id": "ms-baseline",
+          "name": "Baseline CFD validated",
+          "start": "2026-05-29",
+          "end": "2026-05-29",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        },
+        {
+          "id": "ms-tunnel",
+          "name": "Wind-tunnel campaign completed",
+          "start": "2026-07-17",
+          "end": "2026-07-17",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        },
+        {
+          "id": "ms-freeze",
+          "name": "Optimization frozen",
+          "start": "2026-08-28",
+          "end": "2026-08-28",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        },
+        {
+          "id": "ms-submit",
+          "name": "Thesis submitted",
+          "start": "2026-10-02",
+          "end": "2026-10-02",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-framing",
+      "name": "Research framing & requirements",
+      "prefix": "WP",
+      "color": "#1E6F9F",
+      "start": "2026-04-06",
+      "end": "2026-04-24",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-reference-aircraft",
+          "name": "Define reference aircraft and flap schedule",
+          "type": "task",
+          "start": "2026-04-06",
+          "end": "2026-04-10",
+          "children": [],
+          "done": true,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-literature-review",
+          "name": "Review load alleviation literature",
+          "type": "task",
+          "start": "2026-04-06",
+          "end": "2026-04-17",
+          "children": [],
+          "done": true,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-kpis",
+          "name": "Freeze thesis requirements and KPIs",
+          "type": "task",
+          "start": "2026-04-20",
+          "end": "2026-04-24",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-cfd",
+      "name": "Baseline CFD model",
+      "prefix": "WP",
+      "color": "#2E8B57",
+      "start": "2026-04-13",
+      "end": "2026-05-29",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-geometry-mesh",
+          "name": "Build 2D high-lift geometry and mesh",
+          "type": "task",
+          "start": "2026-04-13",
+          "end": "2026-04-24",
+          "children": [],
+          "done": true,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-rans-correlation",
+          "name": "Correlate steady RANS against reference data",
+          "type": "task",
+          "start": "2026-04-20",
+          "end": "2026-05-08",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-gust-cases",
+          "name": "Generate unsteady gust cases",
+          "type": "task",
+          "start": "2026-05-04",
+          "end": "2026-05-22",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-load-report",
+          "name": "Document baseline loads and failure modes",
+          "type": "task",
+          "start": "2026-05-18",
+          "end": "2026-05-29",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-tunnel",
+      "name": "Wind-tunnel preparation & test",
+      "prefix": "WP",
+      "color": "#C97A1F",
+      "start": "2026-05-18",
+      "end": "2026-07-17",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-instrumentation",
+          "name": "Instrument model and DAQ plan",
+          "type": "task",
+          "start": "2026-05-18",
+          "end": "2026-05-29",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-test-matrix",
+          "name": "Finalize test matrix and travel logistics",
+          "type": "task",
+          "start": "2026-06-01",
+          "end": "2026-06-12",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-tunnel-campaign",
+          "name": "Execute tunnel campaign",
+          "type": "task",
+          "start": "2026-06-15",
+          "end": "2026-06-26",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-measurement-reduction",
+          "name": "Reduce measurements and align with CFD",
+          "type": "task",
+          "start": "2026-06-29",
+          "end": "2026-07-17",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-optimization",
+      "name": "Surrogate model & optimization",
+      "prefix": "WP",
+      "color": "#8C4FB8",
+      "start": "2026-07-06",
+      "end": "2026-08-28",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-rom",
+          "name": "Train reduced-order load predictor",
+          "type": "task",
+          "start": "2026-07-06",
+          "end": "2026-07-24",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-morphing-schedules",
+          "name": "Explore morphing flap schedules",
+          "type": "task",
+          "start": "2026-07-20",
+          "end": "2026-08-14",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-downselect",
+          "name": "Downselect robust design candidate",
+          "type": "task",
+          "start": "2026-08-17",
+          "end": "2026-08-28",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-writing",
+      "name": "Thesis writing & defense prep",
+      "prefix": "WP",
+      "color": "#D14B3F",
+      "start": "2026-08-17",
+      "end": "2026-10-02",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-write-methods",
+          "name": "Write methods and validation chapters",
+          "type": "task",
+          "start": "2026-08-17",
+          "end": "2026-09-11",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-write-discussion",
+          "name": "Write discussion and conclusion",
+          "type": "task",
+          "start": "2026-09-07",
+          "end": "2026-09-25",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-final-review",
+          "name": "Final review, figures, and submission",
+          "type": "task",
+          "start": "2026-09-21",
+          "end": "2026-10-02",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    }
+  ]
+}

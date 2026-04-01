@@ -109,7 +109,7 @@ setInterval(refreshCache, CACHE_TTL);
 
 module.exports = {
   isConnected() {
-    return calendars.some(calendar => calendar.enabled !== false && calendar.icalUrl) && lastFetchOk;
+    return calendars.some(calendar => calendar.enabled !== false && calendar.icalUrl);
   },
 
   async getEvents(start, end) {

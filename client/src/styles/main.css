@@ -109,6 +109,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .top-bar-right {
@@ -123,6 +124,29 @@ a:hover {
   letter-spacing: 0.05em;
   color: var(--text);
   margin-right: 4px;
+}
+
+.workspace-switcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-select,
+.workspace-input {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.top-bar .workspace-select {
+  min-width: 220px;
+  max-width: 320px;
 }
 
 .save-indicator {
@@ -739,6 +763,10 @@ a:hover {
   background: transparent;
 }
 
+.gantt-cal-lane-row.selected {
+  background: rgba(220, 60, 50, 0.08);
+}
+
 .gantt-cal-event, .gantt-cal-empty, .gantt-cal-connect {
   padding-left: 24px;
 }
@@ -761,6 +789,10 @@ a:hover {
 
 .gantt-calendar-row:hover {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.calendar-indicator {
+  background: rgba(100, 160, 220, 0.7);
 }
 
 .gantt-phase-row {
@@ -865,6 +897,36 @@ a:hover {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
+}
+
+.calendar-timeline-chip {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 18px;
+  border-radius: 4px;
+  background: rgba(100, 160, 220, 0.32);
+  border: 1px solid rgba(100, 160, 220, 0.5);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  min-width: 10px;
+  cursor: default;
+  z-index: 2;
+}
+
+.calendar-timeline-chip.active {
+  background: rgba(220, 60, 50, 0.28);
+  border-color: rgba(220, 60, 50, 0.55);
+}
+
+.calendar-timeline-chip-label {
+  padding: 0 6px;
+  color: var(--text);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .task-label {
@@ -1605,6 +1667,38 @@ a:hover {
   width: 420px;
 }
 
+.workspace-modal {
+  width: min(520px, calc(100vw - 32px));
+}
+
+.workspace-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.workspace-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-field-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.workspace-help {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.workspace-error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
 .delete-confirm-copy {
   color: var(--text);
   line-height: 1.6;
@@ -1815,6 +1909,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .cal-connected-badge {
@@ -1830,6 +1925,50 @@ a:hover {
   color: var(--text-muted);
   font-size: 13px;
   margin-bottom: 10px;
+}
+
+.calendar-event-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.calendar-event-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 240px;
+  max-width: 360px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.calendar-event-option.active {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+}
+
+.calendar-event-option input {
+  margin-top: 2px;
+}
+
+.calendar-event-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.calendar-event-title {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.calendar-event-meta {
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 /* ─── Scrollbar styling ──────────────────────────────────────────────────────── */

@@ -46,7 +46,8 @@
       "server/**/*.js"
     ],
     "assets": [
-      "client/dist/**/*"
+      "client/dist/**/*",
+      "server/workspace-templates/**/*"
     ]
   }
 }

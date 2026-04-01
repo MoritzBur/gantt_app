@@ -4,6 +4,7 @@ const session = require('express-session');
 const cors = require('cors');
 const path = require('path');
 const runtimePaths = require('./runtime-paths');
+const workspaceManager = require('./workspace-manager');
 
 runtimePaths.ensurePackagedEnvFile();
 require('dotenv').config({ path: runtimePaths.ENV_PATH });
@@ -39,6 +40,8 @@ if (process.env.SESSION_SECRET === 'change-this-to-any-long-random-string') {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const workspaceState = workspaceManager.ensureInitialized();
+
 app.use(express.json());
 app.use(cors({
   origin: isProduction ? false : 'http://localhost:5173',
@@ -60,6 +63,7 @@ app.use('/api/notes', require('./routes/notes'));
 app.use('/api/state', require('./routes/state'));
 app.use('/api/calendar', require('./routes/calendar'));
 app.use('/api/git', require('./routes/git'));
+app.use('/api/workspaces', require('./routes/workspaces'));
 
 app.post('/api/restart', (req, res) => {
   res.json({ ok: true });
@@ -79,6 +83,8 @@ const server = app.listen(PORT, () => {
   if (!isProduction) {
     console.log('   Frontend dev server: http://localhost:5173');
   }
+  console.log(`   Workspace root: ${runtimePaths.resolveDataDir()}`);
+  console.log(`   Active workspace: ${workspaceState.activeWorkspace?.name || workspaceState.activeWorkspaceId}`);
   console.log(`   Data directory: ${store.DATA_DIR}`);
   console.log('   Press Ctrl+C to stop.\n');
 });

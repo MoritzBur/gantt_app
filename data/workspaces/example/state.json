@@ -1,0 +1,29 @@
+{
+  "zoom": "Month",
+  "density": "Compact",
+  "theme": "dark",
+  "collapsed": {},
+  "calendarCollapsed": {},
+  "calendarOrder": [],
+  "activeCalEvents": [
+    "ical-ff3eec233d27::1j3qmcfl6jdd7l4rkhvk7uu5hc@google.com",
+    "ical-ff3eec233d27::pgc7du8d7hh5timgu8bf1tjgc0@google.com",
+    "ical-ff3eec233d27::4p3ovp2dbvoddvfc17rrcfe7gc@google.com",
+    "ical-ff3eec233d27::1plk3uf0v8q1gme85nelse920c@google.com"
+  ],
+  "calendarEventIdsVersion": 2,
+  "listWidth": 300,
+  "notePanel": {
+    "open": true,
+    "width": 420,
+    "tabs": [
+      {
+        "itemId": "group-cfd",
+        "filename": "main.md",
+        "type": "main",
+        "pinned": false
+      }
+    ],
+    "activeTabIndex": 0
+  }
+}

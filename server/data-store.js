@@ -3,15 +3,28 @@ const path = require('path');
 const { DEFAULT_CALENDAR_STORE, normalizeCalendarStore } = require('./calendar/shared');
 const runtimePaths = require('./runtime-paths');
 
-const DATA_DIR = runtimePaths.resolveDataDir();
+const ROOT_DATA_DIR = runtimePaths.resolveDataDir();
+let DATA_DIR = ROOT_DATA_DIR;
 
 const FILES = {
-  tasks: path.join(DATA_DIR, 'tasks.json'),
-  state: path.join(DATA_DIR, 'state.json'),
-  calendarConfig: path.join(DATA_DIR, 'calendar-config.json'),
-  tokens: path.join(DATA_DIR, 'tokens.json'),
-  notes: path.join(DATA_DIR, 'notes'),
+  tasks: '',
+  state: '',
+  calendarConfig: '',
+  tokens: '',
+  notes: '',
 };
+
+function setDataDir(nextDataDir) {
+  DATA_DIR = path.resolve(nextDataDir || ROOT_DATA_DIR);
+  FILES.tasks = path.join(DATA_DIR, 'tasks.json');
+  FILES.state = path.join(DATA_DIR, 'state.json');
+  FILES.calendarConfig = path.join(DATA_DIR, 'calendar-config.json');
+  FILES.tokens = path.join(DATA_DIR, 'tokens.json');
+  FILES.notes = path.join(DATA_DIR, 'notes');
+  module.exports.DATA_DIR = DATA_DIR;
+}
+
+setDataDir(ROOT_DATA_DIR);
 
 const DEFAULT_TASKS = { version: 2, items: [] };
 const MAX_DEPTH = 5;
@@ -572,9 +585,12 @@ function relocateLegacyNoteFiles(data) {
 }
 
 module.exports = {
+  ROOT_DATA_DIR,
   DATA_DIR,
   FILES,
   MAX_DEPTH,
+  DEFAULT_TASKS,
+  DEFAULT_STATE,
   ensureDataDir,
   ensureNotesDir,
   findNode,
@@ -583,6 +599,7 @@ module.exports = {
   calcGroupBounds,
   recomputeAncestorBounds,
   migrateV1toV2,
+  setDataDir,
   getDefaultNoteFile,
   getNoteBinding,
   collectNoteEntries,

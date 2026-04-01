@@ -1,0 +1,17 @@
+{
+  "zoom": "Month",
+  "density": "Regular",
+  "theme": "dark",
+  "collapsed": {},
+  "calendarCollapsed": {},
+  "calendarOrder": [],
+  "activeCalEvents": [],
+  "calendarEventIdsVersion": 2,
+  "listWidth": 260,
+  "notePanel": {
+    "open": false,
+    "width": 420,
+    "tabs": [],
+    "activeTabIndex": 0
+  }
+}

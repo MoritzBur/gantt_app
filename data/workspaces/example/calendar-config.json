@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "backends": {
+    "ical": {
+      "calendars": [
+        {
+          "id": "ical-ff3eec233d27",
+          "source": "ical",
+          "label": "Regatta Schedule",
+          "color": "#E67E22",
+          "icalUrl": "https://calendar.google.com/calendar/ical/ee425ff288dae4c6c25a2eb83518a6e58b9c8e78ab55960dac51e9f3ae3c7ceb%40group.calendar.google.com/private-0ff4b7950fae0a296290bd878d8f1fb4/basic.ics",
+          "enabled": true
+        }
+      ]
+    },
+    "google": {
+      "calendars": []
+    }
+  }
+}

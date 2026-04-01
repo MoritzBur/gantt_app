@@ -185,6 +185,17 @@ function rgbaFromHex(hexColor, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function mixHexWithWhite(hexColor, amount = 0.22) {
+  if (!hexColor || !hexColor.startsWith('#') || hexColor.length !== 7) {
+    return '#84b7ea';
+  }
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+  const blend = (channel) => Math.round(channel + (255 - channel) * amount);
+  return `rgb(${blend(r)}, ${blend(g)}, ${blend(b)})`;
+}
+
 // ─── Gantt bar ──────────────────────────────────────────────────────────────
 
 function GanttBar({
@@ -519,6 +530,62 @@ function collectTreeDates(items) {
   return dates;
 }
 
+function computeCalendarLanes(calendarEvents) {
+  const lanes = [];
+
+  for (const event of calendarEvents) {
+    const eventStart = parseDate(event.start);
+    const eventEnd = parseDate(event.end || event.start);
+    let placed = false;
+
+    for (const lane of lanes) {
+      const lastEvent = lane[lane.length - 1];
+      const lastEventEnd = parseDate(lastEvent.end || lastEvent.start);
+      if (eventStart > lastEventEnd) {
+        lane.push(event);
+        placed = true;
+        break;
+      }
+    }
+
+    if (!placed) {
+      lanes.push([event]);
+    }
+  }
+
+  return lanes;
+}
+
+function buildCalendarRows(calendarEvents, calendarConnected) {
+  const rows = [{
+    key: 'calendar-section',
+    rowType: 'calendar-section',
+    childCount: calendarEvents.length,
+  }];
+
+  if (!calendarConnected) {
+    rows.push({ key: 'calendar-connect', rowType: 'calendar-connect' });
+    return rows;
+  }
+
+  if (calendarEvents.length === 0) {
+    rows.push({ key: 'calendar-empty', rowType: 'calendar-empty' });
+    return rows;
+  }
+
+  const lanes = computeCalendarLanes(calendarEvents);
+  lanes.forEach((events, laneIndex) => {
+    rows.push({
+      key: `calendar-lane:${laneIndex}`,
+      rowType: 'calendar-lane',
+      events,
+      laneIndex,
+    });
+  });
+
+  return rows;
+}
+
 // ─── Main GanttView ─────────────────────────────────────────────────────────
 
 export default function GanttView({
@@ -620,6 +687,9 @@ export default function GanttView({
     ...collectTreeDates(items),
     ...calendarEvents.flatMap(e => [e.start, e.end || e.start]),
   ].filter(Boolean).sort();
+  const sortedCalendarEvents = [...calendarEvents].sort((a, b) => (
+    String(a.start).localeCompare(String(b.start)) || String(a.title || '').localeCompare(String(b.title || ''))
+  ));
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -637,6 +707,15 @@ export default function GanttView({
   const toggleCollapse = (nodeId) => {
     setCollapsed(prev => ({ ...prev, [nodeId]: !prev[nodeId] }));
   };
+
+  const toggleCalEvent = useCallback((eventId) => {
+    setActiveCalEvents((current) => {
+      const next = new Set(current);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  }, []);
 
   const handleNodeDrag = useCallback(async (nodeId, newStart, newEnd) => {
     onNodeUpdate(nodeId, { start: newStart, end: newEnd });
@@ -934,7 +1013,9 @@ export default function GanttView({
 
   // ─── Build rows ───────────────────────────────────────────────────────────
 
-  const rows = buildRows(items, collapsed, null);
+  const taskRows = buildRows(items, collapsed, null);
+  const calendarRows = buildCalendarRows(sortedCalendarEvents, calendarConnected);
+  const rows = [...calendarRows, ...taskRows];
 
   const DENSITY_LEVELS = { Regular: 40, Compact: 28 };
   const ROW_HEIGHT = DENSITY_LEVELS[density];
@@ -1007,6 +1088,42 @@ export default function GanttView({
           <div className="gantt-list-header" onClick={clearTaskSelection}>Tasks</div>
 
           {rows.map((row) => {
+            if (row.rowType === 'calendar-section') {
+              return (
+                <div key={row.key} className="gantt-row gantt-section-header" style={{ height: ROW_HEIGHT }}>
+                  <span className="section-icon">📅</span>
+                  <span>Calendar</span>
+                  <span className="phase-task-count muted">({row.childCount})</span>
+                </div>
+              );
+            }
+
+            if (row.rowType === 'calendar-connect') {
+              return (
+                <div key={row.key} className="gantt-row gantt-cal-connect" style={{ height: ROW_HEIGHT }}>
+                  <button className="cal-connect-link" onClick={onCalendarSetup}>Connect Calendar →</button>
+                </div>
+              );
+            }
+
+            if (row.rowType === 'calendar-empty') {
+              return (
+                <div key={row.key} className="gantt-row gantt-cal-empty" style={{ height: ROW_HEIGHT }}>
+                  <span className="muted">No events in range</span>
+                </div>
+              );
+            }
+
+            if (row.rowType === 'calendar-lane') {
+              return (
+                <div
+                  key={row.key}
+                  className="gantt-row gantt-cal-lane-row"
+                  style={{ height: ROW_HEIGHT }}
+                />
+              );
+            }
+
             if (row.rowType === 'group') {
               const isCollapsed = collapsed[row.node.id];
               const isDragging = draggingItem?.nodeId === row.node.id;
@@ -1174,6 +1291,45 @@ export default function GanttView({
 
               {rows.map((row) => {
                 const rowStyle = { height: ROW_HEIGHT, position: 'relative' };
+
+                if (row.rowType === 'calendar-section' || row.rowType === 'calendar-connect' || row.rowType === 'calendar-empty') {
+                  return <div key={row.key} className="gantt-timeline-row empty-row" style={rowStyle} />;
+                }
+
+                if (row.rowType === 'calendar-lane') {
+                  return (
+                    <div key={row.key} className="gantt-timeline-row" style={rowStyle}>
+                      {row.events.map((event) => {
+                        const eventEnd = event.end || event.start;
+                        const startOffset = diffDays(rangeStart, parseDate(event.start));
+                        const duration = diffDays(parseDate(event.start), parseDate(eventEnd)) + 1;
+                        const chipWidth = Math.max(duration * dayWidth, dayWidth);
+                        const isActive = activeCalEvents.has(event.id);
+                        const estimatedLabelWidth = event.title.length * 6.5 + 12;
+                        const chipTitle = chipWidth >= estimatedLabelWidth
+                          ? 'Double-click to toggle as blocker'
+                          : event.title;
+                        return (
+                          <div
+                            key={event.id}
+                            className={`calendar-timeline-chip${isActive ? ' active' : ''}`}
+                            style={{
+                              left: startOffset * dayWidth,
+                              width: chipWidth,
+                              background: isActive ? undefined : rgbaFromHex(event.color, 0.32),
+                              borderColor: isActive ? undefined : rgbaFromHex(event.color, 0.58),
+                              color: isActive ? undefined : mixHexWithWhite(event.color, 0.78),
+                            }}
+                            title={chipTitle}
+                            onDoubleClick={() => toggleCalEvent(event.id)}
+                          >
+                            <span className="calendar-timeline-chip-label">{event.title}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
 
                 if (row.rowType === 'group') {
                   const hasChildren = row.node.children && row.node.children.length > 0;

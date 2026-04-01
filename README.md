@@ -138,7 +138,7 @@ Simple everyday use:
 
 By default the app runs at `http://localhost:3000`.
 
-If no data files exist yet, the app starts with an empty plan. By default it stores local data inside `data/` in a source checkout, or `%LOCALAPPDATA%\GanttApp\data` in the packaged Windows app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
+If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus an `Example Project` workspace, and opens the example by default. By default it stores local data inside `data/` in a source checkout, or `%LOCALAPPDATA%\GanttApp\data` in the packaged Windows app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
 
 ## For Contributors
 

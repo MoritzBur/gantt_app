@@ -230,9 +230,121 @@ function DeleteConfirmModal({ target, onConfirm, onClose }) {
   );
 }
 
+function WorkspaceCreateModal({ workspaces, onCreate, onClose }) {
+  const [name, setName] = useState('');
+  const [mode, setMode] = useState('empty');
+  const [sourceWorkspaceId, setSourceWorkspaceId] = useState(workspaces[0]?.id || '');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.key === 'Escape' && !submitting) onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose, submitting]);
+
+  useEffect(() => {
+    if (!workspaces.some((workspace) => workspace.id === sourceWorkspaceId)) {
+      setSourceWorkspaceId(workspaces[0]?.id || '');
+    }
+  }, [sourceWorkspaceId, workspaces]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!name.trim() || submitting) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await onCreate({
+        name: name.trim(),
+        mode,
+        sourceWorkspaceId: mode === 'clone' ? sourceWorkspaceId : null,
+      });
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to create workspace');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={submitting ? undefined : onClose}>
+      <div
+        className="modal workspace-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="workspace-create-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2 className="modal-title" id="workspace-create-title">Create Workspace</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close" disabled={submitting}>✕</button>
+        </div>
+        <form className="modal-body workspace-modal-form" onSubmit={handleSubmit}>
+          <label className="workspace-field">
+            <span className="workspace-field-label">Name</span>
+            <input
+              className="workspace-input"
+              type="text"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="My sandbox"
+              autoFocus
+            />
+          </label>
+
+          <label className="workspace-field">
+            <span className="workspace-field-label">Start from</span>
+            <select
+              className="workspace-select"
+              value={mode}
+              onChange={(event) => setMode(event.target.value)}
+            >
+              <option value="empty">Empty workspace</option>
+              <option value="clone">Copy an existing workspace</option>
+            </select>
+          </label>
+
+          {mode === 'clone' && (
+            <label className="workspace-field">
+              <span className="workspace-field-label">Source workspace</span>
+              <select
+                className="workspace-select"
+                value={sourceWorkspaceId}
+                onChange={(event) => setSourceWorkspaceId(event.target.value)}
+              >
+                {workspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>{workspace.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <p className="workspace-help">
+            Each workspace gets its own tasks, notes, calendar config, and UI state directory.
+          </p>
+          {submitError && <p className="workspace-error">{submitError}</p>}
+
+          <div className="modal-footer">
+            <div className="modal-footer-right">
+              <button className="btn btn-ghost" type="button" onClick={onClose} disabled={submitting}>Cancel</button>
+              <button className="btn btn-primary" type="submit" disabled={!name.trim() || submitting}>
+                {submitting ? 'Creating…' : 'Create Workspace'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [uiState, setUiState] = useState(null);
+  const [workspaces, setWorkspaces] = useState({ activeWorkspaceId: null, workspaces: [] });
   const [calendarStatus, setCalendarStatus] = useState({ connected: false });
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [saveStatus, setSaveStatus] = useState(null);
@@ -241,6 +353,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCalendarSetup, setShowCalendarSetup] = useState(false);
+  const [showWorkspaceCreate, setShowWorkspaceCreate] = useState(false);
   const [calendarConfig, setCalendarConfig] = useState(null);
   const [quickBatchTarget, setQuickBatchTarget] = useState(null); // { id, x, y }
 
@@ -319,40 +432,55 @@ export default function App() {
     }
   }, []);
 
+  const loadAppData = useCallback(async () => {
+    const [tasksRes, stateRes, workspacesRes] = await Promise.all([
+      fetch('/api/tasks'),
+      fetch('/api/state'),
+      fetch('/api/workspaces'),
+    ]);
+    if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
+    if (!workspacesRes.ok) throw new Error(`Workspace HTTP ${workspacesRes.status}`);
+
+    const d = await tasksRes.json();
+    const serverState = stateRes.ok ? await stateRes.json() : null;
+    const workspacePayload = await workspacesRes.json();
+    const legacyState = readLegacyUiState();
+    const shouldMigrateLegacy = !serverState?._exists;
+    const nextUiState = shouldMigrateLegacy
+      ? legacyState
+      : {
+          theme: serverState.theme === 'light' || serverState.theme === 'dark' ? serverState.theme : legacyState.theme,
+          zoom: serverState.zoom,
+          density: serverState.density,
+          collapsed: serverState.collapsed,
+          activeCalEvents: serverState.activeCalEvents,
+          listWidth: serverState.listWidth,
+          notePanel: normalizeNotePanel(serverState.notePanel),
+        };
+
+    setData(d);
+    clearUndoHistory();
+    setUiState(nextUiState);
+    setError(null);
+    setCalendarEvents([]);
+    setWorkspaces({
+      activeWorkspaceId: workspacePayload.activeWorkspaceId || null,
+      workspaces: Array.isArray(workspacePayload.workspaces) ? workspacePayload.workspaces : [],
+    });
+    setLoading(false);
+    if (shouldMigrateLegacy || (serverState && serverState.theme !== 'light' && serverState.theme !== 'dark')) {
+      fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextUiState),
+      }).catch(() => {});
+    }
+  }, [clearUndoHistory, readLegacyUiState]);
+
   useEffect(() => {
     const load = async (attempt = 0) => {
       try {
-        const [tasksRes, stateRes] = await Promise.all([
-          fetch('/api/tasks'),
-          fetch('/api/state'),
-        ]);
-        if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
-        const d = await tasksRes.json();
-        const serverState = stateRes.ok ? await stateRes.json() : null;
-        const legacyState = readLegacyUiState();
-        const shouldMigrateLegacy = !serverState?._exists;
-        const nextUiState = shouldMigrateLegacy
-          ? legacyState
-          : {
-              theme: serverState.theme === 'light' || serverState.theme === 'dark' ? serverState.theme : legacyState.theme,
-              zoom: serverState.zoom,
-              density: serverState.density,
-              collapsed: serverState.collapsed,
-              activeCalEvents: serverState.activeCalEvents,
-              listWidth: serverState.listWidth,
-              notePanel: normalizeNotePanel(serverState.notePanel),
-            };
-        setData(d);
-        clearUndoHistory();
-        setUiState(nextUiState);
-        setLoading(false);
-        if (shouldMigrateLegacy || (serverState && serverState.theme !== 'light' && serverState.theme !== 'dark')) {
-          fetch('/api/state', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(nextUiState),
-          }).catch(() => {});
-        }
+        await loadAppData();
       } catch (err) {
         if (attempt < 4) {
           setTimeout(() => load(attempt + 1), 500 * (attempt + 1));
@@ -363,7 +491,7 @@ export default function App() {
       }
     };
     load();
-  }, [clearUndoHistory, readLegacyUiState]);
+  }, [loadAppData]);
 
   useEffect(() => {
     const theme = (historicalSnapshot?.state?.theme || uiState?.theme || 'dark');
@@ -384,7 +512,7 @@ export default function App() {
       .then(r => r.json())
       .then(c => setCalendarConfig(c))
       .catch(() => {});
-  }, []);
+  }, [workspaces.activeWorkspaceId]);
 
   const refreshGitStatus = useCallback(() => {
     fetch('/api/git/status')
@@ -397,7 +525,7 @@ export default function App() {
     refreshGitStatus();
     const interval = setInterval(refreshGitStatus, 30000);
     return () => clearInterval(interval);
-  }, [refreshGitStatus]);
+  }, [refreshGitStatus, workspaces.activeWorkspaceId]);
 
   const calendarDateRange = useMemo(() => {
     if (!data || !data.items || data.items.length === 0) return null;
@@ -409,6 +537,20 @@ export default function App() {
     end.setDate(end.getDate() + 14);
     return `${start.toISOString().slice(0, 10)}/${end.toISOString().slice(0, 10)}`;
   }, [data]);
+
+  const calendarColorById = useMemo(() => {
+    const entries = Array.isArray(calendarConfig?.calendars)
+      ? calendarConfig.calendars.map((calendar) => [calendar.id, calendar.color])
+      : [];
+    return new Map(entries);
+  }, [calendarConfig]);
+
+  const displayCalendarEvents = useMemo(() => (
+    calendarEvents.map((event) => ({
+      ...event,
+      color: calendarColorById.get(event.calendarKey) || event.color || '#4A90D9',
+    }))
+  ), [calendarColorById, calendarEvents]);
 
   useEffect(() => {
     if (!calendarStatus.connected || !calendarDateRange) return;
@@ -652,8 +794,17 @@ export default function App() {
       });
       if (!res.ok) return false;
       const result = await res.json();
-      setCalendarConfig(config);
+      setCalendarConfig(result.config);
       setCalendarStatus(s => ({ ...s, connected: result.connected }));
+      if (result.connected && calendarDateRange) {
+        const [startStr, endStr] = calendarDateRange.split('/');
+        fetch(`/api/calendar/events?start=${startStr}&end=${endStr}`)
+          .then(r => r.json())
+          .then(events => {
+            if (Array.isArray(events)) setCalendarEvents(events);
+          })
+          .catch(() => {});
+      }
       if (result.connected) setShowCalendarSetup(false);
       return true;
     } catch (err) {
@@ -977,6 +1128,52 @@ export default function App() {
     });
   }, [handleUiStateChange, uiState]);
 
+  const handleWorkspaceSwitch = useCallback(async (workspaceId) => {
+    if (!workspaceId || workspaceId === workspaces.activeWorkspaceId) return;
+    setError(null);
+    setLoading(true);
+    setHistoricalSnapshot(null);
+    setEditTarget(null);
+    setShowHistoryPanel(false);
+    setShowCalendarSetup(false);
+    setShowWorkspaceCreate(false);
+    try {
+      const response = await fetch('/api/workspaces/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceId }),
+      });
+      if (!response.ok) throw new Error('Failed to switch workspace');
+      await loadAppData();
+      refreshGitStatus();
+    } catch (err) {
+      setError('Failed to switch workspace');
+      setLoading(false);
+    }
+  }, [loadAppData, refreshGitStatus, workspaces.activeWorkspaceId]);
+
+  const handleWorkspaceCreate = useCallback(async ({ name, mode, sourceWorkspaceId }) => {
+    setError(null);
+    setLoading(true);
+    const response = await fetch('/api/workspaces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, mode, sourceWorkspaceId }),
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      setLoading(false);
+      throw new Error(payload.error || 'Failed to create workspace');
+    }
+    setShowWorkspaceCreate(false);
+    setHistoricalSnapshot(null);
+    setEditTarget(null);
+    setShowHistoryPanel(false);
+    setShowCalendarSetup(false);
+    await loadAppData();
+    refreshGitStatus();
+  }, [loadAppData, refreshGitStatus]);
+
   const isHistorical = !!historicalSnapshot;
   const displayData = isHistorical ? historicalSnapshot.tasks : data;
   const displayUiState = isHistorical ? (historicalSnapshot.state || uiState) : uiState;
@@ -995,6 +1192,29 @@ export default function App() {
       <header className="top-bar">
         <div className="top-bar-left">
           <span className="app-title">Gantt</span>
+          <div className="workspace-switcher">
+            <select
+              className="workspace-select"
+              value={workspaces.activeWorkspaceId || ''}
+              onChange={(event) => handleWorkspaceSwitch(event.target.value)}
+              disabled={isHistorical || loading}
+              title="Choose workspace"
+            >
+              {workspaces.workspaces.map((workspace) => (
+                <option key={workspace.id} value={workspace.id}>
+                  {workspace.kind === 'example' ? `${workspace.name} · Example` : workspace.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="btn btn-ghost btn-small"
+              onClick={() => setShowWorkspaceCreate(true)}
+              disabled={isHistorical || loading}
+              title="Create a new workspace"
+            >
+              New Workspace
+            </button>
+          </div>
         </div>
         <div className="top-bar-right">
           {saveStatus === 'saved' && (
@@ -1082,7 +1302,7 @@ export default function App() {
           <GanttView
             data={displayData}
             uiState={displayUiState}
-            calendarEvents={calendarEvents}
+            calendarEvents={displayCalendarEvents}
             calendarConnected={calendarStatus.connected}
             onNodeClick={(nodeId) => {
               if (isHistorical) return;
@@ -1174,6 +1394,14 @@ export default function App() {
             setDeleteConfirmTarget(null);
             await performDeleteNode(nodeId);
           }}
+        />
+      )}
+
+      {showWorkspaceCreate && !isHistorical && (
+        <WorkspaceCreateModal
+          workspaces={workspaces.workspaces}
+          onCreate={handleWorkspaceCreate}
+          onClose={() => setShowWorkspaceCreate(false)}
         />
       )}
 
