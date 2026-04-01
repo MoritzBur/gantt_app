@@ -187,7 +187,7 @@ function rgbaFromHex(hexColor, alpha) {
 
 // ─── Gantt bar ──────────────────────────────────────────────────────────────
 
-function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragStart, onDragCommit, onClick, onDoubleClick, onContextMenu }) {
+function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragStart, onDragCommit, onClick, onDoubleClick, onContextMenu, onMouseEnter, onMouseLeave }) {
   const didDragRef = useRef(false);
   const labelRef = useRef(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -261,6 +261,8 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
   const showRightDate = dragState && (dragState.mode === 'resize-right' || dragState.mode === 'move');
   const noDrag = isReadOnly || isLocked;
   const liveDuration = duration;
+  const labelTooSlim = barHeight <= 16;
+  const shouldShowOutsideLabel = !!labelOutside && (!labelFits || labelTooSlim);
 
   return (
     <div
@@ -269,6 +271,8 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
       onContextMenu={(e) => onContextMenu?.(e)}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {showLeftDate && <div className="drag-date-label drag-date-left">{formatShortDate(dragState.newStart)}</div>}
       {!noDrag && <div className="gantt-bar-handle left" onMouseDown={(e) => handleMouseDown(e, 'resize-left')} />}
@@ -283,7 +287,7 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
             className="gantt-bar-label"
             style={{
               color: getContrastColor(color),
-              visibility: (labelOutside && !labelFits) ? 'hidden' : 'visible',
+              visibility: shouldShowOutsideLabel ? 'hidden' : 'visible',
             }}
           >{label}{!labelOutside && <span className="gantt-bar-duration"> ({duration}d{workDays != null && workDays !== duration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? duration) ? <span className="dur-net"> {netDays}d</span> : null})</span>}</span>
         )}
@@ -292,7 +296,7 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
       {showRightDate && <div className="drag-date-label drag-date-right">{formatShortDate(dragState.newEnd)}</div>}
       {labelOutside && label && (
         <div className="gantt-bar-outside-label" style={{ left: showRightDate ? 'calc(100% + 95px)' : 'calc(100% + 8px)' }}>
-          {!labelFits && <>{label} </>}<span className="gantt-bar-duration">({liveDuration}d{workDays != null && workDays !== liveDuration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? liveDuration) ? <span className="dur-net"> {netDays}d</span> : null})</span>
+          {shouldShowOutsideLabel && <>{label} </>}<span className="gantt-bar-duration">({liveDuration}d{workDays != null && workDays !== liveDuration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? liveDuration) ? <span className="dur-net"> {netDays}d</span> : null})</span>
         </div>
       )}
       {tooltipVisible && label && !labelOutside && <div className="gantt-bar-tooltip">{label}</div>}
@@ -406,6 +410,19 @@ function buildRows(items, collapsed, parentColor, numberPath = [], depth = 0) {
   return rows;
 }
 
+function collectDescendantIds(node) {
+  const ids = new Set();
+  const walk = (current) => {
+    if (!current?.children) return;
+    current.children.forEach((child) => {
+      ids.add(child.id);
+      walk(child);
+    });
+  };
+  walk(node);
+  return ids;
+}
+
 /** Collect all dates from the tree for timeline range */
 function collectTreeDates(items) {
   const dates = [];
@@ -444,6 +461,7 @@ export default function GanttView({
   const [activeCalEvents, setActiveCalEvents] = useState(() => new Set(Array.isArray(uiState?.activeCalEvents) ? uiState.activeCalEvents : []));
   const [listWidth, setListWidth] = useState(Number.isFinite(uiState?.listWidth) ? uiState.listWidth : 260);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, target: 'node'|'root', node?, depth? }
+  const [hoveredGroup, setHoveredGroup] = useState(null); // { id, start, end, descendants }
 
   const listRef = useRef(null);
   const timelineRef = useRef(null);
@@ -505,6 +523,16 @@ export default function GanttView({
   const handleNodeDrag = useCallback(async (nodeId, newStart, newEnd) => {
     onNodeUpdate(nodeId, { start: newStart, end: newEnd });
   }, [onNodeUpdate]);
+
+  const setHoveredGroupNode = useCallback((node) => {
+    if (!node || node.type !== 'group') return;
+    setHoveredGroup({
+      id: node.id,
+      start: node.start,
+      end: node.end,
+      descendants: collectDescendantIds(node),
+    });
+  }, []);
 
   // ─── List resize ──────────────────────────────────────────────────────────
 
@@ -633,6 +661,12 @@ export default function GanttView({
     const items = [];
 
     if (node.type === 'group') {
+      const isCollapsed = !!collapsed[node.id];
+      items.push({
+        label: isCollapsed ? 'Expand group' : 'Collapse group',
+        action: () => toggleCollapse(node.id),
+      });
+      items.push({ separator: true });
       items.push({
         label: 'Batch create subtasks',
         action: () => onQuickBatchCreate?.(node.id, { x: contextMenu.x, y: contextMenu.y }),
@@ -717,8 +751,8 @@ export default function GanttView({
   const INDENT_PX = 20;
 
   // Depth-based visual scaling
-  const DEPTH_STEP_PX = 2;
-  const depthBarHeight = (depth) => Math.max(BASE_BAR_HEIGHT - depth * DEPTH_STEP_PX, 12);
+  const DEPTH_STEP_PX = density === 'Compact' ? 3 : 4;
+  const depthBarHeight = (depth) => Math.max(BASE_BAR_HEIGHT - depth * DEPTH_STEP_PX, 10);
   const depthDiamondPx = (depth) => Math.max(BASE_DIAMOND_PX - depth * DEPTH_STEP_PX, 8);
 
   return (
@@ -774,10 +808,12 @@ export default function GanttView({
                   <div
                     data-row-id={row.node.id}
                     data-parent-id={parentId || ''}
-                    className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}`}
+                    className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.color}`, paddingLeft: row.depth * INDENT_PX }}
                     onClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
                     onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                    onMouseEnter={() => setHoveredGroupNode(row.node)}
+                    onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
                   >
                     {!readonly && (
                       <div
@@ -821,7 +857,7 @@ export default function GanttView({
                   <div
                     data-row-id={row.node.id}
                     data-parent-id={parentId || ''}
-                    className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}`}
+                    className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX }}
                     onClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
                     onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
@@ -910,8 +946,18 @@ export default function GanttView({
                   const pDays = row.node.start && row.node.end
                     ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
                     : null;
+                  const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   return (
-                    <div key={row.key} className="gantt-timeline-row" style={rowStyle}>
+                    <div key={row.key} className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`} style={rowStyle}>
+                      {descendantHighlighted && hoveredGroup?.start && hoveredGroup?.end && (
+                        <div
+                          className="descendant-range-highlight"
+                          style={{
+                            left: diffDays(rangeStart, parseDate(hoveredGroup.start)) * dayWidth,
+                            width: Math.max((diffDays(parseDate(hoveredGroup.start), parseDate(hoveredGroup.end)) + 1) * dayWidth, dayWidth),
+                          }}
+                        />
+                      )}
                       <GanttBar
                         startDate={rangeStart}
                         taskStart={row.node.start}
@@ -929,6 +975,8 @@ export default function GanttView({
                         onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
                         onClick={() => onNodeClick(row.node.id)}
                         onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                        onMouseEnter={() => setHoveredGroupNode(row.node)}
+                        onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
                       />
                     </div>
                   );
@@ -940,8 +988,18 @@ export default function GanttView({
                   const tDays = !row.node.milestone && row.node.start && row.node.end
                     ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
                     : null;
+                  const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   return (
-                    <div key={row.key} className="gantt-timeline-row" style={rowStyle}>
+                    <div key={row.key} className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`} style={rowStyle}>
+                      {descendantHighlighted && hoveredGroup?.start && hoveredGroup?.end && (
+                        <div
+                          className="descendant-range-highlight"
+                          style={{
+                            left: diffDays(rangeStart, parseDate(hoveredGroup.start)) * dayWidth,
+                            width: Math.max((diffDays(parseDate(hoveredGroup.start), parseDate(hoveredGroup.end)) + 1) * dayWidth, dayWidth),
+                          }}
+                        />
+                      )}
                       {row.node.milestone
                         ? <MilestoneMarker
                             startDate={rangeStart}
