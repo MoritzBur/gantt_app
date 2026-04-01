@@ -82,6 +82,67 @@ It is intentionally not a full PM suite. There is no team collaboration model, p
 
 ## Install
 
+### Windows
+
+For normal Windows users, the recommended path is the packaged installer:
+
+1. Clone or download this repo
+2. Build or download `dist/installer/GanttApp-Setup-<version>.exe`
+3. Run the installer
+4. Launch **Gantt App** from the Start Menu
+
+What the installer does:
+
+- installs per-user, so admin rights are not required
+- bundles Node.js into `Gantt App.exe`, so users do not need Node installed
+- stores config in `%LOCALAPPDATA%\GanttApp\config`
+- stores planning data in `%LOCALAPPDATA%\GanttApp\data`
+- adds Start Menu shortcuts for **Gantt App** and **Stop Gantt App**
+
+The installed app opens in the browser at `http://localhost:3000` and runs entirely on the local machine.
+
+### Windows Repo Setup
+
+If you are working from source on Windows instead of using the installer:
+
+1. Clone or download this repo
+2. Double-click `install-windows.cmd`
+3. Double-click `launch-windows.cmd`
+
+This path is mainly for development and local source checkouts.
+
+### Build Windows Releases
+
+From the repo root:
+
+```bash
+npm run build:windows:exe
+```
+
+This creates:
+
+- `dist/windows/Gantt App.exe`
+
+To build the installer as well:
+
+```bash
+npm run build:windows:installer
+```
+
+This creates:
+
+- `dist/windows/Gantt App.exe`
+- `dist/installer/GanttApp-Setup-<version>.exe`
+
+Release notes:
+
+- the version comes from `package.json`
+- `build:windows:installer` expects Inno Setup to be installed on the Windows machine that builds it
+- the packaged app stores config in `%LOCALAPPDATA%\GanttApp\config`
+- the packaged app stores planning data in `%LOCALAPPDATA%\GanttApp\data`
+
+### Manual Setup
+
 ### Requirements
 
 - **Node.js 20+**: [nodejs.org](https://nodejs.org)
@@ -121,7 +182,7 @@ npm run build
 npm start
 ```
 
-In production mode the Express server serves the built frontend from the same port.
+`npm start` runs the app in production mode and serves the built frontend from `http://localhost:3000`.
 
 ## Private Data Repo With `GANTT_DATA_DIR`
 

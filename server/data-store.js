@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
+const runtimePaths = require('./runtime-paths');
 
-const DEFAULT_DATA_DIR = path.join(__dirname, '../data');
-const DATA_DIR = path.resolve(process.env.GANTT_DATA_DIR || DEFAULT_DATA_DIR);
+const DATA_DIR = runtimePaths.resolveDataDir();
 
 const FILES = {
   tasks: path.join(DATA_DIR, 'tasks.json'),

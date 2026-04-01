@@ -1,8 +1,11 @@
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const express = require('express');
 const session = require('express-session');
 const cors = require('cors');
 const path = require('path');
+const runtimePaths = require('./runtime-paths');
+
+runtimePaths.ensurePackagedEnvFile();
+require('dotenv').config({ path: runtimePaths.ENV_PATH });
 
 // Validate required env vars before doing anything else
 const always = ['SESSION_SECRET'];
@@ -49,7 +52,7 @@ app.post('/api/restart', (req, res) => {
 
 // In production, serve the built Vite frontend
 if (process.env.NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '../client/dist');
+  const distPath = runtimePaths.DIST_DIR;
   app.use(express.static(distPath));
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
