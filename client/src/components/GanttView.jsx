@@ -696,6 +696,14 @@ export default function GanttView({
     }, 1400);
   }, []);
 
+  const hideGroupDragHint = useCallback(() => {
+    if (groupDragHintTimerRef.current) {
+      clearTimeout(groupDragHintTimerRef.current);
+      groupDragHintTimerRef.current = null;
+    }
+    setGroupDragHint(null);
+  }, []);
+
   // ─── List resize ──────────────────────────────────────────────────────────
 
   const startResize = useCallback((e) => {
@@ -801,18 +809,20 @@ export default function GanttView({
     if (readonly) return;
     e.preventDefault();
     e.stopPropagation();
+    hideGroupDragHint();
     if (node.type === 'task' && !selectedTaskIds.has(node.id)) {
       setSelectedTaskIds(new Set([node.id]));
     }
     setContextMenu({ x: e.clientX, y: e.clientY, target: 'node', node, depth });
-  }, [readonly, selectedTaskIds]);
+  }, [hideGroupDragHint, readonly, selectedTaskIds]);
 
   const handleRootContextMenu = useCallback((e) => {
     if (readonly) return;
     e.preventDefault();
     e.stopPropagation();
+    hideGroupDragHint();
     setContextMenu({ x: e.clientX, y: e.clientY, target: 'root' });
-  }, [readonly]);
+  }, [hideGroupDragHint, readonly]);
 
   const buildContextMenuItems = useCallback(() => {
     if (!contextMenu) return [];
@@ -1187,7 +1197,7 @@ export default function GanttView({
                         onMouseEnter={() => setHoveredGroupNode(row.node)}
                         onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
                         onBlockedMoveAttempt={showGroupDragHint}
-                        dragTitle={hasChildren ? 'Hold Shift to drag group' : 'Hold Shift to drag this group'}
+                        dragTitle={contextMenu ? undefined : (hasChildren ? 'Hold Shift to drag group' : 'Hold Shift to drag this group')}
                       />
                     </div>
                   );
@@ -1292,7 +1302,7 @@ export default function GanttView({
         />
       )}
 
-      {groupDragHint && (
+      {groupDragHint && !contextMenu && (
         <div
           className="group-drag-hint"
           style={{ left: groupDragHint.x, top: groupDragHint.y }}
