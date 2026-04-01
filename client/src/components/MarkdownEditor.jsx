@@ -1,6 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
 import { EditorState, RangeSetBuilder } from '@codemirror/state';
-import { autocompletion } from '@codemirror/autocomplete';
+import { acceptCompletion, autocompletion, startCompletion } from '@codemirror/autocomplete';
 import { keymap, Decoration, EditorView, ViewPlugin, WidgetType } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { markdown, insertNewlineContinueMarkup } from '@codemirror/lang-markdown';
@@ -315,21 +315,45 @@ function createWikiLinkCompletions(allNotesRef) {
 
     for (const note of allNotesRef.current || []) {
       const basename = note.basename || note.filename?.replace(/\.md$/i, '') || '';
-      if (!basename) continue;
+      const aliases = Array.isArray(note.aliases) ? note.aliases.filter(Boolean) : [];
+      const searchTerms = Array.from(new Set([
+        basename,
+        note.itemName,
+        note.label,
+        ...aliases,
+      ].filter(Boolean)));
+
+      if (searchTerms.length === 0) continue;
       const key = basename.toLowerCase();
       if (seen.has(key)) continue;
-      if (query && !key.includes(query)) continue;
+      const normalizedTerms = searchTerms.map((term) => String(term).toLowerCase());
+      const matches = !query || normalizedTerms.some((term) => term.includes(query));
+      if (!matches) continue;
+      const startsWith = query && normalizedTerms.some((term) => term.startsWith(query));
       seen.add(key);
       options.push({
-        label: basename,
-        apply: `[[${basename}]]`,
+        label: note.type === 'main' ? (note.label || note.itemName || basename) : basename,
+        detail: note.workspacePath || note.filename || '',
+        boost: startsWith ? 2 : 1,
+        apply(view, completion, from, to) {
+          view.dispatch({
+            changes: { from, to, insert: `[[${basename}]]` },
+            selection: { anchor: from + basename.length + 4 },
+          });
+        },
       });
     }
+
+    options.sort((a, b) => (
+      (b.boost || 0) - (a.boost || 0) ||
+      a.label.localeCompare(b.label)
+    ));
 
     return {
       from: context.pos - match[0].length,
       options: options.slice(0, 20),
-      validFor: /^\[\[[^[\]]*$/,
+      filter: false,
+      validFor: /^[^[\]]*$/,
     };
   };
 }
@@ -397,6 +421,25 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
     return true;
   };
 
+  const applyInsertWikiLink = (view) => {
+    const selection = view.state.selection.main;
+    const selectedText = view.state.sliceDoc(selection.from, selection.to).trim();
+    const linkText = selectedText || '';
+    const insert = `[[${linkText}]]`;
+    const from = selection.from;
+    const to = selection.to;
+    const anchor = from + 2;
+    const head = anchor + linkText.length;
+
+    view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor, head },
+    });
+    view.focus();
+    startCompletion(view);
+    return true;
+  };
+
   const extensions = useMemo(() => ([
     history(),
     keymap.of([
@@ -404,11 +447,12 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
       ...historyKeymap,
       indentWithTab,
       { key: 'Enter', run: insertNewlineContinueMarkup },
+      { key: 'Tab', run: acceptCompletion },
       { key: 'Alt-1', run: (view) => applyInsertLinePrefix(view, '- [ ] ', 'Todo') },
       { key: 'Alt-2', run: (view) => applyInsertLinePrefix(view, '- ', 'List item') },
       { key: 'Alt-3', run: (view) => applyInsertLinePrefix(view, '# ', 'Heading') },
       { key: 'Alt-4', run: (view) => applyInsertAroundSelection(view, '**', '**', 'bold') },
-      { key: 'Alt-5', run: (view) => applyInsertAroundSelection(view, '[[', ']]', 'note-name') },
+      { key: 'Alt-5', run: (view) => applyInsertWikiLink(view) },
       { key: 'Alt-6', run: (view) => applyInsertTemplate(view, '#tag', 4) },
     ]),
     markdown(),
@@ -476,6 +520,11 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
       const view = viewRef.current;
       if (!view) return;
       applyInsertTemplate(view, template, cursorOffset);
+    },
+    insertWikiLink() {
+      const view = viewRef.current;
+      if (!view) return;
+      applyInsertWikiLink(view);
     },
   }), []);
 

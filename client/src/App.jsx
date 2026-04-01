@@ -127,7 +127,7 @@ function taskDataEquals(a, b) {
 
 function getDefaultNoteFilename(item) {
   if (!item) return 'note.md';
-  return item.type === 'group' ? '_phase.md' : `${item.id}.md`;
+  return 'main.md';
 }
 
 function getNodePrefix(node) {

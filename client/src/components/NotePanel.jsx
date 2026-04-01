@@ -386,28 +386,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
           replaceActive: !options.newTab,
         });
       })
-      .catch(() => {
-        if (!window.confirm(`Create note "${linkText}" in this item?`)) return;
-        fetch(`/api/notes/${tab.itemId}/related`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename: linkText }),
-        })
-          .then((response) => {
-            if (!response.ok) throw new Error('Failed to create note');
-            return response.json();
-          })
-          .then((created) => {
-            onOpenNote(created.itemId, {
-              filename: created.filename,
-              type: created.type,
-              replaceActive: !options.newTab,
-            });
-            setRelatedNotes((current) => current.includes(created.filename) ? current : [...current, created.filename].sort());
-            refreshAllNotes();
-          })
-          .catch(() => {});
-      });
+      .catch(() => {});
   }, [onOpenNote, refreshAllNotes]);
 
   const handleCreateRelatedNote = useCallback((proposedName = newRelatedName) => {
@@ -441,7 +420,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
   }, [activeTab, newRelatedName, onOpenNote, refreshAllNotes]);
 
   const activeMainFilename = activeTab?.itemId
-    ? (allNotes.find((note) => note.itemId === activeTab.itemId && note.type === 'main')?.filename || '_phase.md')
+    ? (allNotes.find((note) => note.itemId === activeTab.itemId && note.type === 'main')?.filename || 'main.md')
     : null;
 
   if (!normalizedPanel.open) {

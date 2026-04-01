@@ -148,6 +148,16 @@ function writeTextAtomic(file, content, options = {}) {
   fs.renameSync(tmpFile, file);
 }
 
+function pruneEmptyDirs(startDir, stopDir) {
+  let current = startDir;
+  while (current && current !== stopDir && current.startsWith(stopDir)) {
+    if (!fs.existsSync(current)) break;
+    if (fs.readdirSync(current).length > 0) break;
+    fs.rmdirSync(current);
+    current = path.dirname(current);
+  }
+}
+
 function sanitizePathSegment(value) {
   return String(value || 'untitled')
     .trim()
@@ -158,13 +168,23 @@ function sanitizePathSegment(value) {
     .slice(0, 80) || 'untitled';
 }
 
-function getNodeDirName(node) {
-  return sanitizePathSegment(node.id || node.name || 'item');
+function getDefaultNoteFile() {
+  return 'main.md';
 }
 
-function getDefaultNoteFile(node) {
-  if (node.type === 'group') return '_phase.md';
-  return `${sanitizePathSegment(node.id || node.name || 'note')}.md`;
+function getNodePrefix(node) {
+  return node.prefix !== undefined ? node.prefix : (node.type === 'group' ? 'WP' : '');
+}
+
+function getNodeNumber(numberPath) {
+  return numberPath.join('.');
+}
+
+function getNodeLabel(node, numberPath) {
+  const prefix = getNodePrefix(node);
+  const num = getNodeNumber(numberPath);
+  if (prefix) return `${prefix} ${num} ${node.name}`;
+  return `${num} ${node.name}`;
 }
 
 function ensureNoteFilesInTree(data) {
@@ -174,7 +194,7 @@ function ensureNoteFilesInTree(data) {
 
   const visit = (nodes) => {
     for (const node of nodes || []) {
-      if (!node.noteFile) {
+      if (node.noteFile !== getDefaultNoteFile(node)) {
         node.noteFile = getDefaultNoteFile(node);
         changed = true;
       }
@@ -186,9 +206,34 @@ function ensureNoteFilesInTree(data) {
   return changed;
 }
 
+function pruneEmptyDirsDeep(rootDir) {
+  if (!fs.existsSync(rootDir)) return false;
+
+  let changed = false;
+
+  function walk(currentDir) {
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        walk(path.join(currentDir, entry.name));
+      }
+    }
+
+    if (currentDir === rootDir) return;
+    if (fs.readdirSync(currentDir).length === 0) {
+      fs.rmdirSync(currentDir);
+      changed = true;
+    }
+  }
+
+  walk(rootDir);
+  return changed;
+}
+
 function findNodePath(items, id, parents = []) {
-  for (const item of items || []) {
-    const nextPath = [...parents, item];
+  for (let index = 0; index < (items || []).length; index += 1) {
+    const item = items[index];
+    const nextPath = [...parents, { node: item, index }];
     if (item.id === id) return nextPath;
     if (item.children?.length) {
       const found = findNodePath(item.children, id, nextPath);
@@ -200,21 +245,29 @@ function findNodePath(items, id, parents = []) {
 
 function getAncestorGroupsForNodePath(nodePath) {
   if (!nodePath?.length) return [];
-  const node = nodePath[nodePath.length - 1];
-  const groups = nodePath.filter((entry) => entry.type === 'group');
-  return node.type === 'group' ? groups.slice(0, -1) : groups;
+  const node = nodePath[nodePath.length - 1]?.node;
+  const groups = nodePath.filter((entry) => entry.node?.type === 'group');
+  return node?.type === 'group' ? groups.slice(0, -1) : groups;
 }
 
 function getStoragePathSegments(itemPath) {
-  const groups = getAncestorGroupsForNodePath(itemPath);
-  const node = itemPath?.[itemPath.length - 1];
-  if (node?.type === 'group') {
-    return [...groups.map(getNodeDirName), getNodeDirName(node)];
-  }
-  return groups.map(getNodeDirName);
+  return itemPath.map((entry, depth) => {
+    const numberPath = itemPath.slice(0, depth + 1).map((segment) => segment.index + 1);
+    return sanitizePathSegment(getNodeLabel(entry.node, numberPath));
+  });
 }
 
-function getGroupDirForNodePath(itemPath) {
+function getLegacyStoragePathSegments(itemPath) {
+  const nodes = itemPath.map((entry) => entry.node);
+  const groups = getAncestorGroupsForNodePath(itemPath).map((entry) => entry.node);
+  const node = nodes[nodes.length - 1];
+  if (node?.type === 'group') {
+    return [...groups.map((group) => sanitizePathSegment(group.id || group.name || 'item')), sanitizePathSegment(node.id || node.name || 'item')];
+  }
+  return groups.map((group) => sanitizePathSegment(group.id || group.name || 'item'));
+}
+
+function getItemDirForNodePath(itemPath) {
   return path.join(FILES.notes, ...getStoragePathSegments(itemPath));
 }
 
@@ -222,7 +275,7 @@ function getNoteBinding(data, itemId, options = {}) {
   const itemPath = findNodePath(data?.items || [], itemId);
   if (!itemPath) return null;
 
-  const node = itemPath[itemPath.length - 1];
+  const node = itemPath[itemPath.length - 1].node;
   const shouldAssignDefault = options.assignDefault !== false;
   let changed = false;
 
@@ -231,18 +284,16 @@ function getNoteBinding(data, itemId, options = {}) {
     changed = true;
   }
 
-  const groupDir = getGroupDirForNodePath(itemPath);
-  const noteFile = node.noteFile || null;
-  const mainPath = noteFile ? path.join(groupDir, noteFile) : null;
-  const relatedDir = node.type === 'group'
-    ? path.join(groupDir, '_related')
-    : path.join(groupDir, sanitizePathSegment(node.id || 'item'));
+  const itemDir = getItemDirForNodePath(itemPath);
+  const noteFile = node.noteFile || getDefaultNoteFile(node);
+  const mainPath = path.join(itemDir, noteFile);
+  const relatedDir = path.join(itemDir, '_related');
 
   return {
     itemPath,
     node,
     changed,
-    groupDir,
+    itemDir,
     noteFile,
     mainPath,
     relatedDir,
@@ -253,16 +304,27 @@ function getNoteBinding(data, itemId, options = {}) {
 function collectNoteEntries(data) {
   const notes = [];
 
-  function walk(nodes) {
-    for (const node of nodes || []) {
+  function walk(nodes, numberPath = []) {
+    for (let index = 0; index < (nodes || []).length; index += 1) {
+      const node = nodes[index];
+      const nextNumberPath = [...numberPath, index + 1];
+      const label = getNodeLabel(node, nextNumberPath);
+      const aliases = Array.from(new Set([
+        node.name,
+        label,
+      ].filter(Boolean)));
       const binding = getNoteBinding({ items: data.items }, node.id, { assignDefault: false });
-      if (binding?.noteFile && binding.mainPath && fs.existsSync(binding.mainPath)) {
+      if (binding?.noteFile && binding.mainPath) {
         notes.push({
           itemId: node.id,
           type: 'main',
           filename: binding.noteFile,
           basename: binding.noteFile.replace(/\.md$/i, ''),
+          itemName: node.name,
+          label,
+          aliases,
           path: path.relative(FILES.notes, binding.mainPath),
+          exists: fs.existsSync(binding.mainPath),
           groupPath: binding.groupPath,
         });
       }
@@ -278,13 +340,16 @@ function collectNoteEntries(data) {
             type: 'related',
             filename,
             basename: filename.replace(/\.md$/i, ''),
+            itemName: node.name,
+            label,
+            aliases: [filename.replace(/\.md$/i, '')],
             path: path.relative(FILES.notes, path.join(binding.relatedDir, filename)),
             groupPath: binding.groupPath,
           });
         }
       }
 
-      if (node.children?.length) walk(node.children);
+      if (node.children?.length) walk(node.children, nextNumberPath);
     }
   }
 
@@ -313,7 +378,12 @@ function resolveLinkTarget(data, fromItemId, linkText) {
   const sourceBinding = getNoteBinding(data, fromItemId, { assignDefault: false });
   const sourceGroupPath = sourceBinding?.groupPath || [];
 
-  const candidates = collectNoteEntries(data).filter((entry) => entry.basename.toLowerCase() === normalized);
+  const candidates = collectNoteEntries(data).filter((entry) => {
+    const terms = [entry.basename, ...(entry.aliases || [])]
+      .map((value) => String(value || '').trim().replace(/\.md$/i, '').toLowerCase())
+      .filter(Boolean);
+    return terms.includes(normalized);
+  });
   if (candidates.length === 0) return null;
 
   const [best] = candidates
@@ -425,23 +495,68 @@ function relocateLegacyNoteFiles(data) {
     for (const node of nodes || []) {
       const binding = getNoteBinding(data, node.id, { assignDefault: false });
       if (binding?.noteFile) {
-        const legacyMainPath = path.join(FILES.notes, binding.noteFile);
-        if (legacyMainPath !== binding.mainPath && fs.existsSync(legacyMainPath) && !fs.existsSync(binding.mainPath)) {
-          fs.mkdirSync(path.dirname(binding.mainPath), { recursive: true });
-          fs.renameSync(legacyMainPath, binding.mainPath);
-          changed = true;
+        const legacyGroupDir = path.join(FILES.notes, ...getLegacyStoragePathSegments(binding.itemPath));
+        const parentItemDir = binding.itemPath.length > 1
+          ? getItemDirForNodePath(binding.itemPath.slice(0, -1))
+          : FILES.notes;
+        const topLevelItemDir = binding.itemPath.length > 0
+          ? getItemDirForNodePath(binding.itemPath.slice(0, 1))
+          : FILES.notes;
+        const legacyNestedSegments = getLegacyStoragePathSegments(binding.itemPath).slice(1);
+        const legacyDefaultMainName = node.type === 'group'
+          ? '_phase.md'
+          : `${sanitizePathSegment(node.id || node.name || 'note')}.md`;
+        const strandedRelatedMainPath = node.type === 'group'
+          ? path.join(parentItemDir, '_related', sanitizePathSegment(node.id || node.name || 'item'), '_phase.md')
+          : path.join(parentItemDir, '_related', legacyDefaultMainName);
+        const legacyNestedStrandedMainPath = path.join(topLevelItemDir, '_related', ...legacyNestedSegments, legacyDefaultMainName);
+        const legacyMainCandidates = Array.from(new Set([
+          path.join(FILES.notes, binding.noteFile),
+          path.join(legacyGroupDir, binding.noteFile),
+          path.join(legacyGroupDir, legacyDefaultMainName),
+          path.join(binding.itemDir, legacyDefaultMainName),
+          path.join(binding.itemDir, '_main.md'),
+          strandedRelatedMainPath,
+          legacyNestedStrandedMainPath,
+        ]));
+
+        for (const legacyMainPath of legacyMainCandidates) {
+          if (legacyMainPath === binding.mainPath || !fs.existsSync(legacyMainPath)) continue;
+
+          if (!fs.existsSync(binding.mainPath)) {
+            fs.mkdirSync(path.dirname(binding.mainPath), { recursive: true });
+            fs.renameSync(legacyMainPath, binding.mainPath);
+            changed = true;
+            break;
+          }
+
+          if (fs.readFileSync(legacyMainPath, 'utf8') === fs.readFileSync(binding.mainPath, 'utf8')) {
+            fs.unlinkSync(legacyMainPath);
+            pruneEmptyDirs(path.dirname(legacyMainPath), FILES.notes);
+            changed = true;
+          }
         }
 
-        const legacyRelatedDir = path.join(FILES.notes, sanitizePathSegment(node.id || 'item'));
-        if (
-          node.type !== 'group' &&
-          legacyRelatedDir !== binding.relatedDir &&
-          fs.existsSync(legacyRelatedDir) &&
-          !fs.existsSync(binding.relatedDir)
-        ) {
+        const legacyRelatedCandidates = Array.from(new Set([
+          path.join(FILES.notes, sanitizePathSegment(node.id || 'item')),
+          path.join(legacyGroupDir, '_related'),
+          path.join(legacyGroupDir, sanitizePathSegment(node.id || 'item')),
+          path.join(parentItemDir, '_related', sanitizePathSegment(node.id || 'item'), '_related'),
+          path.join(topLevelItemDir, '_related', ...legacyNestedSegments, '_related'),
+        ]));
+
+        for (const legacyRelatedDir of legacyRelatedCandidates) {
+          if (
+            legacyRelatedDir === binding.relatedDir ||
+            !fs.existsSync(legacyRelatedDir) ||
+            fs.existsSync(binding.relatedDir)
+          ) {
+            continue;
+          }
           fs.mkdirSync(path.dirname(binding.relatedDir), { recursive: true });
           fs.renameSync(legacyRelatedDir, binding.relatedDir);
           changed = true;
+          break;
         }
       }
 
@@ -450,6 +565,9 @@ function relocateLegacyNoteFiles(data) {
   }
 
   walk(data.items);
+  if (pruneEmptyDirsDeep(FILES.notes)) {
+    changed = true;
+  }
   return changed;
 }
 
@@ -481,15 +599,17 @@ module.exports = {
       }
       const migrated = migrateV1toV2(raw);
       const normalized = migrateInlineNotesToFiles(migrated, originalSnapshot);
+      const relocated = relocateLegacyNoteFiles(normalized);
       const notesChanged = ensureNoteFilesInTree(normalized);
-      if (relocateLegacyNoteFiles(normalized) || notesChanged) {
+      if (relocated || notesChanged) {
         writeJsonAtomic(FILES.tasks, normalized);
       }
       return normalized;
     }
     const migrated = migrateInlineNotesToFiles(raw, originalSnapshot);
+    const relocated = relocateLegacyNoteFiles(migrated);
     const notesChanged = ensureNoteFilesInTree(migrated);
-    if (relocateLegacyNoteFiles(migrated) || notesChanged) {
+    if (relocated || notesChanged) {
       writeJsonAtomic(FILES.tasks, migrated);
     }
     return migrated;

@@ -55,7 +55,7 @@ export default function NotePanelTab({
       key: 'Link',
       label: 'Wiki Link',
       shortcut: 'Alt+5',
-      action: () => editorRef.current?.insertAroundSelection('[[', ']]', 'note-name'),
+      action: () => editorRef.current?.insertWikiLink(),
     },
     {
       key: 'tag',
