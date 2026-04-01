@@ -955,6 +955,9 @@ export default function App() {
   const activeTheme = displayUiState?.theme || uiState?.theme || 'dark';
   const notePanelState = normalizeNotePanel(uiState?.notePanel);
   const noteItemMeta = useMemo(() => buildNoteItemMeta(displayData?.items || []), [displayData]);
+  const activeNoteItemId = !isHistorical && notePanelState.open
+    ? (notePanelState.tabs[notePanelState.activeTabIndex]?.itemId || null)
+    : null;
 
   if (loading) return <div className="app-loading"><p>Loading...</p></div>;
   if (error) return <div className="app-error"><p>{error}</p></div>;
@@ -1081,6 +1084,7 @@ export default function App() {
             canUndo={!isHistorical && undoStack.length > 0}
             canRedo={!isHistorical && redoStack.length > 0}
             historyFeedback={historyFeedback}
+            activeNoteItemId={activeNoteItemId}
             readonly={isHistorical}
           />
         )}

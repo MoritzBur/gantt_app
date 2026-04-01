@@ -320,7 +320,7 @@ function GanttBar({
   return (
     <div
       className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${hasNotes ? 'has-notes' : ''}`}
-      style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight }}
+      style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight, '--bar-accent': color }}
       title={dragTitle}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(e); }}
@@ -369,6 +369,7 @@ function MilestoneMarker({
   isDone,
   isReadOnly,
   isSelected,
+  isActive,
   label,
   diamondPx,
   onDragStart,
@@ -430,8 +431,8 @@ function MilestoneMarker({
 
   return (
     <div
-      className={`milestone-marker ${isDone ? 'done' : ''} ${isSelected ? 'selected' : ''}`}
-      style={{ left, cursor: isReadOnly ? 'default' : 'grab' }}
+      className={`milestone-marker ${isDone ? 'done' : ''} ${isSelected ? 'selected' : ''} ${isActive ? 'active' : ''}`}
+      style={{ left, cursor: isReadOnly ? 'default' : 'grab', '--bar-accent': color }}
       onMouseDown={handleMouseDown}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(e); }}
@@ -543,6 +544,7 @@ export default function GanttView({
   canUndo = false,
   canRedo = false,
   historyFeedback = null,
+  activeNoteItemId = null,
   readonly = false,
 }) {
   const [zoom, setZoom] = useState(uiState?.zoom && ZOOM_LEVELS[uiState.zoom] ? uiState.zoom : 'Month');
@@ -1007,6 +1009,7 @@ export default function GanttView({
             if (row.rowType === 'group') {
               const isCollapsed = collapsed[row.node.id];
               const isDragging = draggingItem?.nodeId === row.node.id;
+              const isNoteActive = activeNoteItemId === row.node.id;
               const showIndicatorBefore =
                 dropIndicator?.insertBeforeId === row.node.id &&
                 draggingItem?.nodeId !== row.node.id;
@@ -1018,8 +1021,8 @@ export default function GanttView({
                   <div
                     data-row-id={row.node.id}
                     data-parent-id={parentId || ''}
-                    className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
-                    style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.color}`, paddingLeft: row.depth * INDENT_PX }}
+                    className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}${isNoteActive ? ' note-active' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
+                    style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.color}`, paddingLeft: row.depth * INDENT_PX, '--row-accent': row.color }}
                     onClick={clearTaskSelection}
                     onDoubleClick={(e) => {
                       if (readonly || draggingItem) return;
@@ -1066,6 +1069,8 @@ export default function GanttView({
                 draggingItem?.nodeId !== row.node.id;
               const parentId = findParentId(items, row.node.id);
               const isSelected = selectedTaskIds.has(row.node.id);
+              const rowAccent = row.node.done ? '#666666' : row.color;
+              const isNoteActive = activeNoteItemId === row.node.id;
 
               return (
                 <React.Fragment key={row.key}>
@@ -1073,8 +1078,8 @@ export default function GanttView({
                   <div
                     data-row-id={row.node.id}
                     data-parent-id={parentId || ''}
-                    className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${isSelected ? ' selected' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
-                    style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX }}
+                    className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${isSelected ? ' selected' : ''}${isNoteActive ? ' note-active' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
+                    style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX, '--row-accent': rowAccent }}
                     onClick={(e) => !readonly && !draggingItem && selectTask(row.node.id, e.shiftKey)}
                     onDoubleClick={(e) => {
                       if (readonly || draggingItem) return;
@@ -1168,10 +1173,11 @@ export default function GanttView({
                     ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
                     : null;
                   const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
+                  const isNoteActive = activeNoteItemId === row.node.id;
                   return (
                     <div
                       key={row.key}
-                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`}
+                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}${isNoteActive ? ' note-active' : ''}`}
                       style={rowStyle}
                       onClick={clearTaskSelection}
                       onDoubleClick={(e) => {
@@ -1200,6 +1206,7 @@ export default function GanttView({
                         canResize={false}
                         requiresShiftToMove={true}
                         isDone={false}
+                        isActive={isNoteActive}
                         label={getNodeLabel(row.node, row.numberPath)}
                         barHeight={depthBarHeight(row.depth)}
                         labelOutside={true}
@@ -1230,6 +1237,7 @@ export default function GanttView({
                     : null;
                   const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   const isSelected = selectedTaskIds.has(row.node.id);
+                  const isNoteActive = activeNoteItemId === row.node.id;
                   const previewStart = isSelected && selectionDragDaysDelta != null
                     ? formatDate(addDays(parseDate(row.node.start), selectionDragDaysDelta))
                     : null;
@@ -1245,7 +1253,7 @@ export default function GanttView({
                   return (
                     <div
                       key={row.key}
-                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}${isSelected ? ' selected' : ''}`}
+                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}${isSelected ? ' selected' : ''}${isNoteActive ? ' note-active' : ''}`}
                       style={rowStyle}
                       onClick={clearTaskSelection}
                     >
@@ -1268,6 +1276,7 @@ export default function GanttView({
                             isDone={row.node.done}
                             isReadOnly={readonly}
                             isSelected={isSelected}
+                            isActive={isNoteActive}
                             label={taskLabel}
                             diamondPx={depthDiamondPx(row.depth)}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
@@ -1287,6 +1296,7 @@ export default function GanttView({
                             isReadOnly={readonly}
                             isDone={row.node.done}
                             isSelected={isSelected}
+                            isActive={isNoteActive}
                             label={taskLabel}
                             barHeight={depthBarHeight(row.depth)}
                             labelOutside={true}

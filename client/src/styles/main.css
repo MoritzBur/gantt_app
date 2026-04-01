@@ -665,6 +665,15 @@ a:hover {
   background: var(--bg-row-hover);
 }
 
+.gantt-row.note-active {
+  background: color-mix(in srgb, var(--row-accent, var(--accent)) 14%, var(--bg-row));
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--row-accent, var(--accent)) 78%, white 10%);
+}
+
+.gantt-row.note-active:hover {
+  background: color-mix(in srgb, var(--row-accent, var(--accent)) 18%, var(--bg-row-hover));
+}
+
 .gantt-row.descendant-highlight {
   background: rgba(255, 255, 255, 0.05);
 }
@@ -1123,6 +1132,10 @@ a:hover {
   background: rgba(74, 144, 217, 0.08);
 }
 
+.gantt-timeline-row.note-active {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
 .gantt-timeline-row.empty-row {
   background: transparent;
 }
@@ -1173,7 +1186,9 @@ a:hover {
 }
 
 .gantt-bar.active {
-  box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(220, 70, 50, 0.75);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, white 88%, var(--bar-accent, var(--accent)) 12%),
+    0 0 0 5px color-mix(in srgb, var(--bar-accent, var(--accent)) 38%, transparent);
   opacity: 1 !important;
   z-index: 3 !important;
 }
@@ -1181,6 +1196,13 @@ a:hover {
 .gantt-bar.selected {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 4px rgba(74, 144, 217, 0.45);
   z-index: 4;
+}
+
+.gantt-bar.active.selected {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 0 4px rgba(74, 144, 217, 0.38),
+    0 0 0 6px color-mix(in srgb, var(--bar-accent, var(--accent)) 26%, transparent);
 }
 
 /* Dog-ear note indicator — folded corner in the top-right of the bar */
@@ -1366,6 +1388,19 @@ a:hover {
 
 .milestone-marker.selected .milestone-diamond {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(74, 144, 217, 0.45);
+}
+
+.milestone-marker.active .milestone-diamond {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, white 88%, var(--bar-accent, var(--accent)) 12%),
+    0 0 0 5px color-mix(in srgb, var(--bar-accent, var(--accent)) 38%, transparent);
+}
+
+.milestone-marker.active.selected .milestone-diamond {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 0 4px rgba(74, 144, 217, 0.38),
+    0 0 0 6px color-mix(in srgb, var(--bar-accent, var(--accent)) 26%, transparent);
 }
 
 .milestone-diamond {
