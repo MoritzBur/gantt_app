@@ -9,17 +9,97 @@ const PHASE_COLORS = [
   '#E74C3C', '#16A085', '#F39C12', '#2C3E50',
 ];
 
-// Compute start/end bounds from a phase's tasks (includes milestones)
-function calcPhaseBounds(tasks) {
-  const datable = tasks.filter(t => t.start);
-  if (datable.length === 0) return null;
-  return {
-    start: datable.reduce((m, t) => t.start < m ? t.start : m, datable[0].start),
-    end: datable.reduce((m, t) => {
-      const e = t.end || t.start; // milestones have end === start
-      return e > m ? e : m;
-    }, datable[0].end || datable[0].start),
-  };
+// ─── Tree helpers (client-side) ──────────────────────────────────────────────
+
+/** Find node by id in recursive tree. Returns node or null. */
+function findNodeInTree(items, id) {
+  for (const item of items) {
+    if (item.id === id) return item;
+    if (item.children) {
+      const found = findNodeInTree(item.children, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** Find parent of a node. Returns the parent node, or null for top-level. */
+function findParentInTree(items, id, parent = null) {
+  for (const item of items) {
+    if (item.id === id) return parent;
+    if (item.children) {
+      const found = findParentInTree(item.children, id, item);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined; // not found at all
+}
+
+/** Collect all dates from the tree for calendar range calculation */
+function collectAllDates(items) {
+  const dates = [];
+  for (const item of items) {
+    if (item.start) dates.push(item.start);
+    if (item.end) dates.push(item.end);
+    if (item.children) dates.push(...collectAllDates(item.children));
+  }
+  return dates;
+}
+
+/** Update a node in the tree immutably. Returns new items array. */
+function updateNodeInTree(items, id, updater) {
+  return items.map(item => {
+    if (item.id === id) return updater(item);
+    if (item.children) {
+      const updatedChildren = updateNodeInTree(item.children, id, updater);
+      if (updatedChildren !== item.children) return { ...item, children: updatedChildren };
+    }
+    return item;
+  });
+}
+
+/** Remove a node from the tree immutably. Returns new items array. */
+function removeNodeFromTree(items, id) {
+  const filtered = items.filter(item => item.id !== id);
+  if (filtered.length !== items.length) return filtered;
+  return items.map(item => {
+    if (item.children) {
+      const updatedChildren = removeNodeFromTree(item.children, id);
+      if (updatedChildren !== item.children) return { ...item, children: updatedChildren };
+    }
+    return item;
+  });
+}
+
+/** Get the inherited color for a node (walks up to find nearest group with color) */
+function getInheritedColor(items, id) {
+  const parent = findParentInTree(items, id);
+  if (parent === undefined) return '#4A90D9';
+  if (parent === null) {
+    const node = findNodeInTree(items, id);
+    return node?.color || '#4A90D9';
+  }
+  return parent.color || getInheritedColor(items, parent.id);
+}
+
+/** Build PDF table rows recursively */
+function buildPdfRows(items, depth = 0) {
+  const rows = [];
+  for (const item of items) {
+    if (item.type === 'group') {
+      rows.push([{ content: '  '.repeat(depth) + item.name, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [30, 36, 51] } }]);
+      if (item.children) rows.push(...buildPdfRows(item.children, depth + 1));
+    } else {
+      rows.push([
+        '  '.repeat(depth),
+        item.name,
+        item.start || '',
+        item.milestone ? item.start : (item.end || ''),
+        item.done ? '\u2713' : '',
+      ]);
+    }
+  }
+  return rows;
 }
 
 export default function App() {
@@ -27,24 +107,22 @@ export default function App() {
   const [uiState, setUiState] = useState(null);
   const [calendarStatus, setCalendarStatus] = useState({ connected: false });
   const [calendarEvents, setCalendarEvents] = useState([]);
-  const [saveStatus, setSaveStatus] = useState(null); // null | 'saved' | 'failed'
+  const [saveStatus, setSaveStatus] = useState(null);
   const [saveTimer, setSaveTimer] = useState(null);
-  const [editTarget, setEditTarget] = useState(null); // { type: 'task'|'phase', id }
+  const [editTarget, setEditTarget] = useState(null); // { type: 'group'|'task', id }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showCalendarSetup, setShowCalendarSetup] = useState(false);
   const [calendarConfig, setCalendarConfig] = useState(null);
 
-  // Git status
   const [gitDirty, setGitDirty] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
-
-  // Historical snapshot — { data, hash, date, message } or null
   const [historicalSnapshot, setHistoricalSnapshot] = useState(null);
-
-  // PDF export
   const [exporting, setExporting] = useState(false);
   const uiStateSaveTimerRef = useRef(null);
+  const dataRef = useRef(data);
+
+  useEffect(() => { dataRef.current = data; }, [data]);
 
   const readLegacyUiState = useCallback(() => {
     try {
@@ -61,17 +139,10 @@ export default function App() {
         listWidth: Number.isFinite(listWidth) ? listWidth : 260,
       };
     } catch {
-      return {
-        zoom: 'Month',
-        density: 'Regular',
-        collapsed: {},
-        activeCalEvents: [],
-        listWidth: 260,
-      };
+      return { zoom: 'Month', density: 'Regular', collapsed: {}, activeCalEvents: [], listWidth: 260 };
     }
   }, []);
 
-  // Load tasks on mount — retry a few times to handle the Express startup race
   useEffect(() => {
     const load = async (attempt = 0) => {
       try {
@@ -115,7 +186,6 @@ export default function App() {
     load();
   }, [readLegacyUiState]);
 
-  // Load calendar status and config on mount
   useEffect(() => {
     fetch('/api/calendar/status')
       .then(r => r.json())
@@ -127,7 +197,6 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  // Poll git status every 30s
   const refreshGitStatus = useCallback(() => {
     fetch('/api/git/status')
       .then(r => r.json())
@@ -141,10 +210,9 @@ export default function App() {
     return () => clearInterval(interval);
   }, [refreshGitStatus]);
 
-  // Compute the calendar date range as a string
   const calendarDateRange = useMemo(() => {
-    if (!data || data.phases.length === 0) return null;
-    const allDates = data.phases.flatMap(p => [p.start, p.end]).filter(Boolean).sort();
+    if (!data || !data.items || data.items.length === 0) return null;
+    const allDates = collectAllDates(data.items).filter(Boolean).sort();
     if (allDates.length === 0) return null;
     const start = new Date(allDates[0]);
     const end = new Date(allDates[allDates.length - 1]);
@@ -153,7 +221,6 @@ export default function App() {
     return `${start.toISOString().slice(0, 10)}/${end.toISOString().slice(0, 10)}`;
   }, [data]);
 
-  // Fetch calendar events when connection status or task date range changes
   useEffect(() => {
     if (!calendarStatus.connected || !calendarDateRange) return;
     const [startStr, endStr] = calendarDateRange.split('/');
@@ -170,150 +237,92 @@ export default function App() {
     if (saveTimer) clearTimeout(saveTimer);
     const timer = setTimeout(() => setSaveStatus(null), 1500);
     setSaveTimer(timer);
-    // Refresh git status after any save
     setTimeout(refreshGitStatus, 500);
   }, [saveTimer, refreshGitStatus]);
 
-  const handleAddPhase = async () => {
+  // ─── Node CRUD handlers (unified for groups and tasks) ──────────────────────
+
+  const handleAddGroup = async () => {
     const today = new Date().toISOString().slice(0, 10);
     const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const colorIdx = data ? data.phases.length % PHASE_COLORS.length : 0;
+    const colorIdx = data ? data.items.length % PHASE_COLORS.length : 0;
     try {
-      const res = await fetch('/api/tasks/phase', {
+      const res = await fetch('/api/tasks/node', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: 'New Phase',
+          parentId: null,
+          type: 'group',
+          name: 'New Group',
           color: PHASE_COLORS[colorIdx],
           start: today,
           end: nextMonth,
         }),
       });
       if (!res.ok) throw new Error('Server error');
-      const newPhase = await res.json();
-      setData(prev => ({ ...prev, phases: [...prev.phases, newPhase] }));
+      const newNode = await res.json();
+      setData(prev => ({ ...prev, items: [...prev.items, newNode] }));
       showSaveStatus('saved');
-      setEditTarget({ type: 'phase', id: newPhase.id });
+      setEditTarget({ type: 'group', id: newNode.id });
     } catch (err) {
       showSaveStatus('failed');
     }
   };
 
-  const handleSaveTask = async (taskId, updates) => {
-    const affectedPhase = data?.phases.find(p => p.tasks.some(t => t.id === taskId));
-    const needsBoundsRecalc = affectedPhase && (updates.start !== undefined || updates.end !== undefined);
-    let newBounds = null;
-    if (needsBoundsRecalc) {
-      const projected = affectedPhase.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
-      newBounds = calcPhaseBounds(projected);
+  const handleAddChild = async (parentId, type = 'task') => {
+    try {
+      const body = { parentId, type, name: type === 'group' ? 'New Group' : 'New Task' };
+      if (type === 'group' && parentId) {
+        const parent = findNodeInTree(data.items, parentId);
+        if (parent?.color) body.color = parent.color;
+      }
+      const res = await fetch('/api/tasks/node', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error('Server error');
+      const newNode = await res.json();
+      // Re-fetch full data to get updated bounds
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
+      showSaveStatus('saved');
+      setEditTarget({ type: newNode.type, id: newNode.id });
+    } catch (err) {
+      showSaveStatus('failed');
     }
+  };
 
+  const handleSaveNode = async (nodeId, updates) => {
+    // Optimistic update
     setData(prev => ({
       ...prev,
-      phases: prev.phases.map(p => {
-        if (!p.tasks.some(t => t.id === taskId)) return p;
-        const updatedTasks = p.tasks.map(t => t.id === taskId ? { ...t, ...updates } : t);
-        return newBounds ? { ...p, tasks: updatedTasks, ...newBounds } : { ...p, tasks: updatedTasks };
-      }),
+      items: updateNodeInTree(prev.items, nodeId, node => ({ ...node, ...updates })),
     }));
 
     try {
-      const fetches = [
-        fetch(`/api/tasks/task/${taskId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updates),
-        }),
-      ];
-      if (newBounds && affectedPhase &&
-          (newBounds.start !== affectedPhase.start || newBounds.end !== affectedPhase.end)) {
-        fetches.push(fetch(`/api/tasks/phase/${affectedPhase.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newBounds),
-        }));
-      }
-      const [taskRes] = await Promise.all(fetches);
-      if (!taskRes.ok) throw new Error('Server error');
-      const serverTask = await taskRes.json();
-
-      setData(prev => ({
-        ...prev,
-        phases: prev.phases.map(p => {
-          if (!p.tasks.some(t => t.id === taskId)) return p;
-          const updatedTasks = p.tasks.map(t => t.id === taskId ? { ...t, ...serverTask } : t);
-          const bounds = calcPhaseBounds(updatedTasks);
-          return bounds ? { ...p, tasks: updatedTasks, ...bounds } : { ...p, tasks: updatedTasks };
-        }),
-      }));
-      showSaveStatus('saved');
-    } catch (err) {
-      showSaveStatus('failed');
-    }
-  };
-
-  const handleDeleteTask = async (taskId) => {
-    const affectedPhase = data?.phases.find(p => p.tasks.some(t => t.id === taskId));
-    try {
-      const res = await fetch(`/api/tasks/task/${taskId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Server error');
-
-      const newBounds = affectedPhase
-        ? calcPhaseBounds(affectedPhase.tasks.filter(t => t.id !== taskId))
-        : null;
-
-      setData(prev => ({
-        ...prev,
-        phases: prev.phases.map(p => {
-          if (!p.tasks.some(t => t.id === taskId)) return p;
-          const updatedTasks = p.tasks.filter(t => t.id !== taskId);
-          return newBounds ? { ...p, tasks: updatedTasks, ...newBounds } : { ...p, tasks: updatedTasks };
-        }),
-      }));
-
-      if (affectedPhase && newBounds &&
-          (newBounds.start !== affectedPhase.start || newBounds.end !== affectedPhase.end)) {
-        fetch(`/api/tasks/phase/${affectedPhase.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newBounds),
-        }).catch(() => {});
-      }
-
-      showSaveStatus('saved');
-      setEditTarget(null);
-    } catch (err) {
-      showSaveStatus('failed');
-    }
-  };
-
-  const handleSavePhase = async (phaseId, updates) => {
-    try {
-      const res = await fetch(`/api/tasks/phase/${phaseId}`, {
+      const res = await fetch(`/api/tasks/node/${nodeId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
       if (!res.ok) throw new Error('Server error');
-      const updated = await res.json();
-      setData(prev => ({
-        ...prev,
-        phases: prev.phases.map(p => p.id === phaseId ? { ...p, ...updated } : p),
-      }));
+      // Re-fetch to get recomputed bounds
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
       showSaveStatus('saved');
     } catch (err) {
       showSaveStatus('failed');
     }
   };
 
-  const handleDeletePhase = async (phaseId) => {
+  const handleDeleteNode = async (nodeId) => {
     try {
-      const res = await fetch(`/api/tasks/phase/${phaseId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/tasks/node/${nodeId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Server error');
-      setData(prev => ({
-        ...prev,
-        phases: prev.phases.filter(p => p.id !== phaseId),
-      }));
+      // Re-fetch to get updated bounds
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
       showSaveStatus('saved');
       setEditTarget(null);
     } catch (err) {
@@ -321,70 +330,46 @@ export default function App() {
     }
   };
 
-  const handleAddTask = async (phaseId) => {
-    const phase = data.phases.find(p => p.id === phaseId);
-    if (!phase) return;
-    try {
-      const res = await fetch(`/api/tasks/phase/${phaseId}/task`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'New Task', start: phase.start, end: phase.end }),
-      });
-      if (!res.ok) throw new Error('Server error');
-      const newTask = await res.json();
-      setData(prev => ({
-        ...prev,
-        phases: prev.phases.map(p => p.id === phaseId
-          ? { ...p, tasks: [...p.tasks, newTask] }
-          : p
-        ),
-      }));
-      showSaveStatus('saved');
-      setEditTarget({ type: 'task', id: newTask.id });
-    } catch (err) {
-      showSaveStatus('failed');
-    }
-  };
-
-  const handleReorderPhases = async (phaseOrder) => {
+  const handleReorder = async (parentId, childOrder) => {
+    // Optimistic update
     setData(prev => {
-      const phaseMap = Object.fromEntries(prev.phases.map(p => [p.id, p]));
-      return { ...prev, phases: phaseOrder.map(id => phaseMap[id]).filter(Boolean) };
+      if (parentId === null) {
+        const map = Object.fromEntries(prev.items.map(n => [n.id, n]));
+        return { ...prev, items: childOrder.map(id => map[id]).filter(Boolean) };
+      }
+      return {
+        ...prev,
+        items: updateNodeInTree(prev.items, parentId, node => {
+          const map = Object.fromEntries(node.children.map(n => [n.id, n]));
+          return { ...node, children: childOrder.map(id => map[id]).filter(Boolean) };
+        }),
+      };
     });
+
     try {
       const res = await fetch('/api/tasks/reorder', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phaseOrder }),
+        body: JSON.stringify({ parentId, childOrder }),
       });
       if (!res.ok) throw new Error('Server error');
       showSaveStatus('saved');
     } catch (err) {
       showSaveStatus('failed');
-      fetch('/api/tasks').then(r => r.json()).then(d => setData(d)).catch(() => {});
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
     }
   };
 
-  const handleReorderTasks = async (phaseId, taskOrder) => {
-    setData(prev => ({
-      ...prev,
-      phases: prev.phases.map(p => {
-        if (p.id !== phaseId) return p;
-        const taskMap = Object.fromEntries(p.tasks.map(t => [t.id, t]));
-        return { ...p, tasks: taskOrder.map(id => taskMap[id]).filter(Boolean) };
-      }),
-    }));
+  const handleSplitNode = async (nodeId) => {
     try {
-      const res = await fetch('/api/tasks/reorder', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskOrders: { [phaseId]: taskOrder } }),
-      });
+      const res = await fetch(`/api/tasks/node/${nodeId}/split`, { method: 'POST' });
       if (!res.ok) throw new Error('Server error');
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
       showSaveStatus('saved');
     } catch (err) {
       showSaveStatus('failed');
-      fetch('/api/tasks').then(r => r.json()).then(d => setData(d)).catch(() => {});
     }
   };
 
@@ -414,11 +399,7 @@ export default function App() {
     }
   };
 
-  // ─── Historical snapshot handlers ────────────────────────────────────────────
-
-  const handleReturnToCurrent = () => {
-    setHistoricalSnapshot(null);
-  };
+  const handleReturnToCurrent = () => setHistoricalSnapshot(null);
 
   const handleMakeCurrent = async () => {
     if (!historicalSnapshot) return;
@@ -441,8 +422,6 @@ export default function App() {
     }
   };
 
-  // ─── PDF export ──────────────────────────────────────────────────────────────
-
   const handleExportPdf = async () => {
     setExporting(true);
     try {
@@ -453,8 +432,6 @@ export default function App() {
       ]);
 
       const displayData = historicalSnapshot ? historicalSnapshot.tasks : data;
-
-      // Capture the gantt body element
       const ganttBody = document.querySelector('.gantt-body');
       if (!ganttBody) throw new Error('Gantt element not found');
 
@@ -471,7 +448,6 @@ export default function App() {
       const margin = 12;
       const contentW = pageW - margin * 2;
 
-      // Header
       const exportDate = new Date().toLocaleDateString(undefined, {
         year: 'numeric', month: 'long', day: 'numeric',
       });
@@ -482,30 +458,16 @@ export default function App() {
       doc.setTextColor(120, 120, 120);
       doc.text(`Exported ${exportDate}`, margin, margin + 11);
 
-      // Gantt chart image
       const imgW = contentW;
       const imgH = Math.min((canvas.height / canvas.width) * imgW, pageH * 0.45);
       doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', margin, margin + 16, imgW, imgH);
 
-      // Task table
       const tableTop = margin + 16 + imgH + 6;
-      const tableRows = [];
-      for (const phase of displayData.phases) {
-        tableRows.push([{ content: phase.name, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [30, 36, 51] } }]);
-        for (const task of phase.tasks) {
-          tableRows.push([
-            '',
-            task.name,
-            task.start || '',
-            task.milestone ? task.start : (task.end || ''),
-            task.done ? '✓' : '',
-          ]);
-        }
-      }
+      const tableRows = buildPdfRows(displayData.items || []);
 
       autoTable(doc, {
         startY: tableTop,
-        head: [['Phase', 'Task', 'Start', 'End', 'Status']],
+        head: [['Group', 'Item', 'Start', 'End', 'Status']],
         body: tableRows,
         margin: { left: margin, right: margin },
         styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak' },
@@ -534,17 +496,9 @@ export default function App() {
     }
   };
 
-  // Find the item being edited
   const getEditItem = () => {
     if (!editTarget || !data) return null;
-    if (editTarget.type === 'phase') {
-      return data.phases.find(p => p.id === editTarget.id) || null;
-    }
-    for (const phase of data.phases) {
-      const task = phase.tasks.find(t => t.id === editTarget.id);
-      if (task) return task;
-    }
-    return null;
+    return findNodeInTree(data.items, editTarget.id) || null;
   };
 
   const handleUiStateChange = useCallback((nextUiState) => {
@@ -567,21 +521,8 @@ export default function App() {
     if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="app-loading">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="app-error">
-        <p>{error}</p>
-      </div>
-    );
-  }
+  if (loading) return <div className="app-loading"><p>Loading...</p></div>;
+  if (error) return <div className="app-error"><p>{error}</p></div>;
 
   const isHistorical = !!historicalSnapshot;
   const displayData = isHistorical ? historicalSnapshot.tasks : data;
@@ -593,17 +534,17 @@ export default function App() {
         <div className="top-bar-left">
           <span className="app-title">Gantt</span>
           {!isHistorical && (
-            <button className="btn btn-primary" onClick={handleAddPhase}>
-              + Add Phase
+            <button className="btn btn-primary" onClick={handleAddGroup}>
+              + Add Group
             </button>
           )}
         </div>
         <div className="top-bar-right">
           {saveStatus === 'saved' && (
-            <span className="save-indicator saved">Saved ✓</span>
+            <span className="save-indicator saved">Saved &#10003;</span>
           )}
           {saveStatus === 'failed' && (
-            <span className="save-indicator failed">Save failed ✗</span>
+            <span className="save-indicator failed">Save failed &#10007;</span>
           )}
           {gitDirty && !isHistorical && (
             <button
@@ -611,7 +552,7 @@ export default function App() {
               onClick={() => setShowHistoryPanel(true)}
               title="Planning data or GUI state has uncommitted changes — click to view history"
             >
-              ● Uncommitted changes
+              &#9679; Uncommitted changes
             </button>
           )}
           <button
@@ -627,7 +568,7 @@ export default function App() {
             disabled={exporting}
             title="Export as PDF"
           >
-            {exporting ? 'Generating PDF…' : 'Export PDF'}
+            {exporting ? 'Generating PDF\u2026' : 'Export PDF'}
           </button>
           {calendarStatus.connected ? (
             <div className="calendar-status connected">
@@ -650,18 +591,17 @@ export default function App() {
         </div>
       </header>
 
-      {/* Snapshot warning banner */}
       {isHistorical && (
         <div className="snapshot-banner">
-          <span className="snapshot-banner-icon">⚠</span>
+          <span className="snapshot-banner-icon">&#9888;</span>
           <span className="snapshot-banner-text">
             You are viewing a snapshot from{' '}
             <strong>{new Date(historicalSnapshot.date).toLocaleString(undefined, {
               month: 'short', day: 'numeric', year: 'numeric',
               hour: '2-digit', minute: '2-digit',
             })}</strong>
-            {historicalSnapshot.message ? ` — "${historicalSnapshot.message}"` : ''}
-            {' '}— this is not your current data. Changes are disabled.
+            {historicalSnapshot.message ? ` \u2014 "${historicalSnapshot.message}"` : ''}
+            {' '}\u2014 this is not your current data. Changes are disabled.
           </span>
           <button className="btn btn-small snapshot-banner-btn-return" onClick={handleReturnToCurrent}>
             Return to current
@@ -679,15 +619,18 @@ export default function App() {
             uiState={displayUiState}
             calendarEvents={calendarEvents}
             calendarConnected={calendarStatus.connected}
-            onTaskClick={(taskId) => !isHistorical && setEditTarget({ type: 'task', id: taskId })}
-            onPhaseClick={(phaseId) => !isHistorical && setEditTarget({ type: 'phase', id: phaseId })}
-            onAddTask={handleAddTask}
-            onTaskUpdate={handleSaveTask}
-            onPhaseUpdate={handleSavePhase}
+            onNodeClick={(nodeId) => {
+              if (isHistorical) return;
+              const node = findNodeInTree(displayData.items, nodeId);
+              if (node) setEditTarget({ type: node.type, id: nodeId });
+            }}
+            onAddChild={handleAddChild}
+            onNodeUpdate={handleSaveNode}
+            onDeleteNode={handleDeleteNode}
+            onSplitNode={handleSplitNode}
             onSaveStatus={showSaveStatus}
             onCalendarSetup={() => setShowCalendarSetup(true)}
-            onReorderPhases={handleReorderPhases}
-            onReorderTasks={handleReorderTasks}
+            onReorder={handleReorder}
             onUiStateChange={!isHistorical ? handleUiStateChange : undefined}
             readonly={isHistorical}
           />
@@ -708,14 +651,8 @@ export default function App() {
           item={getEditItem()}
           type={editTarget.type}
           phaseColors={PHASE_COLORS}
-          onSave={(updates) => {
-            if (editTarget.type === 'task') handleSaveTask(editTarget.id, updates);
-            else handleSavePhase(editTarget.id, updates);
-          }}
-          onDelete={() => {
-            if (editTarget.type === 'task') handleDeleteTask(editTarget.id);
-            else handleDeletePhase(editTarget.id);
-          }}
+          onSave={(updates) => handleSaveNode(editTarget.id, updates)}
+          onDelete={() => handleDeleteNode(editTarget.id)}
           onClose={() => setEditTarget(null)}
         />
       )}
@@ -723,7 +660,27 @@ export default function App() {
       {showHistoryPanel && (
         <HistoryPanel
           onClose={() => setShowHistoryPanel(false)}
-          onViewSnapshot={setHistoricalSnapshot}
+          onViewSnapshot={(snapshot) => {
+            // Auto-migrate v1 snapshots for display
+            if (snapshot?.tasks && !snapshot.tasks.version && Array.isArray(snapshot.tasks.phases)) {
+              snapshot = {
+                ...snapshot,
+                tasks: {
+                  version: 2,
+                  items: snapshot.tasks.phases.map(phase => {
+                    const { tasks, ...rest } = phase;
+                    return {
+                      ...rest,
+                      type: 'group',
+                      prefix: phase.prefix !== undefined ? phase.prefix : 'WP',
+                      children: (tasks || []).map(t => ({ ...t, type: 'task', children: [] })),
+                    };
+                  }),
+                },
+              };
+            }
+            setHistoricalSnapshot(snapshot);
+          }}
           gitDirty={gitDirty}
           onCommitted={refreshGitStatus}
         />

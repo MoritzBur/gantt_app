@@ -92,11 +92,13 @@ router.post('/commit', (req, res) => {
 router.post('/restore', (req, res) => {
   const tasks = req.body?.tasks;
   const state = req.body?.state;
-  if (!tasks || !Array.isArray(tasks.phases)) {
-    return res.status(400).json({ error: 'Invalid tasks payload: expected { tasks: { phases: [...] } }' });
+  if (!tasks || (!Array.isArray(tasks.items) && !Array.isArray(tasks.phases))) {
+    return res.status(400).json({ error: 'Invalid tasks payload' });
   }
+  // Auto-migrate v1 snapshots
+  const migratedTasks = tasks.version === 2 ? tasks : store.migrateV1toV2(tasks);
   try {
-    store.writeTasks(tasks);
+    store.writeTasks(migratedTasks);
     if (state) store.writeUiState(state);
     res.json({ ok: true });
   } catch (err) {

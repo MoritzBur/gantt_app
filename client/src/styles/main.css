@@ -373,7 +373,7 @@ a:hover {
 }
 
 .gantt-add-task-row {
-  cursor: pointer;
+  cursor: default;
 }
 
 .gantt-add-task-row:hover {
@@ -525,14 +525,66 @@ a:hover {
 .add-task-btn {
   font-size: 12px;
   color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
 }
 
-.gantt-add-task-row:hover .add-task-btn {
+.add-task-btn:hover {
   color: var(--accent);
+  background: rgba(74, 144, 217, 0.1);
+}
+
+.add-group-btn {
+  margin-left: 4px;
 }
 
 .muted {
   color: var(--text-muted);
+}
+
+/* ─── Context menu ─────────────────────────────────────────────────────────── */
+
+.context-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 0;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.context-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.context-menu-item:hover {
+  background: var(--bg-row-hover);
+}
+
+.context-menu-item.danger {
+  color: var(--danger);
+}
+
+.context-menu-item.danger:hover {
+  background: rgba(231, 76, 60, 0.12);
+}
+
+.context-menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
 }
 
 /* ─── List resize handle ────────────────────────────────────────────────────── */

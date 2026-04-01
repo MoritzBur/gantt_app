@@ -30,7 +30,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
 
   if (!item || !form) return null;
 
-  const phaseDatesLocked = type === 'phase' && item.tasks && item.tasks.length > 0;
+  const groupDatesLocked = type === 'group' && item.children && item.children.length > 0;
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -42,6 +42,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
       ? { name: form.name, start: form.start, end: isMilestone ? form.start : form.end, done: form.done, notes: form.notes, milestone: isMilestone }
       : { name: form.name, start: form.start, end: form.end, color: form.color, prefix: form.prefix ?? 'WP' }
     );
+    // type === 'group' uses same fields as old 'phase'
     onClose();
   };
 
@@ -58,7 +59,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
       <div className="modal" ref={modalRef} role="dialog" aria-modal="true">
         <div className="modal-header">
           <h2 className="modal-title">
-            {type === 'phase' ? 'Edit Phase' : 'Edit Task'}
+            {type === 'group' ? 'Edit Group' : 'Edit Task'}
           </h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
@@ -109,27 +110,27 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
               <div className="form-group">
                 <label className="form-label">
                   Start date
-                  {phaseDatesLocked && <span className="form-label-note"> — set by tasks</span>}
+                  {groupDatesLocked && <span className="form-label-note"> — set by tasks</span>}
                 </label>
                 <input
                   className="form-input form-input-date"
                   type="date"
                   value={form.start || ''}
-                  disabled={phaseDatesLocked}
+                  disabled={groupDatesLocked}
                   onChange={(e) => handleChange('start', e.target.value)}
                 />
               </div>
               <div className="form-group">
                 <label className="form-label">
                   End date
-                  {phaseDatesLocked && <span className="form-label-note"> — set by tasks</span>}
+                  {groupDatesLocked && <span className="form-label-note"> — set by tasks</span>}
                 </label>
                 <input
                   className="form-input form-input-date"
                   type="date"
                   value={form.end || ''}
                   min={form.start || ''}
-                  disabled={phaseDatesLocked}
+                  disabled={groupDatesLocked}
                   onChange={(e) => handleChange('end', e.target.value)}
                 />
               </div>
@@ -137,7 +138,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
           )}
 
           {/* Phase prefix */}
-          {type === 'phase' && (
+          {type === 'group' && (
             <div className="form-group">
               <label className="form-label">Prefix</label>
               <div className="prefix-picker">
@@ -163,7 +164,7 @@ export default function TaskEditor({ item, type, onSave, onDelete, onClose }) {
           )}
 
           {/* Phase color picker */}
-          {type === 'phase' && (
+          {type === 'group' && (
             <div className="form-group">
               <label className="form-label">Color</label>
               <div className="color-picker">
