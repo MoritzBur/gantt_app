@@ -64,6 +64,16 @@ function buildEvenlyDistributedSubtasks(node, names) {
   });
 }
 
+function shiftNodeTree(node, daysDelta) {
+  if (node.start) {
+    node.start = formatDate(addDays(parseDate(node.start), daysDelta));
+  }
+  if (node.end) {
+    node.end = formatDate(addDays(parseDate(node.end || node.start), daysDelta));
+  }
+  (node.children || []).forEach((child) => shiftNodeTree(child, daysDelta));
+}
+
 function readData() {
   return store.readTasks();
 }
@@ -169,10 +179,27 @@ router.put('/node/:id', (req, res) => {
 
     const node = result.node;
     const updates = req.body;
+    const prevStart = node.start;
+    const prevEnd = node.end;
 
     for (const [key, value] of Object.entries(updates)) {
       if (key === 'id' || key === 'children' || key === 'type') continue;
       node[key] = value;
+    }
+
+    if (
+      node.type === 'group' &&
+      node.children?.length &&
+      updates.start !== undefined &&
+      updates.end !== undefined &&
+      prevStart &&
+      prevEnd
+    ) {
+      const startDelta = diffDays(parseDate(prevStart), parseDate(updates.start));
+      const endDelta = diffDays(parseDate(prevEnd), parseDate(updates.end));
+      if (startDelta === endDelta && startDelta !== 0) {
+        node.children.forEach((child) => shiftNodeTree(child, startDelta));
+      }
     }
 
     if (updates.start !== undefined || updates.end !== undefined) {

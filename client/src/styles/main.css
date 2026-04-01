@@ -865,6 +865,21 @@ a:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 
+.group-drag-hint {
+  position: fixed;
+  z-index: 10030;
+  padding: 6px 10px;
+  border: 1px solid rgba(74, 144, 217, 0.45);
+  border-radius: 8px;
+  background: rgba(22, 27, 34, 0.96);
+  color: var(--text);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.36);
+  backdrop-filter: blur(8px);
+}
+
 .gantt-bar-duration {
   opacity: 0.75;
   font-weight: 400;

@@ -197,6 +197,8 @@ function GanttBar({
   color,
   isReadOnly,
   isLocked,
+  canResize = true,
+  requiresShiftToMove = false,
   isDone,
   isSelected,
   label,
@@ -214,6 +216,8 @@ function GanttBar({
   onMouseEnter,
   onMouseLeave,
   selectionMove,
+  onBlockedMoveAttempt,
+  dragTitle,
 }) {
   const didDragRef = useRef(false);
   const labelRef = useRef(null);
@@ -233,7 +237,15 @@ function GanttBar({
   }, [label, width, duration, labelOutside]);
 
   const handleMouseDown = useCallback((e, mode) => {
-    if (isReadOnly || isLocked) return;
+    if (isReadOnly) return;
+    if (mode !== 'move' && (isLocked || !canResize)) return;
+    if (mode === 'move' && isLocked) return;
+    if (mode === 'move' && requiresShiftToMove && !e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      onBlockedMoveAttempt?.(e);
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
 
@@ -295,7 +307,7 @@ function GanttBar({
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [dayWidth, isLocked, isReadOnly, onDragCommit, onDragStart, selectionMove, taskEnd, taskStart]);
+  }, [canResize, dayWidth, isLocked, isReadOnly, onBlockedMoveAttempt, onDragCommit, onDragStart, requiresShiftToMove, selectionMove, taskEnd, taskStart]);
 
   const showLeftDate = dragState && (dragState.mode === 'resize-left' || dragState.mode === 'move');
   const showRightDate = dragState && (dragState.mode === 'resize-right' || dragState.mode === 'move');
@@ -303,11 +315,13 @@ function GanttBar({
   const liveDuration = duration;
   const labelTooSlim = barHeight <= 16;
   const shouldShowOutsideLabel = !!labelOutside && (!labelFits || labelTooSlim);
+  const moveCursor = noDrag ? 'default' : (requiresShiftToMove ? 'default' : 'grab');
 
   return (
     <div
       className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${hasNotes ? 'has-notes' : ''}`}
       style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight }}
+      title={dragTitle}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
       onContextMenu={(e) => onContextMenu?.(e)}
@@ -315,11 +329,11 @@ function GanttBar({
       onMouseLeave={onMouseLeave}
     >
       {showLeftDate && <div className="drag-date-label drag-date-left">{formatShortDate(dragState.newStart)}</div>}
-      {!noDrag && <div className="gantt-bar-handle left" onMouseDown={(e) => handleMouseDown(e, 'resize-left')} />}
+      {!noDrag && canResize && <div className="gantt-bar-handle left" onMouseDown={(e) => handleMouseDown(e, 'resize-left')} />}
       <div
         className="gantt-bar-inner"
         onMouseDown={(e) => handleMouseDown(e, 'move')}
-        style={{ cursor: noDrag ? 'default' : 'grab' }}
+        style={{ cursor: moveCursor }}
       >
         {label && (
           <span
@@ -332,7 +346,7 @@ function GanttBar({
           >{label}{!labelOutside && <span className="gantt-bar-duration"> ({duration}d{workDays != null && workDays !== duration ? <span className="dur-work"> {workDays}d</span> : null}{netDays != null && netDays !== (workDays ?? duration) ? <span className="dur-net"> {netDays}d</span> : null})</span>}</span>
         )}
       </div>
-      {!noDrag && <div className="gantt-bar-handle right" onMouseDown={(e) => handleMouseDown(e, 'resize-right')} />}
+      {!noDrag && canResize && <div className="gantt-bar-handle right" onMouseDown={(e) => handleMouseDown(e, 'resize-right')} />}
       {showRightDate && <div className="drag-date-label drag-date-right">{formatShortDate(dragState.newEnd)}</div>}
       {labelOutside && label && (
         <div className="gantt-bar-outside-label" style={{ left: showRightDate ? 'calc(100% + 95px)' : 'calc(100% + 8px)' }}>
@@ -536,6 +550,7 @@ export default function GanttView({
   const [hoveredGroup, setHoveredGroup] = useState(null); // { id, start, end, descendants }
   const [selectedTaskIds, setSelectedTaskIds] = useState(() => new Set());
   const [selectionDragDaysDelta, setSelectionDragDaysDelta] = useState(null);
+  const [groupDragHint, setGroupDragHint] = useState(null);
 
   const listRef = useRef(null);
   const timelineRef = useRef(null);
@@ -543,8 +558,13 @@ export default function GanttView({
   const dropIndicatorRef = useRef(null);
   const dataRef = useRef(data);
   const syncSourceRef = useRef(null);
+  const groupDragHintTimerRef = useRef(null);
 
   useEffect(() => { dataRef.current = data; }, [data]);
+
+  useEffect(() => () => {
+    if (groupDragHintTimerRef.current) clearTimeout(groupDragHintTimerRef.current);
+  }, []);
 
   useEffect(() => {
     const validTaskIds = new Set();
@@ -656,6 +676,19 @@ export default function GanttView({
       end: node.end,
       descendants: collectDescendantIds(node),
     });
+  }, []);
+
+  const showGroupDragHint = useCallback((event) => {
+    if (groupDragHintTimerRef.current) clearTimeout(groupDragHintTimerRef.current);
+    setGroupDragHint({
+      x: event.clientX + 14,
+      y: event.clientY + 18,
+      message: 'Hold Shift to drag this group',
+    });
+    groupDragHintTimerRef.current = setTimeout(() => {
+      setGroupDragHint(null);
+      groupDragHintTimerRef.current = null;
+    }, 1400);
   }, []);
 
   // ─── List resize ──────────────────────────────────────────────────────────
@@ -1113,7 +1146,9 @@ export default function GanttView({
                         dayWidth={dayWidth}
                         color={row.color}
                         isReadOnly={readonly}
-                        isLocked={hasChildren}
+                        isLocked={false}
+                        canResize={false}
+                        requiresShiftToMove={true}
                         isDone={false}
                         label={getNodeLabel(row.node, row.numberPath)}
                         barHeight={depthBarHeight(row.depth)}
@@ -1126,6 +1161,8 @@ export default function GanttView({
                         onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                         onMouseEnter={() => setHoveredGroupNode(row.node)}
                         onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
+                        onBlockedMoveAttempt={showGroupDragHint}
+                        dragTitle={hasChildren ? 'Hold Shift to drag group' : 'Hold Shift to drag this group'}
                       />
                     </div>
                   );
@@ -1228,6 +1265,15 @@ export default function GanttView({
           items={buildContextMenuItems()}
           onClose={() => setContextMenu(null)}
         />
+      )}
+
+      {groupDragHint && (
+        <div
+          className="group-drag-hint"
+          style={{ left: groupDragHint.x, top: groupDragHint.y }}
+        >
+          {groupDragHint.message}
+        </div>
       )}
     </div>
   );
