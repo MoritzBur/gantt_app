@@ -313,6 +313,43 @@ export default function App() {
     }
   };
 
+  const handleDeleteNodes = async (nodeIds) => {
+    try {
+      await Promise.all(nodeIds.map((nodeId) => fetch(`/api/tasks/node/${nodeId}`, { method: 'DELETE' })));
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
+      showSaveStatus('saved');
+      setEditTarget(null);
+    } catch (err) {
+      showSaveStatus('failed');
+    }
+  };
+
+  const handleSaveNodes = async (updatesByNodeId) => {
+    setData(prev => ({
+      ...prev,
+      items: updatesByNodeId.reduce(
+        (items, { nodeId, updates }) => updateNodeInTree(items, nodeId, node => ({ ...node, ...updates })),
+        prev.items,
+      ),
+    }));
+
+    try {
+      await Promise.all(updatesByNodeId.map(({ nodeId, updates }) => fetch(`/api/tasks/node/${nodeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      })));
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
+      showSaveStatus('saved');
+    } catch (err) {
+      showSaveStatus('failed');
+      const dataRes = await fetch('/api/tasks');
+      if (dataRes.ok) setData(await dataRes.json());
+    }
+  };
+
   const handleReorder = async (parentId, childOrder) => {
     // Optimistic update
     setData(prev => {
@@ -628,7 +665,9 @@ export default function App() {
               setQuickBatchTarget({ id: nodeId, ...position });
             }}
             onNodeUpdate={handleSaveNode}
+            onNodeBulkUpdate={handleSaveNodes}
             onDeleteNode={handleDeleteNode}
+            onDeleteNodes={handleDeleteNodes}
             onSplitNode={handleSplitNode}
             onSaveStatus={showSaveStatus}
             onCalendarSetup={() => setShowCalendarSetup(true)}

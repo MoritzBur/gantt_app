@@ -486,6 +486,11 @@ a:hover {
   opacity: 0.65;
 }
 
+.gantt-task-row.selected {
+  background: rgba(74, 144, 217, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(74, 144, 217, 0.45);
+}
+
 .phase-task-count {
   font-size: 11px;
   font-family: var(--font-mono);
@@ -742,6 +747,10 @@ a:hover {
   background: rgba(255, 255, 255, 0.02);
 }
 
+.gantt-timeline-row.selected {
+  background: rgba(74, 144, 217, 0.08);
+}
+
 .gantt-timeline-row.empty-row {
   background: transparent;
 }
@@ -795,6 +804,11 @@ a:hover {
   box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px rgba(220, 70, 50, 0.75);
   opacity: 1 !important;
   z-index: 3 !important;
+}
+
+.gantt-bar.selected {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 4px rgba(74, 144, 217, 0.45);
+  z-index: 4;
 }
 
 /* Dog-ear note indicator — folded corner in the top-right of the bar */
@@ -961,6 +975,10 @@ a:hover {
 
 .milestone-marker.done {
   opacity: 0.5;
+}
+
+.milestone-marker.selected .milestone-diamond {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 4px rgba(74, 144, 217, 0.45);
 }
 
 .milestone-diamond {

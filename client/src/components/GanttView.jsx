@@ -187,14 +187,41 @@ function rgbaFromHex(hexColor, alpha) {
 
 // ─── Gantt bar ──────────────────────────────────────────────────────────────
 
-function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragStart, onDragCommit, onClick, onDoubleClick, onContextMenu, onMouseEnter, onMouseLeave }) {
+function GanttBar({
+  startDate,
+  taskStart,
+  taskEnd,
+  previewStart,
+  previewEnd,
+  dayWidth,
+  color,
+  isReadOnly,
+  isLocked,
+  isDone,
+  isSelected,
+  label,
+  barHeight,
+  labelOutside,
+  isActive,
+  workDays,
+  netDays,
+  hasNotes,
+  onDragStart,
+  onDragCommit,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+  onMouseEnter,
+  onMouseLeave,
+  selectionMove,
+}) {
   const didDragRef = useRef(false);
   const labelRef = useRef(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const [dragState, setDragState] = useState(null);
   const [labelFits, setLabelFits] = useState(true);
-  const displayStart = dragState?.newStart || taskStart;
-  const displayEnd = dragState?.newEnd || taskEnd;
+  const displayStart = dragState?.newStart || previewStart || taskStart;
+  const displayEnd = dragState?.newEnd || previewEnd || taskEnd;
   const startOffset = diffDays(startDate, parseDate(displayStart));
   const duration = diffDays(parseDate(displayStart), parseDate(displayEnd)) + 1;
   const left = startOffset * dayWidth;
@@ -216,6 +243,8 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
     const origEnd = taskEnd;
     let nextStart = origStart;
     let nextEnd = origEnd;
+    const useSelectionMove = mode === 'move' && selectionMove;
+    let selectionDelta = 0;
 
     const onMouseMove = (ev) => {
       const dx = ev.clientX - startX;
@@ -225,6 +254,12 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
       if (!didDragRef.current) {
         didDragRef.current = true;
         onDragStart?.();
+      }
+
+      if (useSelectionMove) {
+        selectionDelta = daysDelta;
+        selectionMove.onPreview(daysDelta);
+        return;
       }
 
       let newStart = origStart;
@@ -249,13 +284,18 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      setDragState(null);
-      if (didDragRef.current) onDragCommit?.(nextStart, nextEnd);
+      if (useSelectionMove) {
+        selectionMove.onPreview(null);
+        if (didDragRef.current) selectionMove.onCommit(selectionDelta);
+      } else {
+        setDragState(null);
+        if (didDragRef.current) onDragCommit?.(nextStart, nextEnd);
+      }
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [dayWidth, isLocked, isReadOnly, onDragCommit, onDragStart, taskEnd, taskStart]);
+  }, [dayWidth, isLocked, isReadOnly, onDragCommit, onDragStart, selectionMove, taskEnd, taskStart]);
 
   const showLeftDate = dragState && (dragState.mode === 'resize-left' || dragState.mode === 'move');
   const showRightDate = dragState && (dragState.mode === 'resize-right' || dragState.mode === 'move');
@@ -266,9 +306,9 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
 
   return (
     <div
-      className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''} ${hasNotes ? 'has-notes' : ''}`}
+      className={`gantt-bar ${isReadOnly ? 'readonly' : ''} ${isDone ? 'done' : ''} ${isActive ? 'active' : ''} ${isSelected ? 'selected' : ''} ${hasNotes ? 'has-notes' : ''}`}
       style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight }}
-      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
+      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
       onContextMenu={(e) => onContextMenu?.(e)}
       onMouseEnter={onMouseEnter}
@@ -306,9 +346,26 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
 
 // ─── Milestone marker ───────────────────────────────────────────────────────
 
-function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadOnly, label, diamondPx, onDragStart, onDragCommit, onClick, onContextMenu }) {
+function MilestoneMarker({
+  startDate,
+  taskDate,
+  previewDate,
+  dayWidth,
+  color,
+  isDone,
+  isReadOnly,
+  isSelected,
+  label,
+  diamondPx,
+  onDragStart,
+  onDragCommit,
+  onClick,
+  onDoubleClick,
+  onContextMenu,
+  selectionMove,
+}) {
   const [dragDate, setDragDate] = useState(null);
-  const displayDate = dragDate || taskDate;
+  const displayDate = dragDate || previewDate || taskDate;
   const offset = diffDays(startDate, parseDate(displayDate));
   const left = offset * dayWidth + dayWidth / 2 - diamondPx / 2;
   const didDragRef = useRef(false);
@@ -321,6 +378,8 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadO
     const startX = e.clientX;
     const origDate = taskDate;
     let nextDate = origDate;
+    const useSelectionMove = !!selectionMove;
+    let selectionDelta = 0;
 
     const onMouseMove = (ev) => {
       const daysDelta = Math.round((ev.clientX - startX) / dayWidth);
@@ -328,6 +387,11 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadO
       if (!didDragRef.current) {
         didDragRef.current = true;
         onDragStart?.();
+      }
+      if (useSelectionMove) {
+        selectionDelta = daysDelta;
+        selectionMove.onPreview(daysDelta);
+        return;
       }
       const newDate = formatDate(addDays(parseDate(origDate), daysDelta));
       nextDate = newDate;
@@ -337,20 +401,26 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadO
     const onMouseUp = () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
-      setDragDate(null);
-      if (didDragRef.current) onDragCommit?.(nextDate, nextDate);
+      if (useSelectionMove) {
+        selectionMove.onPreview(null);
+        if (didDragRef.current) selectionMove.onCommit(selectionDelta);
+      } else {
+        setDragDate(null);
+        if (didDragRef.current) onDragCommit?.(nextDate, nextDate);
+      }
     };
 
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
-  }, [dayWidth, isReadOnly, onDragCommit, onDragStart, taskDate]);
+  }, [dayWidth, isReadOnly, onDragCommit, onDragStart, selectionMove, taskDate]);
 
   return (
     <div
-      className={`milestone-marker ${isDone ? 'done' : ''}`}
+      className={`milestone-marker ${isDone ? 'done' : ''} ${isSelected ? 'selected' : ''}`}
       style={{ left, cursor: isReadOnly ? 'default' : 'grab' }}
       onMouseDown={handleMouseDown}
-      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
+      onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
+      onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
       onContextMenu={(e) => onContextMenu?.(e)}
     >
       <div className="milestone-diamond" style={{ backgroundColor: color, width: diamondPx, height: diamondPx }} />
@@ -446,7 +516,9 @@ export default function GanttView({
   onAddChild,
   onQuickBatchCreate,
   onNodeUpdate,
+  onNodeBulkUpdate,
   onDeleteNode,
+  onDeleteNodes,
   onSplitNode,
   onSaveStatus,
   onReorder,
@@ -462,6 +534,8 @@ export default function GanttView({
   const [listWidth, setListWidth] = useState(Number.isFinite(uiState?.listWidth) ? uiState.listWidth : 260);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, target: 'node'|'root', node?, depth? }
   const [hoveredGroup, setHoveredGroup] = useState(null); // { id, start, end, descendants }
+  const [selectedTaskIds, setSelectedTaskIds] = useState(() => new Set());
+  const [selectionDragDaysDelta, setSelectionDragDaysDelta] = useState(null);
 
   const listRef = useRef(null);
   const timelineRef = useRef(null);
@@ -471,6 +545,21 @@ export default function GanttView({
   const syncSourceRef = useRef(null);
 
   useEffect(() => { dataRef.current = data; }, [data]);
+
+  useEffect(() => {
+    const validTaskIds = new Set();
+    const collectTaskIds = (nodes) => {
+      nodes.forEach((node) => {
+        if (node.type === 'task') validTaskIds.add(node.id);
+        if (node.children?.length) collectTaskIds(node.children);
+      });
+    };
+    collectTaskIds(data.items || []);
+    setSelectedTaskIds((current) => {
+      const next = new Set([...current].filter((id) => validTaskIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [data]);
 
   useEffect(() => {
     if (!uiState) return;
@@ -523,6 +612,41 @@ export default function GanttView({
   const handleNodeDrag = useCallback(async (nodeId, newStart, newEnd) => {
     onNodeUpdate(nodeId, { start: newStart, end: newEnd });
   }, [onNodeUpdate]);
+
+  const clearTaskSelection = useCallback(() => {
+    setSelectionDragDaysDelta(null);
+    setSelectedTaskIds(new Set());
+  }, []);
+
+  const selectTask = useCallback((nodeId, additive) => {
+    setSelectionDragDaysDelta(null);
+    setSelectedTaskIds((current) => {
+      if (!additive) return new Set([nodeId]);
+      const next = new Set(current);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
+  const commitSelectionDrag = useCallback((daysDelta) => {
+    if (daysDelta == null || daysDelta === 0) return;
+    const updatesByNodeId = [...selectedTaskIds]
+      .map((selectedId) => {
+        const node = findNodeById(items, selectedId);
+        if (!node) return null;
+        return {
+          nodeId: selectedId,
+          updates: {
+            start: formatDate(addDays(parseDate(node.start), daysDelta)),
+            end: formatDate(addDays(parseDate(node.end || node.start), daysDelta)),
+          },
+        };
+      })
+      .filter(Boolean);
+    setSelectionDragDaysDelta(null);
+    if (updatesByNodeId.length > 0) onNodeBulkUpdate?.(updatesByNodeId);
+  }, [items, onNodeBulkUpdate, selectedTaskIds]);
 
   const setHoveredGroupNode = useCallback((node) => {
     if (!node || node.type !== 'group') return;
@@ -639,8 +763,11 @@ export default function GanttView({
     if (readonly) return;
     e.preventDefault();
     e.stopPropagation();
+    if (node.type === 'task' && !selectedTaskIds.has(node.id)) {
+      setSelectedTaskIds(new Set([node.id]));
+    }
     setContextMenu({ x: e.clientX, y: e.clientY, target: 'node', node, depth });
-  }, [readonly]);
+  }, [readonly, selectedTaskIds]);
 
   const handleRootContextMenu = useCallback((e) => {
     if (readonly) return;
@@ -681,6 +808,7 @@ export default function GanttView({
       items.push({ label: 'Delete', action: () => onDeleteNode(node.id), danger: true });
     } else {
       // task
+      const hasSelectedTasks = selectedTaskIds.size > 1 && selectedTaskIds.has(node.id);
       if (depth < MAX_UI_DEPTH - 1 && !node.milestone) {
         items.push({
           label: 'Batch create subtasks',
@@ -696,12 +824,22 @@ export default function GanttView({
         label: node.done ? 'Mark as not done' : 'Mark as done',
         action: () => onNodeUpdate(node.id, { done: !node.done }),
       });
+      if (hasSelectedTasks) {
+        items.push({
+          label: `Delete selected tasks (${selectedTaskIds.size})`,
+          action: () => {
+            onDeleteNodes?.([...selectedTaskIds]);
+            clearTaskSelection();
+          },
+          danger: true,
+        });
+      }
       items.push({ label: 'Edit', action: () => onNodeClick(node.id) });
       items.push({ label: 'Delete', action: () => onDeleteNode(node.id), danger: true });
     }
 
     return items;
-  }, [contextMenu, onAddChild, onNodeClick, onNodeUpdate, onDeleteNode, onQuickBatchCreate, onSplitNode]);
+  }, [clearTaskSelection, contextMenu, onAddChild, onDeleteNode, onDeleteNodes, onNodeClick, onNodeUpdate, onQuickBatchCreate, onSplitNode, selectedTaskIds]);
 
   useEffect(() => {
     const listEl = listRef.current;
@@ -790,8 +928,9 @@ export default function GanttView({
           className="gantt-list"
           style={{ width: listWidth, minWidth: listWidth }}
           onContextMenu={handleRootContextMenu}
+          onClick={(e) => { if (e.target === e.currentTarget) clearTaskSelection(); }}
         >
-          <div className="gantt-list-header">Tasks</div>
+          <div className="gantt-list-header" onClick={clearTaskSelection}>Tasks</div>
 
           {rows.map((row) => {
             if (row.rowType === 'group') {
@@ -810,7 +949,8 @@ export default function GanttView({
                     data-parent-id={parentId || ''}
                     className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.color}`, paddingLeft: row.depth * INDENT_PX }}
-                    onClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
+                    onClick={clearTaskSelection}
+                    onDoubleClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
                     onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                     onMouseEnter={() => setHoveredGroupNode(row.node)}
                     onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
@@ -850,6 +990,7 @@ export default function GanttView({
                 dropIndicator?.insertBeforeId === row.node.id &&
                 draggingItem?.nodeId !== row.node.id;
               const parentId = findParentId(items, row.node.id);
+              const isSelected = selectedTaskIds.has(row.node.id);
 
               return (
                 <React.Fragment key={row.key}>
@@ -857,9 +998,10 @@ export default function GanttView({
                   <div
                     data-row-id={row.node.id}
                     data-parent-id={parentId || ''}
-                    className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
+                    className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${isSelected ? ' selected' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX }}
-                    onClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
+                    onClick={(e) => !readonly && !draggingItem && selectTask(row.node.id, e.shiftKey)}
+                    onDoubleClick={() => !readonly && !draggingItem && onNodeClick(row.node.id)}
                     onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                   >
                     <span className="task-indent" />
@@ -948,7 +1090,13 @@ export default function GanttView({
                     : null;
                   const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   return (
-                    <div key={row.key} className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`} style={rowStyle}>
+                    <div
+                      key={row.key}
+                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`}
+                      style={rowStyle}
+                      onClick={clearTaskSelection}
+                      onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
+                    >
                       {descendantHighlighted && hoveredGroup?.start && hoveredGroup?.end && (
                         <div
                           className="descendant-range-highlight"
@@ -973,7 +1121,8 @@ export default function GanttView({
                         workDays={pDays?.work}
                         netDays={pDays?.net}
                         onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
-                        onClick={() => onNodeClick(row.node.id)}
+                        onClick={clearTaskSelection}
+                        onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
                         onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                         onMouseEnter={() => setHoveredGroupNode(row.node)}
                         onMouseLeave={() => setHoveredGroup((current) => (current?.id === row.node.id ? null : current))}
@@ -989,8 +1138,26 @@ export default function GanttView({
                     ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
                     : null;
                   const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
+                  const isSelected = selectedTaskIds.has(row.node.id);
+                  const previewStart = isSelected && selectionDragDaysDelta != null
+                    ? formatDate(addDays(parseDate(row.node.start), selectionDragDaysDelta))
+                    : null;
+                  const previewEnd = isSelected && selectionDragDaysDelta != null
+                    ? formatDate(addDays(parseDate(row.node.end || row.node.start), selectionDragDaysDelta))
+                    : null;
+                  const selectionMove = !readonly && selectedTaskIds.size > 1 && isSelected
+                    ? {
+                        onPreview: setSelectionDragDaysDelta,
+                        onCommit: commitSelectionDrag,
+                      }
+                    : null;
                   return (
-                    <div key={row.key} className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}`} style={rowStyle}>
+                    <div
+                      key={row.key}
+                      className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}${isSelected ? ' selected' : ''}`}
+                      style={rowStyle}
+                      onClick={clearTaskSelection}
+                    >
                       {descendantHighlighted && hoveredGroup?.start && hoveredGroup?.end && (
                         <div
                           className="descendant-range-highlight"
@@ -1004,24 +1171,31 @@ export default function GanttView({
                         ? <MilestoneMarker
                             startDate={rangeStart}
                             taskDate={row.node.start}
+                            previewDate={previewStart}
                             dayWidth={dayWidth}
                             color={taskColor}
                             isDone={row.node.done}
                             isReadOnly={readonly}
+                            isSelected={isSelected}
                             label={taskLabel}
                             diamondPx={depthDiamondPx(row.depth)}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
-                            onClick={() => !readonly && onNodeClick(row.node.id)}
+                            onClick={(e) => !readonly && selectTask(row.node.id, e.shiftKey)}
+                            onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
                             onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                            selectionMove={selectionMove}
                           />
                         : <GanttBar
                             startDate={rangeStart}
                             taskStart={row.node.start}
                             taskEnd={row.node.end}
+                            previewStart={previewStart}
+                            previewEnd={previewEnd}
                             dayWidth={dayWidth}
                             color={taskColor}
                             isReadOnly={readonly}
                             isDone={row.node.done}
+                            isSelected={isSelected}
                             label={taskLabel}
                             barHeight={depthBarHeight(row.depth)}
                             labelOutside={true}
@@ -1029,8 +1203,10 @@ export default function GanttView({
                             netDays={tDays?.net}
                             hasNotes={!!row.node.notes}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
-                            onClick={() => onNodeClick(row.node.id)}
+                            onClick={(e) => !readonly && selectTask(row.node.id, e.shiftKey)}
+                            onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
                             onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
+                            selectionMove={selectionMove}
                           />
                       }
                     </div>
