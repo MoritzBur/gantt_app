@@ -328,6 +328,8 @@ function collectNoteEntries(data) {
       ].filter(Boolean)));
       const binding = getNoteBinding({ items: data.items }, node.id, { assignDefault: false });
       if (binding?.noteFile && binding.mainPath) {
+        const exists = fs.existsSync(binding.mainPath);
+        const hasContent = exists && fs.readFileSync(binding.mainPath, 'utf8').trim().length > 0;
         notes.push({
           itemId: node.id,
           type: 'main',
@@ -337,7 +339,8 @@ function collectNoteEntries(data) {
           label,
           aliases,
           path: path.relative(FILES.notes, binding.mainPath),
-          exists: fs.existsSync(binding.mainPath),
+          exists,
+          hasContent,
           groupPath: binding.groupPath,
         });
       }

@@ -347,6 +347,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState({ activeWorkspaceId: null, workspaces: [] });
   const [calendarStatus, setCalendarStatus] = useState({ connected: false });
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [noteContentItemIds, setNoteContentItemIds] = useState(() => new Set());
   const [saveStatus, setSaveStatus] = useState(null);
   const [saveTimer, setSaveTimer] = useState(null);
   const [editTarget, setEditTarget] = useState(null); // { type: 'group'|'task', id }
@@ -433,10 +434,11 @@ export default function App() {
   }, []);
 
   const loadAppData = useCallback(async () => {
-    const [tasksRes, stateRes, workspacesRes] = await Promise.all([
+    const [tasksRes, stateRes, workspacesRes, notesRes] = await Promise.all([
       fetch('/api/tasks'),
       fetch('/api/state'),
       fetch('/api/workspaces'),
+      fetch('/api/notes/all'),
     ]);
     if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
     if (!workspacesRes.ok) throw new Error(`Workspace HTTP ${workspacesRes.status}`);
@@ -444,6 +446,7 @@ export default function App() {
     const d = await tasksRes.json();
     const serverState = stateRes.ok ? await stateRes.json() : null;
     const workspacePayload = await workspacesRes.json();
+    const notesPayload = notesRes.ok ? await notesRes.json() : { notes: [] };
     const legacyState = readLegacyUiState();
     const shouldMigrateLegacy = !serverState?._exists;
     const nextUiState = shouldMigrateLegacy
@@ -463,6 +466,11 @@ export default function App() {
     setUiState(nextUiState);
     setError(null);
     setCalendarEvents([]);
+    setNoteContentItemIds(new Set(
+      (Array.isArray(notesPayload.notes) ? notesPayload.notes : [])
+        .filter((note) => note.type === 'main' && note.hasContent)
+        .map((note) => note.itemId)
+    ));
     setWorkspaces({
       activeWorkspaceId: workspacePayload.activeWorkspaceId || null,
       workspaces: Array.isArray(workspacePayload.workspaces) ? workspacePayload.workspaces : [],
@@ -476,6 +484,33 @@ export default function App() {
       }).catch(() => {});
     }
   }, [clearUndoHistory, readLegacyUiState]);
+
+  const refreshNoteContentIndex = useCallback(() => {
+    fetch('/api/notes/all')
+      .then((response) => {
+        if (!response.ok) throw new Error('Failed to load note index');
+        return response.json();
+      })
+      .then((payload) => {
+        setNoteContentItemIds(new Set(
+          (Array.isArray(payload.notes) ? payload.notes : [])
+            .filter((note) => note.type === 'main' && note.hasContent)
+            .map((note) => note.itemId)
+        ));
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleMainNoteContentChange = useCallback((itemId, hasContent) => {
+    if (!itemId) return;
+    setNoteContentItemIds((current) => {
+      const next = new Set(current);
+      if (hasContent) next.add(itemId);
+      else next.delete(itemId);
+      if (next.size === current.size && [...next].every((id) => current.has(id))) return current;
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const load = async (attempt = 0) => {
@@ -513,6 +548,10 @@ export default function App() {
       .then(c => setCalendarConfig(c))
       .catch(() => {});
   }, [workspaces.activeWorkspaceId]);
+
+  useEffect(() => {
+    if (!loading) refreshNoteContentIndex();
+  }, [loading, refreshNoteContentIndex, workspaces.activeWorkspaceId]);
 
   const refreshGitStatus = useCallback(() => {
     fetch('/api/git/status')
@@ -1337,6 +1376,7 @@ export default function App() {
             canRedo={!isHistorical && redoStack.length > 0}
             historyFeedback={historyFeedback}
             activeNoteItemId={activeNoteItemId}
+            noteContentItemIds={noteContentItemIds}
             readonly={isHistorical}
           />
         )}
@@ -1347,6 +1387,7 @@ export default function App() {
             itemMeta={noteItemMeta}
             onPanelStateChange={updateNotePanelState}
             onOpenNote={openNoteTab}
+            onMainNoteContentChange={handleMainNoteContentChange}
           />
         )}
       </main>

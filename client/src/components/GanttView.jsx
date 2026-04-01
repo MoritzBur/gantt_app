@@ -377,6 +377,7 @@ function MilestoneMarker({
   previewDate,
   dayWidth,
   color,
+  hasNotes,
   isDone,
   isReadOnly,
   isSelected,
@@ -442,7 +443,7 @@ function MilestoneMarker({
 
   return (
     <div
-      className={`milestone-marker ${isDone ? 'done' : ''} ${isSelected ? 'selected' : ''} ${isActive ? 'active' : ''}`}
+      className={`milestone-marker ${isDone ? 'done' : ''} ${isSelected ? 'selected' : ''} ${isActive ? 'active' : ''} ${hasNotes ? 'has-notes' : ''}`}
       style={{ left, cursor: isReadOnly ? 'default' : 'grab', '--bar-accent': color }}
       onMouseDown={handleMouseDown}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(e); }}
@@ -613,6 +614,7 @@ export default function GanttView({
   canRedo = false,
   historyFeedback = null,
   activeNoteItemId = null,
+  noteContentItemIds = new Set(),
   readonly = false,
 }) {
   const [zoom, setZoom] = useState(uiState?.zoom && ZOOM_LEVELS[uiState.zoom] ? uiState.zoom : 'Month');
@@ -1377,7 +1379,7 @@ export default function GanttView({
                         label={getNodeLabel(row.node, row.numberPath)}
                         barHeight={depthBarHeight(row.depth)}
                         labelOutside={true}
-                        hasNotes={!!row.node.noteFile}
+                        hasNotes={noteContentItemIds.has(row.node.id)}
                         workDays={pDays?.work}
                         netDays={pDays?.net}
                         onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
@@ -1448,6 +1450,7 @@ export default function GanttView({
                             isReadOnly={readonly}
                             isSelected={isSelected}
                             isActive={isNoteActive}
+                            hasNotes={noteContentItemIds.has(row.node.id)}
                             label={taskLabel}
                             diamondPx={depthDiamondPx(row.depth)}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
@@ -1477,7 +1480,7 @@ export default function GanttView({
                             labelOutside={true}
                             workDays={tDays?.work}
                             netDays={tDays?.net}
-                            hasNotes={!!row.node.noteFile}
+                            hasNotes={noteContentItemIds.has(row.node.id)}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
                             onClick={(e) => {
                               if (readonly) return;

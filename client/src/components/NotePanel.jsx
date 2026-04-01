@@ -35,7 +35,7 @@ function getVisibleTabLabel(tab, meta, cacheEntry) {
   return (cacheEntry?.filename || tab?.filename || 'Untitled').replace(/\.md$/i, '');
 }
 
-export default function NotePanel({ panelState, theme, itemMeta, onPanelStateChange, onOpenNote }) {
+export default function NotePanel({ panelState, theme, itemMeta, onPanelStateChange, onOpenNote, onMainNoteContentChange }) {
   const [noteCache, setNoteCache] = useState({});
   const [allNotes, setAllNotes] = useState([]);
   const [relatedNotes, setRelatedNotes] = useState([]);
@@ -87,6 +87,9 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         return response.json();
       })
       .then((payload) => {
+        if (tab.type === 'main') {
+          onMainNoteContentChange?.(tab.itemId, String(payload.content || '').trim().length > 0);
+        }
         setNoteCache((current) => ({
           ...current,
           [key]: {
@@ -253,6 +256,9 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         return response.json();
       })
       .then((payload) => {
+        if (tab.type === 'main') {
+          onMainNoteContentChange?.(tab.itemId, String(content || '').trim().length > 0);
+        }
         setNoteCache((current) => ({
           ...current,
           [getTabKey(tab)]: {
@@ -278,7 +284,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
           },
         }));
       });
-  }, [refreshAllNotes]);
+  }, [onMainNoteContentChange, refreshAllNotes]);
 
   const handleContentChange = useCallback((tab, content) => {
     const key = getTabKey(tab);
