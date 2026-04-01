@@ -27,6 +27,24 @@
   --list-width:   260px;
   --header-height: 52px;
   --timeline-header-height: 54px;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg:           #f4f6f9;
+  --bg-sidebar:   #ffffff;
+  --bg-row:       #f8fafc;
+  --bg-row-hover: #edf3fb;
+  --bg-elevated:  #ffffff;
+  --border:       #d6dee8;
+  --text:         #1b2533;
+  --text-muted:   #5f6f82;
+  --text-dim:     #8a97a8;
+  --accent:       #3578c8;
+  --danger:       #c43d31;
+  --success:      #1f8f57;
+  --today-line:   #d14b3f;
+  color-scheme: light;
 }
 
 html, body {

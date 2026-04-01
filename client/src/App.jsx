@@ -12,6 +12,11 @@ const PHASE_COLORS = [
 
 const UNDO_STACK_LIMIT = 50;
 
+function getSystemTheme() {
+  if (typeof window === 'undefined' || !window.matchMedia) return 'dark';
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
+
 // ─── Tree helpers (client-side) ──────────────────────────────────────────────
 
 /** Find node by id in recursive tree. Returns node or null. */
@@ -219,12 +224,14 @@ export default function App() {
 
   const readLegacyUiState = useCallback(() => {
     try {
+      const theme = localStorage.getItem('gantt-theme');
       const zoom = localStorage.getItem('gantt-zoom') || 'Month';
       const density = localStorage.getItem('gantt-density') === 'Compact' ? 'Compact' : 'Regular';
       const collapsed = JSON.parse(localStorage.getItem('gantt-collapsed') || '{}');
       const activeCalEvents = JSON.parse(localStorage.getItem('gantt-active-cal-events') || '[]');
       const listWidth = parseInt(localStorage.getItem('gantt-list-width') || '260', 10);
       return {
+        theme: theme === 'light' || theme === 'dark' ? theme : getSystemTheme(),
         zoom,
         density,
         collapsed: collapsed && typeof collapsed === 'object' ? collapsed : {},
@@ -232,7 +239,7 @@ export default function App() {
         listWidth: Number.isFinite(listWidth) ? listWidth : 260,
       };
     } catch {
-      return { zoom: 'Month', density: 'Regular', collapsed: {}, activeCalEvents: [], listWidth: 260 };
+      return { theme: getSystemTheme(), zoom: 'Month', density: 'Regular', collapsed: {}, activeCalEvents: [], listWidth: 260 };
     }
   }, []);
 
@@ -251,6 +258,7 @@ export default function App() {
         const nextUiState = shouldMigrateLegacy
           ? legacyState
           : {
+              theme: serverState.theme === 'light' || serverState.theme === 'dark' ? serverState.theme : legacyState.theme,
               zoom: serverState.zoom,
               density: serverState.density,
               collapsed: serverState.collapsed,
@@ -261,11 +269,11 @@ export default function App() {
         clearUndoHistory();
         setUiState(nextUiState);
         setLoading(false);
-        if (shouldMigrateLegacy) {
+        if (shouldMigrateLegacy || (serverState && serverState.theme !== 'light' && serverState.theme !== 'dark')) {
           fetch('/api/state', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(legacyState),
+            body: JSON.stringify(nextUiState),
           }).catch(() => {});
         }
       } catch (err) {
@@ -279,6 +287,16 @@ export default function App() {
     };
     load();
   }, [clearUndoHistory, readLegacyUiState]);
+
+  useEffect(() => {
+    const theme = (historicalSnapshot?.state?.theme || uiState?.theme || 'dark');
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    return () => {
+      delete document.documentElement.dataset.theme;
+      document.documentElement.style.colorScheme = '';
+    };
+  }, [historicalSnapshot?.state?.theme, uiState?.theme]);
 
   useEffect(() => {
     fetch('/api/calendar/status')
@@ -654,9 +672,10 @@ export default function App() {
       const displayData = historicalSnapshot ? historicalSnapshot.tasks : data;
       const ganttBody = document.querySelector('.gantt-body');
       if (!ganttBody) throw new Error('Gantt element not found');
+      const resolvedBg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#0f1117';
 
       const canvas = await html2canvas.default(ganttBody, {
-        backgroundColor: '#0f1117',
+        backgroundColor: resolvedBg,
         scale: 1.5,
         useCORS: true,
         logging: false,
@@ -773,12 +792,21 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleRedo, handleUndo, historicalSnapshot]);
 
+  const handleThemeToggle = useCallback(() => {
+    const currentTheme = uiState?.theme || 'dark';
+    handleUiStateChange({
+      ...(uiState || {}),
+      theme: currentTheme === 'light' ? 'dark' : 'light',
+    });
+  }, [handleUiStateChange, uiState]);
+
   if (loading) return <div className="app-loading"><p>Loading...</p></div>;
   if (error) return <div className="app-error"><p>{error}</p></div>;
 
   const isHistorical = !!historicalSnapshot;
   const displayData = isHistorical ? historicalSnapshot.tasks : data;
   const displayUiState = isHistorical ? (historicalSnapshot.state || uiState) : uiState;
+  const activeTheme = displayUiState?.theme || uiState?.theme || 'dark';
 
   return (
     <div className="app">
@@ -816,6 +844,14 @@ export default function App() {
             title="Export as PDF"
           >
             {exporting ? 'Generating PDF\u2026' : 'Export PDF'}
+          </button>
+          <button
+            className="btn btn-ghost btn-small"
+            onClick={handleThemeToggle}
+            disabled={isHistorical}
+            title={activeTheme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+          >
+            {activeTheme === 'light' ? 'Dark mode' : 'Light mode'}
           </button>
           {calendarStatus.connected ? (
             <div className="calendar-status connected">

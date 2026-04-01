@@ -98,6 +98,7 @@ function recomputeAncestorBounds(data, nodeId) {
 const DEFAULT_STATE = {
   zoom: 'Month',
   density: 'Regular',
+  theme: 'dark',
   collapsed: {},
   calendarCollapsed: {},
   calendarOrder: [],
@@ -133,6 +134,7 @@ function mergeUiState(raw) {
   if (!raw || typeof raw !== 'object') return next;
   if (typeof raw.zoom === 'string') next.zoom = raw.zoom;
   if (typeof raw.density === 'string') next.density = raw.density;
+  if (raw.theme === 'light' || raw.theme === 'dark') next.theme = raw.theme;
   if (raw.collapsed && typeof raw.collapsed === 'object' && !Array.isArray(raw.collapsed)) {
     next.collapsed = raw.collapsed;
   }
