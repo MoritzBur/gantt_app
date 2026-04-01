@@ -26,6 +26,7 @@
   --row-height:   40px;
   --list-width:   260px;
   --header-height: 52px;
+  --timeline-header-height: 54px;
 }
 
 html, body {
@@ -285,10 +286,13 @@ a:hover {
 }
 
 .gantt-list-header {
-  height: 56px; /* matches timeline header */
+  position: sticky;
+  top: 0;
+  z-index: 11;
+  height: var(--timeline-header-height);
   display: flex;
-  align-items: flex-end;
-  padding: 0 12px 8px;
+  align-items: center;
+  padding: 0 12px;
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -296,6 +300,7 @@ a:hover {
   color: var(--text-muted);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  background: var(--bg-sidebar);
 }
 
 .gantt-row {
@@ -366,18 +371,6 @@ a:hover {
 
 .gantt-task-row {
   padding-left: 0;
-}
-
-.gantt-task-row.done .task-name {
-  color: var(--text-muted);
-}
-
-.gantt-add-task-row {
-  cursor: default;
-}
-
-.gantt-add-task-row:hover {
-  background: var(--bg-row-hover);
 }
 
 .collapse-btn {
@@ -483,6 +476,12 @@ a:hover {
   color: var(--text-muted);
 }
 
+.gantt-task-row.done .item-number,
+.gantt-task-row.done .task-done-indicator,
+.gantt-task-row.done .task-milestone-dot {
+  opacity: 0.65;
+}
+
 .phase-task-count {
   font-size: 11px;
   font-family: var(--font-mono);
@@ -520,23 +519,6 @@ a:hover {
 
 .gantt-task-row:hover .task-dates {
   display: block;
-}
-
-.add-task-btn {
-  font-size: 12px;
-  color: var(--text-dim);
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-
-.add-task-btn:hover {
-  color: var(--accent);
-  background: rgba(74, 144, 217, 0.1);
-}
-
-.add-group-btn {
-  margin-left: 4px;
 }
 
 .muted {

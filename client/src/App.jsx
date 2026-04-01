@@ -242,36 +242,17 @@ export default function App() {
 
   // ─── Node CRUD handlers (unified for groups and tasks) ──────────────────────
 
-  const handleAddGroup = async () => {
-    const today = new Date().toISOString().slice(0, 10);
-    const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-    const colorIdx = data ? data.items.length % PHASE_COLORS.length : 0;
-    try {
-      const res = await fetch('/api/tasks/node', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          parentId: null,
-          type: 'group',
-          name: 'New Group',
-          color: PHASE_COLORS[colorIdx],
-          start: today,
-          end: nextMonth,
-        }),
-      });
-      if (!res.ok) throw new Error('Server error');
-      const newNode = await res.json();
-      setData(prev => ({ ...prev, items: [...prev.items, newNode] }));
-      showSaveStatus('saved');
-      setEditTarget({ type: 'group', id: newNode.id });
-    } catch (err) {
-      showSaveStatus('failed');
-    }
-  };
-
   const handleAddChild = async (parentId, type = 'task') => {
     try {
       const body = { parentId, type, name: type === 'group' ? 'New Group' : 'New Task' };
+      if (type === 'group' && parentId === null) {
+        const today = new Date().toISOString().slice(0, 10);
+        const nextMonth = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        const colorIdx = data ? data.items.length % PHASE_COLORS.length : 0;
+        body.color = PHASE_COLORS[colorIdx];
+        body.start = today;
+        body.end = nextMonth;
+      }
       if (type === 'group' && parentId) {
         const parent = findNodeInTree(data.items, parentId);
         if (parent?.color) body.color = parent.color;
@@ -531,13 +512,8 @@ export default function App() {
   return (
     <div className="app">
       <header className="top-bar">
-        <div className="top-bar-left">
+      <div className="top-bar-left">
           <span className="app-title">Gantt</span>
-          {!isHistorical && (
-            <button className="btn btn-primary" onClick={handleAddGroup}>
-              + Add Group
-            </button>
-          )}
         </div>
         <div className="top-bar-right">
           {saveStatus === 'saved' && (

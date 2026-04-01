@@ -187,7 +187,7 @@ function rgbaFromHex(hexColor, alpha) {
 
 // ─── Gantt bar ──────────────────────────────────────────────────────────────
 
-function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragStart, onDragCommit, onClick, onDoubleClick }) {
+function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, isLocked, isDone, label, barHeight, labelOutside, isActive, workDays, netDays, hasNotes, onDragStart, onDragCommit, onClick, onDoubleClick, onContextMenu }) {
   const didDragRef = useRef(false);
   const labelRef = useRef(null);
   const [tooltipVisible, setTooltipVisible] = useState(false);
@@ -268,6 +268,7 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
       style={{ left, width, backgroundColor: color, zIndex: dragState ? 1000 : tooltipVisible ? 1000 : 2, height: barHeight }}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
       onDoubleClick={(e) => { e.stopPropagation(); if (onDoubleClick) onDoubleClick(); }}
+      onContextMenu={(e) => onContextMenu?.(e)}
     >
       {showLeftDate && <div className="drag-date-label drag-date-left">{formatShortDate(dragState.newStart)}</div>}
       {!noDrag && <div className="gantt-bar-handle left" onMouseDown={(e) => handleMouseDown(e, 'resize-left')} />}
@@ -301,7 +302,7 @@ function GanttBar({ startDate, taskStart, taskEnd, dayWidth, color, isReadOnly, 
 
 // ─── Milestone marker ───────────────────────────────────────────────────────
 
-function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadOnly, label, diamondPx, onDragStart, onDragCommit, onClick }) {
+function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadOnly, label, diamondPx, onDragStart, onDragCommit, onClick, onContextMenu }) {
   const [dragDate, setDragDate] = useState(null);
   const displayDate = dragDate || taskDate;
   const offset = diffDays(startDate, parseDate(displayDate));
@@ -346,6 +347,7 @@ function MilestoneMarker({ startDate, taskDate, dayWidth, color, isDone, isReadO
       style={{ left, cursor: isReadOnly ? 'default' : 'grab' }}
       onMouseDown={handleMouseDown}
       onClick={(e) => { e.stopPropagation(); if (!didDragRef.current && onClick) onClick(); }}
+      onContextMenu={(e) => onContextMenu?.(e)}
     >
       <div className="milestone-diamond" style={{ backgroundColor: color, width: diamondPx, height: diamondPx }} />
       <span className="milestone-label">{label}</span>
@@ -388,16 +390,6 @@ function buildRows(items, collapsed, parentColor, numberPath = [], depth = 0) {
       if (!isCollapsed) {
         if (node.children) {
           rows.push(...buildRows(node.children, collapsed, color, currentPath, depth + 1));
-        }
-        // "Add child" button — only if depth allows
-        if (depth + 1 < MAX_UI_DEPTH) {
-          rows.push({
-            key: `add-child-${node.id}`,
-            rowType: 'add-child',
-            parentId: node.id,
-            depth: depth + 1,
-            color,
-          });
         }
       }
     } else {
@@ -450,12 +442,14 @@ export default function GanttView({
   const [draggingItem, setDraggingItem] = useState(null);
   const [activeCalEvents, setActiveCalEvents] = useState(() => new Set(Array.isArray(uiState?.activeCalEvents) ? uiState.activeCalEvents : []));
   const [listWidth, setListWidth] = useState(Number.isFinite(uiState?.listWidth) ? uiState.listWidth : 260);
-  const [contextMenu, setContextMenu] = useState(null); // { x, y, nodeId, nodeType, depth }
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, target: 'node'|'root', node?, depth? }
 
+  const listRef = useRef(null);
   const timelineRef = useRef(null);
   const dragRef = useRef(null);
   const dropIndicatorRef = useRef(null);
   const dataRef = useRef(data);
+  const syncSourceRef = useRef(null);
 
   useEffect(() => { dataRef.current = data; }, [data]);
 
@@ -616,11 +610,24 @@ export default function GanttView({
     if (readonly) return;
     e.preventDefault();
     e.stopPropagation();
-    setContextMenu({ x: e.clientX, y: e.clientY, node, depth });
+    setContextMenu({ x: e.clientX, y: e.clientY, target: 'node', node, depth });
+  }, [readonly]);
+
+  const handleRootContextMenu = useCallback((e) => {
+    if (readonly) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, target: 'root' });
   }, [readonly]);
 
   const buildContextMenuItems = useCallback(() => {
     if (!contextMenu) return [];
+    if (contextMenu.target === 'root') {
+      return [
+        { label: 'Add group', action: () => onAddChild(null, 'group') },
+      ];
+    }
+
     const { node, depth } = contextMenu;
     const items = [];
 
@@ -648,6 +655,34 @@ export default function GanttView({
 
     return items;
   }, [contextMenu, onAddChild, onNodeClick, onNodeUpdate, onDeleteNode, onSplitNode]);
+
+  useEffect(() => {
+    const listEl = listRef.current;
+    const timelineEl = timelineRef.current;
+    if (!listEl || !timelineEl) return undefined;
+
+    const syncFromList = () => {
+      if (syncSourceRef.current === 'timeline') return;
+      syncSourceRef.current = 'list';
+      timelineEl.scrollTop = listEl.scrollTop;
+      syncSourceRef.current = null;
+    };
+
+    const syncFromTimeline = () => {
+      if (syncSourceRef.current === 'list') return;
+      syncSourceRef.current = 'timeline';
+      listEl.scrollTop = timelineEl.scrollTop;
+      syncSourceRef.current = null;
+    };
+
+    listEl.addEventListener('scroll', syncFromList);
+    timelineEl.addEventListener('scroll', syncFromTimeline);
+
+    return () => {
+      listEl.removeEventListener('scroll', syncFromList);
+      timelineEl.removeEventListener('scroll', syncFromTimeline);
+    };
+  }, []);
 
   // Scroll to today on mount
   useEffect(() => {
@@ -703,7 +738,12 @@ export default function GanttView({
 
       <div className="gantt-body">
         {/* Left panel: task list */}
-        <div className="gantt-list" style={{ width: listWidth, minWidth: listWidth }}>
+        <div
+          ref={listRef}
+          className="gantt-list"
+          style={{ width: listWidth, minWidth: listWidth }}
+          onContextMenu={handleRootContextMenu}
+        >
           <div className="gantt-list-header">Tasks</div>
 
           {rows.map((row) => {
@@ -713,7 +753,6 @@ export default function GanttView({
               const showIndicatorBefore =
                 dropIndicator?.insertBeforeId === row.node.id &&
                 draggingItem?.nodeId !== row.node.id;
-              const label = getNodeLabel(row.node, row.numberPath);
               const parentId = row.depth === 0 ? null : findParentId(items, row.node.id);
 
               return (
@@ -742,7 +781,7 @@ export default function GanttView({
                     >
                       {isCollapsed ? '\u25B6' : '\u25BC'}
                     </button>
-                    <span className="phase-label" title={label}>
+                    <span className="phase-label" title="Right-click for add, edit, and delete actions">
                       <span className="item-number">{(() => {
                         const p = getNodePrefix(row.node);
                         const num = getNodeNumber(row.numberPath);
@@ -761,7 +800,6 @@ export default function GanttView({
               const showIndicatorBefore =
                 dropIndicator?.insertBeforeId === row.node.id &&
                 draggingItem?.nodeId !== row.node.id;
-              const label = getNodeLabel(row.node, row.numberPath);
               const parentId = findParentId(items, row.node.id);
 
               return (
@@ -788,39 +826,15 @@ export default function GanttView({
                       ? <span className="task-milestone-dot" style={{ color: row.color }}>&#9670;</span>
                       : <span className="task-done-indicator" style={{ backgroundColor: row.color }} />
                     }
-                    <span className="task-label" title={label}>
+                    <span className="task-label" title="Right-click for status, edit, and more actions">
                       <span className="item-number">{getNodeNumber(row.numberPath)}</span>
                       <span className="item-name">
-                        {row.node.done ? <s>{row.node.name}</s> : row.node.name}
+                        {row.node.name}
                       </span>
                     </span>
                     <span className="task-dates muted">
                       {row.node.milestone ? row.node.start : `${row.node.start} – ${row.node.end}`}
                     </span>
-                  </div>
-                </React.Fragment>
-              );
-            }
-
-            if (row.rowType === 'add-child') {
-              if (readonly) return null;
-              const showEndIndicator =
-                dropIndicator?.parentId === row.parentId &&
-                dropIndicator.insertBeforeId === null;
-              const canAddGroup = row.depth < MAX_UI_DEPTH - 1;
-
-              return (
-                <React.Fragment key={row.key}>
-                  {showEndIndicator && <div className="list-drop-indicator list-drop-indicator--task" />}
-                  <div
-                    className="gantt-row gantt-add-task-row"
-                    style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX }}
-                  >
-                    <span className="task-indent" />
-                    <span className="add-task-btn" onClick={() => onAddChild(row.parentId, 'task')}>+ Task</span>
-                    {canAddGroup && (
-                      <span className="add-task-btn add-group-btn" onClick={() => onAddChild(row.parentId, 'group')}>+ Group</span>
-                    )}
                   </div>
                 </React.Fragment>
               );
@@ -901,6 +915,7 @@ export default function GanttView({
                         netDays={pDays?.net}
                         onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
                         onClick={() => onNodeClick(row.node.id)}
+                        onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                       />
                     </div>
                   );
@@ -926,6 +941,7 @@ export default function GanttView({
                             diamondPx={depthDiamondPx(row.depth)}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
                             onClick={() => !readonly && onNodeClick(row.node.id)}
+                            onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                           />
                         : <GanttBar
                             startDate={rangeStart}
@@ -943,14 +959,11 @@ export default function GanttView({
                             hasNotes={!!row.node.notes}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
                             onClick={() => onNodeClick(row.node.id)}
+                            onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                           />
                       }
                     </div>
                   );
-                }
-
-                if (row.rowType === 'add-child') {
-                  return <div key={row.key} className="gantt-timeline-row empty-row" style={rowStyle} />;
                 }
 
                 return <div key={row.key} className="gantt-timeline-row empty-row" style={rowStyle} />;
