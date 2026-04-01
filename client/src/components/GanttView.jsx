@@ -528,6 +528,7 @@ export default function GanttView({
   calendarConnected,
   onCalendarSetup,
   onNodeClick,
+  onPreviewNote,
   onAddChild,
   onQuickBatchCreate,
   onOpenNote,
@@ -1023,7 +1024,10 @@ export default function GanttView({
                     data-parent-id={parentId || ''}
                     className={`gantt-row gantt-phase-row${isDragging ? ' is-dragging' : ''}${isNoteActive ? ' note-active' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, borderLeft: `3px solid ${row.color}`, paddingLeft: row.depth * INDENT_PX, '--row-accent': row.color }}
-                    onClick={clearTaskSelection}
+                    onClick={(e) => {
+                      clearTaskSelection();
+                      if (!readonly && !draggingItem && !e.shiftKey) onPreviewNote?.(row.node.id);
+                    }}
                     onDoubleClick={(e) => {
                       if (readonly || draggingItem) return;
                       if (e.shiftKey) onOpenNote?.(row.node.id);
@@ -1080,7 +1084,11 @@ export default function GanttView({
                     data-parent-id={parentId || ''}
                     className={`gantt-row gantt-task-row${row.node.done ? ' done' : ''}${isDragging ? ' is-dragging' : ''}${isSelected ? ' selected' : ''}${isNoteActive ? ' note-active' : ''}${hoveredGroup?.descendants?.has(row.node.id) ? ' descendant-highlight' : ''}`}
                     style={{ height: ROW_HEIGHT, paddingLeft: row.depth * INDENT_PX, '--row-accent': rowAccent }}
-                    onClick={(e) => !readonly && !draggingItem && selectTask(row.node.id, e.shiftKey)}
+                    onClick={(e) => {
+                      if (readonly || draggingItem) return;
+                      selectTask(row.node.id, e.shiftKey);
+                      if (!e.shiftKey) onPreviewNote?.(row.node.id);
+                    }}
                     onDoubleClick={(e) => {
                       if (readonly || draggingItem) return;
                       if (e.shiftKey) onOpenNote?.(row.node.id);
@@ -1179,7 +1187,10 @@ export default function GanttView({
                       key={row.key}
                       className={`gantt-timeline-row${descendantHighlighted ? ' descendant-highlight' : ''}${isNoteActive ? ' note-active' : ''}`}
                       style={rowStyle}
-                      onClick={clearTaskSelection}
+                      onClick={(e) => {
+                        clearTaskSelection();
+                        if (!readonly && !e.shiftKey) onPreviewNote?.(row.node.id);
+                      }}
                       onDoubleClick={(e) => {
                         if (readonly) return;
                         if (e.shiftKey) onOpenNote?.(row.node.id);
@@ -1210,10 +1221,14 @@ export default function GanttView({
                         label={getNodeLabel(row.node, row.numberPath)}
                         barHeight={depthBarHeight(row.depth)}
                         labelOutside={true}
+                        hasNotes={!!row.node.noteFile}
                         workDays={pDays?.work}
                         netDays={pDays?.net}
                         onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
-                        onClick={clearTaskSelection}
+                        onClick={(e) => {
+                          clearTaskSelection();
+                          if (!readonly && !e.shiftKey) onPreviewNote?.(row.node.id);
+                        }}
                         onDoubleClick={(e) => {
                           if (readonly) return;
                           if (e.shiftKey) onOpenNote?.(row.node.id);
@@ -1280,7 +1295,11 @@ export default function GanttView({
                             label={taskLabel}
                             diamondPx={depthDiamondPx(row.depth)}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
-                            onClick={(e) => !readonly && selectTask(row.node.id, e.shiftKey)}
+                            onClick={(e) => {
+                              if (readonly) return;
+                              selectTask(row.node.id, e.shiftKey);
+                              if (!e.shiftKey) onPreviewNote?.(row.node.id);
+                            }}
                             onDoubleClick={() => !readonly && onNodeClick(row.node.id)}
                             onContextMenu={(e) => handleContextMenu(e, row.node, row.depth)}
                             selectionMove={selectionMove}
@@ -1304,7 +1323,11 @@ export default function GanttView({
                             netDays={tDays?.net}
                             hasNotes={!!row.node.noteFile}
                             onDragCommit={(s, e) => handleNodeDrag(row.node.id, s, e)}
-                            onClick={(e) => !readonly && selectTask(row.node.id, e.shiftKey)}
+                            onClick={(e) => {
+                              if (readonly) return;
+                              selectTask(row.node.id, e.shiftKey);
+                              if (!e.shiftKey) onPreviewNote?.(row.node.id);
+                            }}
                             onDoubleClick={(e) => {
                               if (readonly) return;
                               if (e.shiftKey) onOpenNote?.(row.node.id);

@@ -260,7 +260,6 @@ router.post('/node/:id/split', (req, res) => {
       start: node.start,
       end: node.end,
       done: node.done || false,
-      noteFile: node.noteFile || null,
       milestone: node.milestone || false,
       children: [],
     };
@@ -276,7 +275,6 @@ router.post('/node/:id/split', (req, res) => {
 
     // Remove task-specific fields from the group
     delete node.done;
-    delete node.noteFile;
     delete node.milestone;
 
     writeData(data);
@@ -318,7 +316,6 @@ router.post('/node/:id/batch-subtasks', (req, res) => {
       node.prefix = result.parent?.prefix !== undefined ? result.parent.prefix : 'WP';
       node.children = childTasks;
       delete node.done;
-      delete node.noteFile;
       delete node.milestone;
     } else if (node.type === 'group') {
       node.children = [...(node.children || []), ...childTasks];

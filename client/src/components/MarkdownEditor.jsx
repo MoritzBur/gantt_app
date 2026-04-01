@@ -187,7 +187,7 @@ function wikiLinkDecorations(view) {
     while (lineStart <= lineEnd) {
       const lineNumber = lineStart;
       const line = view.state.doc.line(lineStart);
-      const isActiveLine = selectionHead >= line.from && selectionHead <= line.to;
+      const isActiveLine = view.hasFocus && selectionHead >= line.from && selectionHead <= line.to;
       const text = line.text;
 
       const headingMatch = text.match(headingPattern);

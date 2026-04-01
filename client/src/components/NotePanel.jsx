@@ -30,24 +30,33 @@ function getTabTitle(tab, content) {
   return (tab.filename || 'Untitled').replace(/\.md$/i, '');
 }
 
+function getVisibleTabLabel(tab, meta, cacheEntry) {
+  if (tab?.type === 'main' && meta?.label) return meta.label;
+  return (cacheEntry?.filename || tab?.filename || 'Untitled').replace(/\.md$/i, '');
+}
+
 export default function NotePanel({ panelState, theme, itemMeta, onPanelStateChange, onOpenNote }) {
   const [noteCache, setNoteCache] = useState({});
   const [allNotes, setAllNotes] = useState([]);
   const [relatedNotes, setRelatedNotes] = useState([]);
   const [relatedNotesLoading, setRelatedNotesLoading] = useState(false);
   const [newRelatedName, setNewRelatedName] = useState('');
+  const [draggedTabIndex, setDraggedTabIndex] = useState(null);
   const saveTimersRef = useRef({});
 
   const normalizedPanel = useMemo(() => ({
     open: !!panelState?.open,
     width: Number.isFinite(panelState?.width) ? clampWidth(panelState.width) : 420,
-    tabs: Array.isArray(panelState?.tabs) ? panelState.tabs : [],
+    tabs: Array.isArray(panelState?.tabs)
+      ? panelState.tabs.map((tab) => ({ ...tab, pinned: tab?.pinned !== false }))
+      : [],
     activeTabIndex: Number.isInteger(panelState?.activeTabIndex) ? panelState.activeTabIndex : 0,
   }), [panelState]);
 
   const activeTab = normalizedPanel.tabs[normalizedPanel.activeTabIndex] || null;
   const activeTabKey = activeTab ? getTabKey(activeTab) : null;
   const activeCacheEntry = activeTabKey ? noteCache[activeTabKey] : null;
+  const activeItemMeta = activeTab ? (itemMeta?.[activeTab.itemId] || null) : null;
 
   const refreshAllNotes = useCallback(() => {
     fetch('/api/notes/all')
@@ -140,6 +149,38 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
   useEffect(() => () => {
     Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
   }, []);
+
+  useEffect(() => {
+    if (!normalizedPanel.open || !activeTab || activeTab.pinned) return undefined;
+
+    const handlePointerDown = (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (target.closest('.note-panel')) return;
+
+      onPanelStateChange((currentPanel) => {
+        const current = {
+          open: !!currentPanel?.open,
+          width: currentPanel?.width,
+          tabs: Array.isArray(currentPanel?.tabs)
+            ? currentPanel.tabs.map((tab) => ({ ...tab, pinned: tab?.pinned !== false }))
+            : [],
+          activeTabIndex: Number.isInteger(currentPanel?.activeTabIndex) ? currentPanel.activeTabIndex : 0,
+        };
+
+        const nextTabs = current.tabs.filter((tab) => tab.pinned !== false);
+        return {
+          ...current,
+          open: nextTabs.length > 0,
+          tabs: nextTabs,
+          activeTabIndex: Math.max(0, Math.min(current.activeTabIndex, nextTabs.length - 1)),
+        };
+      });
+    };
+
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    return () => window.removeEventListener('pointerdown', handlePointerDown, true);
+  }, [activeTab, normalizedPanel.open, onPanelStateChange]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -299,6 +340,39 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
     });
   }, [normalizedPanel, onPanelStateChange]);
 
+  const handlePinTab = useCallback((index) => {
+    onPanelStateChange({
+      ...normalizedPanel,
+      tabs: normalizedPanel.tabs.map((tab, tabIndex) => (
+        tabIndex === index ? { ...tab, pinned: true } : tab
+      )),
+      activeTabIndex: index,
+    });
+  }, [normalizedPanel, onPanelStateChange]);
+
+  const handleReorderTabs = useCallback((fromIndex, toIndex) => {
+    if (fromIndex === toIndex || fromIndex == null || toIndex == null) return;
+
+    const nextTabs = [...normalizedPanel.tabs];
+    const [movedTab] = nextTabs.splice(fromIndex, 1);
+    nextTabs.splice(toIndex, 0, movedTab);
+
+    let activeTabIndex = normalizedPanel.activeTabIndex;
+    if (activeTabIndex === fromIndex) {
+      activeTabIndex = toIndex;
+    } else if (fromIndex < activeTabIndex && toIndex >= activeTabIndex) {
+      activeTabIndex -= 1;
+    } else if (fromIndex > activeTabIndex && toIndex <= activeTabIndex) {
+      activeTabIndex += 1;
+    }
+
+    onPanelStateChange({
+      ...normalizedPanel,
+      tabs: nextTabs,
+      activeTabIndex,
+    });
+  }, [normalizedPanel, onPanelStateChange]);
+
   const handleNavigateLink = useCallback((tab, linkText, options = {}) => {
     fetch(`/api/notes/resolve?fromItemId=${encodeURIComponent(tab.itemId)}&link=${encodeURIComponent(linkText)}`)
       .then(async (response) => {
@@ -393,18 +467,39 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
           {normalizedPanel.tabs.map((tab, index) => {
             const key = getTabKey(tab);
             const cacheEntry = noteCache[key];
+            const tabMeta = itemMeta?.[tab.itemId] || null;
             return (
               <div
                 key={key}
-                className={`note-panel-tab-button${index === normalizedPanel.activeTabIndex ? ' active' : ''}`}
+                className={`note-panel-tab-button${index === normalizedPanel.activeTabIndex ? ' active' : ''}${tab.pinned === false ? ' preview' : ''}${draggedTabIndex === index ? ' dragging' : ''}`}
                 title={tab.filename}
+                style={{ '--note-accent': tabMeta?.color || 'var(--accent)' }}
+                draggable
+                onDragStart={(event) => {
+                  setDraggedTabIndex(index);
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', String(index));
+                }}
+                onDragEnd={() => setDraggedTabIndex(null)}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  if (draggedTabIndex == null || draggedTabIndex === index) return;
+                  handleReorderTabs(draggedTabIndex, index);
+                  setDraggedTabIndex(index);
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDraggedTabIndex(null);
+                }}
               >
                 <button
                   className="note-panel-tab-select"
                   type="button"
                   onClick={() => onPanelStateChange({ ...normalizedPanel, activeTabIndex: index })}
+                  onDoubleClick={() => handlePinTab(index)}
                 >
-                  <span className="note-panel-tab-label">{cacheEntry?.title || getTabTitle(tab, cacheEntry?.content)}</span>
+                  <span className="note-panel-tab-label">{getVisibleTabLabel(tab, tabMeta, cacheEntry)}</span>
                 </button>
                 <button
                   className="note-panel-tab-close"
@@ -441,7 +536,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
           <NotePanelTab
             tab={activeTab}
             cacheEntry={noteCache[getTabKey(activeTab)]}
-            itemMeta={itemMeta?.[activeTab.itemId] || null}
+            itemMeta={activeItemMeta}
             allNotes={allNotes}
             theme={theme}
             onContentChange={(content) => handleContentChange(activeTab, content)}
@@ -506,7 +601,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         </>
       ) : (
         <div className="note-panel-empty">
-          <p>Shift-double-click a task or use “Show Note” to open a note here.</p>
+          <p>Click a task to preview its note, or use “Show Note” to open one here.</p>
         </div>
       )}
     </aside>

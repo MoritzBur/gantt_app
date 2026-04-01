@@ -127,7 +127,7 @@ function taskDataEquals(a, b) {
 
 function getDefaultNoteFilename(item) {
   if (!item) return 'note.md';
-  return item.type === 'group' ? '_group.md' : `${item.id}.md`;
+  return item.type === 'group' ? '_phase.md' : `${item.id}.md`;
 }
 
 function getNodePrefix(node) {
@@ -145,18 +145,20 @@ function getNodeLabel(node, numberPath) {
   return `${num}\u2002${node.name}`;
 }
 
-function buildNoteItemMeta(items, numberPath = [], meta = {}) {
+function buildNoteItemMeta(items, numberPath = [], meta = {}, inheritedColor = null) {
   for (let index = 0; index < (items || []).length; index += 1) {
     const item = items[index];
     const nextNumberPath = [...numberPath, index + 1];
+    const itemColor = item.color || inheritedColor || '#4A90D9';
     meta[item.id] = {
       id: item.id,
       type: item.type,
       name: item.name,
       number: getNodeNumber(nextNumberPath),
       label: getNodeLabel(item, nextNumberPath),
+      color: itemColor,
     };
-    if (item.children?.length) buildNoteItemMeta(item.children, nextNumberPath, meta);
+    if (item.children?.length) buildNoteItemMeta(item.children, nextNumberPath, meta, itemColor);
   }
   return meta;
 }
@@ -169,6 +171,7 @@ function normalizeNotePanel(panel) {
         itemId: tab.itemId,
         filename: tab.filename,
         type: tab.type === 'related' ? 'related' : 'main',
+        pinned: tab.pinned !== false,
       }))
     : [];
 
@@ -868,6 +871,7 @@ export default function App() {
       itemId,
       filename: options.filename || item.noteFile || getDefaultNoteFilename(item),
       type: options.type === 'related' ? 'related' : 'main',
+      pinned: options.preview ? false : true,
     };
 
     updateNotePanelState((currentPanel) => {
@@ -879,9 +883,24 @@ export default function App() {
       );
 
       if (existingIndex >= 0) {
+        const existingTab = current.tabs[existingIndex];
+        if (!descriptor.pinned && existingTab.pinned) {
+          return {
+            ...current,
+            open: true,
+            activeTabIndex: existingIndex,
+          };
+        }
+
+        const nextTabs = [...current.tabs];
+        nextTabs[existingIndex] = {
+          ...existingTab,
+          pinned: descriptor.pinned ? true : existingTab.pinned,
+        };
         return {
           ...current,
           open: true,
+          tabs: nextTabs,
           activeTabIndex: existingIndex,
         };
       }
@@ -889,7 +908,16 @@ export default function App() {
       const tabs = [...current.tabs];
       let activeTabIndex = current.activeTabIndex;
 
-      if (options.replaceActive && tabs[activeTabIndex]) {
+      if (!descriptor.pinned) {
+        const previewIndex = tabs.findIndex((tab) => tab.pinned === false);
+        if (previewIndex >= 0) {
+          tabs[previewIndex] = descriptor;
+          activeTabIndex = previewIndex;
+        } else {
+          tabs.push(descriptor);
+          activeTabIndex = tabs.length - 1;
+        }
+      } else if (options.replaceActive && tabs[activeTabIndex]) {
         tabs[activeTabIndex] = descriptor;
       } else {
         tabs.push(descriptor);
@@ -1060,6 +1088,10 @@ export default function App() {
               if (isHistorical) return;
               const node = findNodeInTree(displayData.items, nodeId);
               if (node) setEditTarget({ type: node.type, id: nodeId });
+            }}
+            onPreviewNote={(nodeId) => {
+              if (isHistorical) return;
+              openNoteTab(nodeId, { preview: true });
             }}
             onAddChild={handleAddChild}
             onQuickBatchCreate={(nodeId, position) => {

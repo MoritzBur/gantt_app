@@ -81,7 +81,10 @@ export default function NotePanelTab({
 
   return (
     <div className="note-panel-tab">
-      <div className="note-panel-tab-meta">
+      <div
+        className="note-panel-tab-meta"
+        style={{ '--note-accent': itemMeta?.color || 'var(--accent)' }}
+      >
         <span className="note-panel-tab-title">
           {itemMeta?.label || getTabTitle(tab, cacheEntry?.content)}
         </span>

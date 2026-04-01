@@ -167,6 +167,25 @@ function getDefaultNoteFile(node) {
   return `${sanitizePathSegment(node.id || node.name || 'note')}.md`;
 }
 
+function ensureNoteFilesInTree(data) {
+  if (!data || !Array.isArray(data.items)) return false;
+
+  let changed = false;
+
+  const visit = (nodes) => {
+    for (const node of nodes || []) {
+      if (!node.noteFile) {
+        node.noteFile = getDefaultNoteFile(node);
+        changed = true;
+      }
+      if (node.children?.length) visit(node.children);
+    }
+  };
+
+  visit(data.items);
+  return changed;
+}
+
 function findNodePath(items, id, parents = []) {
   for (const item of items || []) {
     const nextPath = [...parents, item];
@@ -315,6 +334,7 @@ function mergeNotePanelState(raw) {
         itemId: typeof tab.itemId === 'string' ? tab.itemId : '',
         filename: typeof tab.filename === 'string' ? tab.filename : '',
         type: tab.type === 'related' ? 'related' : 'main',
+        pinned: tab.pinned !== false,
       }))
       .filter((tab) => tab.itemId && tab.filename)
     : [];
@@ -461,18 +481,21 @@ module.exports = {
       }
       const migrated = migrateV1toV2(raw);
       const normalized = migrateInlineNotesToFiles(migrated, originalSnapshot);
-      if (relocateLegacyNoteFiles(normalized)) {
+      const notesChanged = ensureNoteFilesInTree(normalized);
+      if (relocateLegacyNoteFiles(normalized) || notesChanged) {
         writeJsonAtomic(FILES.tasks, normalized);
       }
       return normalized;
     }
     const migrated = migrateInlineNotesToFiles(raw, originalSnapshot);
-    if (relocateLegacyNoteFiles(migrated)) {
+    const notesChanged = ensureNoteFilesInTree(migrated);
+    if (relocateLegacyNoteFiles(migrated) || notesChanged) {
       writeJsonAtomic(FILES.tasks, migrated);
     }
     return migrated;
   },
   writeTasks(data) {
+    ensureNoteFilesInTree(data);
     writeJsonAtomic(FILES.tasks, data);
   },
   readUiState() {
