@@ -9,15 +9,12 @@ export default function ContextMenu({ x, y, items, onClose }) {
     const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
     };
-    const handleScroll = () => onClose();
 
     window.addEventListener('keydown', handleKey);
     window.addEventListener('mousedown', handleClick);
-    window.addEventListener('scroll', handleScroll, true);
     return () => {
       window.removeEventListener('keydown', handleKey);
       window.removeEventListener('mousedown', handleClick);
-      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [onClose]);
 
@@ -36,6 +33,7 @@ export default function ContextMenu({ x, y, items, onClose }) {
       ref={menuRef}
       className="context-menu"
       style={{ left: x, top: y }}
+      onMouseDown={(event) => event.stopPropagation()}
     >
       {items.map((item, i) => {
         if (item.separator) {
@@ -44,8 +42,21 @@ export default function ContextMenu({ x, y, items, onClose }) {
         return (
           <button
             key={i}
+            type="button"
             className={`context-menu-item${item.danger ? ' danger' : ''}`}
-            onClick={() => { item.action(); onClose(); }}
+            onMouseDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              event.stopPropagation();
+              item.action();
+              onClose();
+            }}
+            onClick={(event) => {
+              if (event.detail !== 0) return;
+              event.preventDefault();
+              item.action();
+              onClose();
+            }}
           >
             {item.label}
           </button>

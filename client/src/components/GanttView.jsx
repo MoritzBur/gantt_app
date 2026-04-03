@@ -1,5 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import ContextMenu from './ContextMenu.jsx';
+import AssignmentPicker from './AssignmentPicker.jsx';
+import BlockerFilterMenu from './BlockerFilterMenu.jsx';
+import { buildBlockerSegments, getSelectedCalendarEventIds, getSelectedMemberIds, getMemberMap } from '../utils/resourcePlanning.js';
 
 // ─── Date helpers ───────────────────────────────────────────────────────────
 
@@ -28,7 +31,7 @@ function diffDays(a, b) {
 
 // ─── Duration breakdown ─────────────────────────────────────────────────────
 
-function calcTaskDays(startStr, endStr, activeCalEventIds, calendarEvents) {
+function calcTaskDays(startStr, endStr, activeCalendarEventIds, calendarEvents) {
   const start = parseDate(startStr);
   const end = parseDate(endStr);
   const total = diffDays(start, end) + 1;
@@ -44,9 +47,7 @@ function calcTaskDays(startStr, endStr, activeCalEventIds, calendarEvents) {
     cursor = addDays(cursor, 1);
   }
 
-  for (const evId of activeCalEventIds) {
-    const ev = calendarEvents.find(e => e.id === evId);
-    if (!ev) continue;
+  for (const ev of calendarEvents.filter((event) => activeCalendarEventIds.has(event.id))) {
     const evStart = parseDate(ev.start);
     const evEnd = parseDate(ev.end || ev.start);
     cursor = new Date(evStart);
@@ -594,7 +595,12 @@ export default function GanttView({
   uiState,
   calendarEvents,
   calendarConnected,
+  personnel,
+  blockerScenarioState,
+  blockerSelectionLabel,
   onCalendarSetup,
+  onBlockerScenarioChange,
+  onShowPersonnelManager,
   onNodeClick,
   onPreviewNote,
   onAddChild,
@@ -605,6 +611,7 @@ export default function GanttView({
   onDeleteNode,
   onDeleteNodes,
   onSplitNode,
+  onAssignTask,
   onSaveStatus,
   onReorder,
   onUiStateChange,
@@ -622,13 +629,15 @@ export default function GanttView({
   const [density, setDensity] = useState(uiState?.density === 'Compact' ? 'Compact' : 'Regular');
   const [dropIndicator, setDropIndicatorState] = useState(null);
   const [draggingItem, setDraggingItem] = useState(null);
-  const [activeCalEvents, setActiveCalEvents] = useState(() => new Set(Array.isArray(uiState?.activeCalEvents) ? uiState.activeCalEvents : []));
   const [listWidth, setListWidth] = useState(Number.isFinite(uiState?.listWidth) ? uiState.listWidth : 260);
   const [contextMenu, setContextMenu] = useState(null); // { x, y, target: 'node'|'root', node?, depth? }
   const [hoveredGroup, setHoveredGroup] = useState(null); // { id, start, end, descendants }
   const [selectedTaskIds, setSelectedTaskIds] = useState(() => new Set());
   const [selectionDragDaysDelta, setSelectionDragDaysDelta] = useState(null);
   const [groupDragHint, setGroupDragHint] = useState(null);
+  const [assignmentMenu, setAssignmentMenu] = useState(null);
+  const [blockerMenuOpen, setBlockerMenuOpen] = useState(false);
+  const [calendarBlockerNotice, setCalendarBlockerNotice] = useState(null);
 
   const listRef = useRef(null);
   const timelineRef = useRef(null);
@@ -637,11 +646,14 @@ export default function GanttView({
   const dataRef = useRef(data);
   const syncSourceRef = useRef(null);
   const groupDragHintTimerRef = useRef(null);
+  const blockerButtonRef = useRef(null);
+  const calendarBlockerNoticeTimerRef = useRef(null);
 
   useEffect(() => { dataRef.current = data; }, [data]);
 
   useEffect(() => () => {
     if (groupDragHintTimerRef.current) clearTimeout(groupDragHintTimerRef.current);
+    if (calendarBlockerNoticeTimerRef.current) clearTimeout(calendarBlockerNoticeTimerRef.current);
   }, []);
 
   useEffect(() => {
@@ -664,10 +676,6 @@ export default function GanttView({
     if (uiState.zoom && uiState.zoom !== zoom && ZOOM_LEVELS[uiState.zoom]) setZoom(uiState.zoom);
     if (uiState.density && uiState.density !== density) setDensity(uiState.density === 'Compact' ? 'Compact' : 'Regular');
     if (uiState.collapsed && JSON.stringify(uiState.collapsed) !== JSON.stringify(collapsed)) setCollapsed(uiState.collapsed);
-    const nextActive = Array.isArray(uiState.activeCalEvents) ? uiState.activeCalEvents : [];
-    if (JSON.stringify([...activeCalEvents]) !== JSON.stringify(nextActive)) {
-      setActiveCalEvents(new Set(nextActive));
-    }
     if (Number.isFinite(uiState.listWidth) && uiState.listWidth !== listWidth) setListWidth(uiState.listWidth);
   }, [uiState]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -677,14 +685,17 @@ export default function GanttView({
       zoom,
       density,
       collapsed,
-      activeCalEvents: [...activeCalEvents],
       listWidth,
     });
-  }, [zoom, density, collapsed, activeCalEvents, listWidth, onUiStateChange]);
+  }, [zoom, density, collapsed, listWidth, onUiStateChange]);
 
   const { dayWidth } = ZOOM_LEVELS[zoom];
 
   const items = data.items || [];
+  const memberMap = getMemberMap(personnel);
+  const selectedResourceMemberIds = getSelectedMemberIds(personnel, blockerScenarioState);
+  const activeCalendarEventIds = new Set(getSelectedCalendarEventIds(calendarEvents, blockerScenarioState));
+  const resourceBlockerTasks = buildBlockerSegments(items, selectedResourceMemberIds);
   const allDates = [
     ...collectTreeDates(items),
     ...calendarEvents.flatMap(e => [e.start, e.end || e.start]),
@@ -711,13 +722,45 @@ export default function GanttView({
   };
 
   const toggleCalEvent = useCallback((eventId) => {
-    setActiveCalEvents((current) => {
-      const next = new Set(current);
-      if (next.has(eventId)) next.delete(eventId);
-      else next.add(eventId);
-      return next;
+    onBlockerScenarioChange?.((currentState) => {
+      const currentScenario = currentState.scenarios.find((scenario) => scenario.id === currentState.activeScenarioId) || currentState.scenarios[0];
+      const targetEvent = (calendarEvents || []).find((event) => event.id === eventId);
+      const allCalendarIds = [...new Set((calendarEvents || []).map((event) => event.calendarKey).filter(Boolean))];
+      const currentVisibleCalendarIds = new Set(
+        currentScenario.calendars?.filterInitialized === true
+          ? (currentScenario.calendars?.visibleCalendarIds || [])
+          : allCalendarIds
+      );
+      if (!targetEvent?.calendarKey || !currentVisibleCalendarIds.has(targetEvent.calendarKey)) {
+        setCalendarBlockerNotice('Enable this calendar in Blockers before changing its active events.');
+        if (calendarBlockerNoticeTimerRef.current) clearTimeout(calendarBlockerNoticeTimerRef.current);
+        calendarBlockerNoticeTimerRef.current = setTimeout(() => {
+          setCalendarBlockerNotice(null);
+          calendarBlockerNoticeTimerRef.current = null;
+        }, 2600);
+        return currentState;
+      }
+      const current = new Set(currentScenario.calendars?.activeEventIds || []);
+      if (current.has(eventId)) current.delete(eventId);
+      else current.add(eventId);
+      return {
+        ...currentState,
+        scenarios: currentState.scenarios.map((scenario) => (
+          scenario.id === currentScenario.id
+              ? {
+                  ...scenario,
+                  calendars: {
+                    ...scenario.calendars,
+                    filterInitialized: scenario.calendars?.filterInitialized === true,
+                    visibleCalendarIds: scenario.calendars?.visibleCalendarIds || [],
+                    activeEventIds: [...current],
+                  },
+                }
+              : scenario
+        )),
+      };
     });
-  }, []);
+  }, [calendarEvents, onBlockerScenarioChange]);
 
   const handleNodeDrag = useCallback(async (nodeId, newStart, newEnd) => {
     onNodeUpdate(nodeId, { start: newStart, end: newEnd });
@@ -895,6 +938,7 @@ export default function GanttView({
     e.preventDefault();
     e.stopPropagation();
     hideGroupDragHint();
+    setAssignmentMenu(null);
     if (node.type === 'task' && !selectedTaskIds.has(node.id)) {
       setSelectedTaskIds(new Set([node.id]));
     }
@@ -906,6 +950,7 @@ export default function GanttView({
     e.preventDefault();
     e.stopPropagation();
     hideGroupDragHint();
+    setAssignmentMenu(null);
     setContextMenu({ x: e.clientX, y: e.clientY, target: 'root' });
   }, [hideGroupDragHint, readonly]);
 
@@ -958,6 +1003,24 @@ export default function GanttView({
         label: node.done ? 'Mark as not done' : 'Mark as done',
         action: () => onNodeUpdate(node.id, { done: !node.done }),
       });
+      items.push({
+        label: node.assigneeId ? `Assign to… (${memberMap.get(node.assigneeId)?.name || 'selected'})` : 'Assign to…',
+        action: () => setAssignmentMenu({
+          node,
+          x: contextMenu.x + 8,
+          y: contextMenu.y + 8,
+        }),
+      });
+      if (node.assigneeId) {
+        items.push({
+          label: 'Clear assignee',
+          action: () => onAssignTask?.(node.id, null),
+        });
+      }
+      items.push({
+        label: node.blocker ? 'Disable blocker' : 'Enable blocker',
+        action: () => onNodeUpdate(node.id, { blocker: !node.blocker }),
+      });
       if (hasSelectedTasks) {
         items.push({
           label: `Delete selected tasks (${selectedTaskIds.size})`,
@@ -974,7 +1037,7 @@ export default function GanttView({
     }
 
     return items;
-  }, [clearTaskSelection, contextMenu, onAddChild, onDeleteNode, onDeleteNodes, onNodeClick, onNodeUpdate, onOpenNote, onQuickBatchCreate, onSplitNode, selectedTaskIds]);
+  }, [clearTaskSelection, contextMenu, memberMap, onAddChild, onAssignTask, onDeleteNode, onDeleteNodes, onNodeClick, onNodeUpdate, onOpenNote, onQuickBatchCreate, onSplitNode, selectedTaskIds]);
 
   useEffect(() => {
     const listEl = listRef.current;
@@ -1076,7 +1139,33 @@ export default function GanttView({
             </button>
           ))}
         </div>
+        <div className="resource-toolbar-group">
+          <span className="toolbar-group-label">Blockers</span>
+          <button
+            ref={blockerButtonRef}
+            className="btn btn-ghost blocker-toolbar-button"
+            type="button"
+            title={blockerSelectionLabel}
+            onClick={() => setBlockerMenuOpen((open) => !open)}
+          >
+            {blockerSelectionLabel}
+          </button>
+          <button
+            className="btn btn-ghost btn-small"
+            type="button"
+            onClick={onShowPersonnelManager}
+          >
+            Manage Team
+          </button>
+        </div>
       </div>
+
+      {calendarBlockerNotice && (
+        <div className="calendar-notice-banner gantt-inline-notice">
+          <span className="calendar-notice-icon">⚠</span>
+          <span className="calendar-notice-text">{calendarBlockerNotice}</span>
+        </div>
+      )}
 
       <div className="gantt-body">
         {/* Left panel: task list */}
@@ -1234,6 +1323,11 @@ export default function GanttView({
                         {row.node.name}
                       </span>
                     </span>
+                    {row.node.assigneeId && (
+                      <span className="task-assignee-badge">
+                        {memberMap.get(row.node.assigneeId)?.name || 'Assigned'}
+                      </span>
+                    )}
                     <span className="task-dates muted">
                       {row.node.milestone ? row.node.start : `${row.node.start} – ${row.node.end}`}
                     </span>
@@ -1268,17 +1362,35 @@ export default function GanttView({
               <TodayLine startDate={rangeStart} dayWidth={dayWidth} totalDays={totalDays} />
 
               {/* Active calendar event overlays */}
-              {activeCalEvents.size > 0 && [...activeCalEvents].map(evId => {
-                const ev = calendarEvents.find(e => e.id === evId);
-                if (!ev) return null;
+              {activeCalendarEventIds.size > 0 && calendarEvents
+                .filter((event) => activeCalendarEventIds.has(event.id))
+                .map((ev) => {
                 const evEnd = ev.end || ev.start;
                 const startOff = diffDays(rangeStart, parseDate(ev.start));
                 const evDuration = diffDays(parseDate(ev.start), parseDate(evEnd)) + 1;
                 return (
                   <div
-                    key={`overlay-${evId}`}
+                    key={`overlay-${ev.id}`}
                     className="cal-event-overlay"
                     style={{ left: startOff * dayWidth, width: Math.max(evDuration * dayWidth, dayWidth) }}
+                  />
+                );
+              })}
+
+              {selectedResourceMemberIds.length > 0 && resourceBlockerTasks.map((task) => {
+                const taskEnd = task.end || task.start;
+                const startOff = diffDays(rangeStart, parseDate(task.start));
+                const taskDuration = diffDays(parseDate(task.start), parseDate(taskEnd)) + 1;
+                const assigneeName = memberMap.get(task.assigneeId)?.name;
+                return (
+                  <div
+                    key={`resource-strip-${task.id}`}
+                    className="resource-blocker-strip"
+                    style={{
+                      left: startOff * dayWidth,
+                      width: Math.max(taskDuration * dayWidth, dayWidth),
+                    }}
+                    title={assigneeName ? `${assigneeName}: ${task.name}` : task.name}
                   />
                 );
               })}
@@ -1306,7 +1418,7 @@ export default function GanttView({
                         const startOffset = diffDays(rangeStart, parseDate(event.start));
                         const duration = diffDays(parseDate(event.start), parseDate(eventEnd)) + 1;
                         const chipWidth = Math.max(duration * dayWidth, dayWidth);
-                        const isActive = activeCalEvents.has(event.id);
+                        const isActive = activeCalendarEventIds.has(event.id);
                         const estimatedLabelWidth = event.title.length * 6.5 + 12;
                         const chipTitle = chipWidth >= estimatedLabelWidth
                           ? 'Double-click to toggle as blocker'
@@ -1336,7 +1448,7 @@ export default function GanttView({
                 if (row.rowType === 'group') {
                   const hasChildren = row.node.children && row.node.children.length > 0;
                   const pDays = row.node.start && row.node.end
-                    ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
+                    ? calcTaskDays(row.node.start, row.node.end, activeCalendarEventIds, calendarEvents)
                     : null;
                   const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   const isNoteActive = activeNoteItemId === row.node.id;
@@ -1406,7 +1518,7 @@ export default function GanttView({
                   const taskColor = row.node.done ? '#555' : row.color;
                   const taskLabel = getNodeLabel(row.node, row.numberPath);
                   const tDays = !row.node.milestone && row.node.start && row.node.end
-                    ? calcTaskDays(row.node.start, row.node.end, activeCalEvents, calendarEvents)
+                    ? calcTaskDays(row.node.start, row.node.end, activeCalendarEventIds, calendarEvents)
                     : null;
                   const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   const isSelected = selectedTaskIds.has(row.node.id);
@@ -1514,6 +1626,33 @@ export default function GanttView({
           y={contextMenu.y}
           items={buildContextMenuItems()}
           onClose={() => setContextMenu(null)}
+        />
+      )}
+
+      {assignmentMenu && !readonly && (
+        <AssignmentPicker
+          task={assignmentMenu.node}
+          items={items}
+          personnel={personnel}
+          value={assignmentMenu.node.assigneeId || null}
+          variant="popover"
+          position={{ x: assignmentMenu.x, y: assignmentMenu.y }}
+          onChange={(memberId) => onAssignTask?.(assignmentMenu.node.id, memberId)}
+          onClose={() => setAssignmentMenu(null)}
+        />
+      )}
+
+      {blockerMenuOpen && !readonly && (
+        <BlockerFilterMenu
+          personnel={personnel}
+          calendarEvents={calendarEvents}
+          blockerScenarioState={blockerScenarioState}
+          onChange={onBlockerScenarioChange}
+          onClose={() => setBlockerMenuOpen(false)}
+          position={{
+            x: Math.max((blockerButtonRef.current?.getBoundingClientRect().right || window.innerWidth) - 360, 16),
+            y: (blockerButtonRef.current?.getBoundingClientRect().bottom || 120) + 8,
+          }}
         />
       )}
 

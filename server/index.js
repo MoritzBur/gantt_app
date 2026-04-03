@@ -59,6 +59,7 @@ app.use(session({
 }));
 
 app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/personnel', require('./routes/personnel'));
 app.use('/api/notes', require('./routes/notes'));
 app.use('/api/state', require('./routes/state'));
 app.use('/api/calendar', require('./routes/calendar'));

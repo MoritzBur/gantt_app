@@ -9,6 +9,7 @@ let DATA_DIR = ROOT_DATA_DIR;
 const FILES = {
   tasks: '',
   state: '',
+  personnel: '',
   calendarConfig: '',
   tokens: '',
   notes: '',
@@ -18,6 +19,7 @@ function setDataDir(nextDataDir) {
   DATA_DIR = path.resolve(nextDataDir || ROOT_DATA_DIR);
   FILES.tasks = path.join(DATA_DIR, 'tasks.json');
   FILES.state = path.join(DATA_DIR, 'state.json');
+  FILES.personnel = path.join(DATA_DIR, 'personnel.json');
   FILES.calendarConfig = path.join(DATA_DIR, 'calendar-config.json');
   FILES.tokens = path.join(DATA_DIR, 'tokens.json');
   FILES.notes = path.join(DATA_DIR, 'notes');
@@ -27,6 +29,7 @@ function setDataDir(nextDataDir) {
 setDataDir(ROOT_DATA_DIR);
 
 const DEFAULT_TASKS = { version: 2, items: [] };
+const DEFAULT_PERSONNEL = { version: 1, members: [], teams: [] };
 const MAX_DEPTH = 5;
 
 // ─── Tree helpers ────────────────────────────────────────────────────────────
@@ -119,6 +122,24 @@ const DEFAULT_STATE = {
   activeCalEvents: [],
   calendarEventIdsVersion: 2,
   listWidth: 260,
+  blockerScenarioState: {
+    version: 1,
+    activeScenarioId: 'default',
+    scenarios: [{
+      id: 'default',
+      name: 'Default',
+      calendars: {
+        visible: false,
+        filterInitialized: false,
+        visibleCalendarIds: [],
+        activeEventIds: [],
+      },
+      resources: {
+        teamIds: [],
+        memberIds: [],
+      },
+    }],
+  },
   notePanel: {
     open: false,
     width: 420,
@@ -453,8 +474,166 @@ function mergeUiState(raw) {
   if (Array.isArray(raw.activeCalEvents)) next.activeCalEvents = raw.activeCalEvents;
   if (raw.calendarEventIdsVersion === 2) next.calendarEventIdsVersion = 2;
   if (Number.isFinite(raw.listWidth)) next.listWidth = raw.listWidth;
+  const legacyActiveCalEvents = Array.isArray(raw.activeCalEvents)
+    ? raw.activeCalEvents.filter((id) => typeof id === 'string' && id.trim())
+    : [];
+  const legacyResourceFilter = raw.resourceFilter && typeof raw.resourceFilter === 'object'
+    ? raw.resourceFilter
+    : null;
+
+  if (raw.blockerScenarioState && typeof raw.blockerScenarioState === 'object') {
+    const scenarios = Array.isArray(raw.blockerScenarioState.scenarios)
+      ? raw.blockerScenarioState.scenarios
+        .map((scenario, index) => {
+          const scenarioId = typeof scenario?.id === 'string' && scenario.id.trim()
+            ? scenario.id.trim()
+            : `scenario-${index + 1}`;
+          return {
+            id: scenarioId,
+            name: typeof scenario?.name === 'string' && scenario.name.trim()
+              ? scenario.name.trim()
+              : `Scenario ${index + 1}`,
+            calendars: {
+              visible: !!scenario?.calendars?.visible,
+              filterInitialized: scenario?.calendars?.filterInitialized === true ||
+                (
+                  Array.isArray(scenario?.calendars?.visibleCalendarIds) &&
+                  scenario.calendars.visibleCalendarIds.length > 0
+                ),
+              visibleCalendarIds: Array.isArray(scenario?.calendars?.visibleCalendarIds)
+                ? scenario.calendars.visibleCalendarIds.filter((id) => typeof id === 'string' && id.trim())
+                : [],
+              activeEventIds: Array.isArray(scenario?.calendars?.activeEventIds)
+                ? scenario.calendars.activeEventIds.filter((id) => typeof id === 'string' && id.trim())
+                : Array.isArray(scenario?.calendars?.selectedIds)
+                  ? scenario.calendars.selectedIds.filter((id) => typeof id === 'string' && id.trim())
+                : [],
+            },
+            resources: {
+              teamIds: Array.isArray(scenario?.resources?.teamIds)
+                ? scenario.resources.teamIds.filter((id) => typeof id === 'string' && id.trim())
+                : [],
+              memberIds: Array.isArray(scenario?.resources?.memberIds)
+                ? scenario.resources.memberIds.filter((id) => typeof id === 'string' && id.trim())
+                : [],
+            },
+          };
+        })
+        .filter((scenario) => scenario.id)
+      : [];
+
+    if (scenarios.length > 0) {
+      const activeScenarioId = typeof raw.blockerScenarioState.activeScenarioId === 'string' && raw.blockerScenarioState.activeScenarioId.trim()
+        ? raw.blockerScenarioState.activeScenarioId.trim()
+        : scenarios[0].id;
+      next.blockerScenarioState = {
+        version: 1,
+        activeScenarioId: scenarios.some((scenario) => scenario.id === activeScenarioId) ? activeScenarioId : scenarios[0].id,
+        scenarios,
+      };
+    }
+  } else {
+    const defaultScenario = { ...next.blockerScenarioState.scenarios[0] };
+    const legacyVisibleCalendarIds = raw.calendarOrder && Array.isArray(raw.calendarOrder)
+      ? raw.calendarOrder.filter((id) => typeof id === 'string' && id.trim())
+      : [];
+    defaultScenario.calendars = {
+      visible: legacyActiveCalEvents.length > 0,
+      filterInitialized: legacyVisibleCalendarIds.length > 0,
+      visibleCalendarIds: legacyVisibleCalendarIds,
+      activeEventIds: legacyActiveCalEvents,
+    };
+    if (legacyResourceFilter) {
+      const mode = legacyResourceFilter.mode;
+      const id = typeof legacyResourceFilter.id === 'string' && legacyResourceFilter.id.trim()
+        ? legacyResourceFilter.id.trim()
+        : null;
+      if (mode === 'team' && id) defaultScenario.resources.teamIds = [id];
+      if (mode === 'member' && id) defaultScenario.resources.memberIds = [id];
+    }
+    next.blockerScenarioState = {
+      version: 1,
+      activeScenarioId: 'default',
+      scenarios: [defaultScenario],
+    };
+  }
   next.notePanel = mergeNotePanelState(raw.notePanel);
   return next;
+}
+
+function normalizeTaskPlanningFields(node) {
+  if (!node || typeof node !== 'object') return false;
+
+  let changed = false;
+
+  if (node.type === 'task') {
+    if (!Object.prototype.hasOwnProperty.call(node, 'assigneeId')) {
+      node.assigneeId = null;
+      changed = true;
+    } else if (node.assigneeId !== null && typeof node.assigneeId !== 'string') {
+      node.assigneeId = String(node.assigneeId || '').trim() || null;
+      changed = true;
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(node, 'blocker')) {
+      node.blocker = false;
+      changed = true;
+    } else if (typeof node.blocker !== 'boolean') {
+      node.blocker = !!node.blocker;
+      changed = true;
+    }
+  }
+
+  for (const child of node.children || []) {
+    if (normalizeTaskPlanningFields(child)) changed = true;
+  }
+
+  return changed;
+}
+
+function normalizeFieldEntries(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries
+    .map((entry) => ({
+      key: typeof entry?.key === 'string' ? entry.key.trim() : '',
+      value: typeof entry?.value === 'string' ? entry.value : '',
+    }))
+    .filter((entry) => entry.key || entry.value);
+}
+
+function normalizePersonnel(raw) {
+  const base = raw && typeof raw === 'object' ? raw : DEFAULT_PERSONNEL;
+  const teams = Array.isArray(base.teams)
+    ? base.teams
+      .map((team) => ({
+        id: typeof team?.id === 'string' && team.id.trim() ? team.id.trim() : null,
+        name: typeof team?.name === 'string' ? team.name.trim() : '',
+        comment: typeof team?.comment === 'string' ? team.comment : '',
+        fields: normalizeFieldEntries(team?.fields),
+      }))
+      .filter((team) => team.id && team.name)
+    : [];
+
+  const validTeamIds = new Set(teams.map((team) => team.id));
+  const members = Array.isArray(base.members)
+    ? base.members
+      .map((member) => ({
+        id: typeof member?.id === 'string' && member.id.trim() ? member.id.trim() : null,
+        name: typeof member?.name === 'string' ? member.name.trim() : '',
+        comment: typeof member?.comment === 'string' ? member.comment : '',
+        teamIds: Array.isArray(member?.teamIds)
+          ? Array.from(new Set(member.teamIds.map((teamId) => String(teamId || '').trim()).filter((teamId) => validTeamIds.has(teamId))))
+          : [],
+        fields: normalizeFieldEntries(member?.fields),
+      }))
+      .filter((member) => member.id && member.name)
+    : [];
+
+  return {
+    version: 1,
+    teams,
+    members,
+  };
 }
 
 function migrateInlineNotesToFiles(data, originalSnapshot = null) {
@@ -593,6 +772,7 @@ module.exports = {
   FILES,
   MAX_DEPTH,
   DEFAULT_TASKS,
+  DEFAULT_PERSONNEL,
   DEFAULT_STATE,
   ensureDataDir,
   ensureNotesDir,
@@ -621,7 +801,8 @@ module.exports = {
       const normalized = migrateInlineNotesToFiles(migrated, originalSnapshot);
       const relocated = relocateLegacyNoteFiles(normalized);
       const notesChanged = ensureNoteFilesInTree(normalized);
-      if (relocated || notesChanged) {
+      const planningChanged = (normalized.items || []).some((node) => normalizeTaskPlanningFields(node));
+      if (relocated || notesChanged || planningChanged) {
         writeJsonAtomic(FILES.tasks, normalized);
       }
       return normalized;
@@ -629,14 +810,22 @@ module.exports = {
     const migrated = migrateInlineNotesToFiles(raw, originalSnapshot);
     const relocated = relocateLegacyNoteFiles(migrated);
     const notesChanged = ensureNoteFilesInTree(migrated);
-    if (relocated || notesChanged) {
+    const planningChanged = (migrated.items || []).some((node) => normalizeTaskPlanningFields(node));
+    if (relocated || notesChanged || planningChanged) {
       writeJsonAtomic(FILES.tasks, migrated);
     }
     return migrated;
   },
   writeTasks(data) {
     ensureNoteFilesInTree(data);
+    for (const node of data.items || []) normalizeTaskPlanningFields(node);
     writeJsonAtomic(FILES.tasks, data);
+  },
+  readPersonnel() {
+    return normalizePersonnel(readJson(FILES.personnel, DEFAULT_PERSONNEL));
+  },
+  writePersonnel(data) {
+    writeJsonAtomic(FILES.personnel, normalizePersonnel(data));
   },
   readUiState() {
     return mergeUiState(readJson(FILES.state, DEFAULT_STATE));

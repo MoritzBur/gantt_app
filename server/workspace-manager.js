@@ -67,6 +67,7 @@ function writeEmptyWorkspaceFiles(dirPath) {
   ensureDir(dirPath);
   writeJson(path.join(dirPath, 'tasks.json'), store.DEFAULT_TASKS);
   writeJson(path.join(dirPath, 'state.json'), store.DEFAULT_STATE);
+  writeJson(path.join(dirPath, 'personnel.json'), store.DEFAULT_PERSONNEL);
   writeJson(path.join(dirPath, 'calendar-config.json'), {
     version: 2,
     backends: {
@@ -110,10 +111,12 @@ function ensureWorkspaceFiles(workspace) {
   const tasksFile = path.join(workspace.path, 'tasks.json');
   const stateFile = path.join(workspace.path, 'state.json');
   const calendarFile = path.join(workspace.path, 'calendar-config.json');
+  const personnelFile = path.join(workspace.path, 'personnel.json');
   const notesDir = path.join(workspace.path, 'notes');
 
   if (!fs.existsSync(tasksFile)) writeJson(tasksFile, store.DEFAULT_TASKS);
   if (!fs.existsSync(stateFile)) writeJson(stateFile, store.DEFAULT_STATE);
+  if (!fs.existsSync(personnelFile)) writeJson(personnelFile, store.DEFAULT_PERSONNEL);
   if (!fs.existsSync(calendarFile)) {
     writeJson(calendarFile, {
       version: 2,

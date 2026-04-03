@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "teams": [
+    {
+      "id": "team-aero",
+      "name": "Aerodynamics",
+      "comment": "CFD and loads work.",
+      "fields": []
+    },
+    {
+      "id": "team-test",
+      "name": "Testing",
+      "comment": "Tunnel prep and execution.",
+      "fields": []
+    },
+    {
+      "id": "team-writing",
+      "name": "Writing",
+      "comment": "Documentation and thesis drafting.",
+      "fields": []
+    }
+  ],
+  "members": [
+    {
+      "id": "member-anna",
+      "name": "Anna",
+      "comment": "Lead CFD engineer",
+      "teamIds": ["team-aero"],
+      "fields": []
+    },
+    {
+      "id": "member-peter",
+      "name": "Peter",
+      "comment": "Wind-tunnel coordination",
+      "teamIds": ["team-test"],
+      "fields": []
+    },
+    {
+      "id": "member-lina",
+      "name": "Lina",
+      "comment": "Analysis and writing support",
+      "teamIds": ["team-aero", "team-writing"],
+      "fields": []
+    }
+  ]
+}

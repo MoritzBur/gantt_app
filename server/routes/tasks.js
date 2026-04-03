@@ -58,6 +58,8 @@ function buildEvenlyDistributedSubtasks(node, names) {
       end: formatDate(taskEnd > end ? end : taskEnd),
       done: false,
       milestone: false,
+      assigneeId: node.assigneeId || null,
+      blocker: !!node.blocker,
       children: [],
     };
   });
@@ -142,6 +144,8 @@ router.post('/node', (req, res) => {
     } else {
       node.done = false;
       node.milestone = false;
+      node.assigneeId = null;
+      node.blocker = false;
     }
 
     if (parentId) {
@@ -261,6 +265,8 @@ router.post('/node/:id/split', (req, res) => {
       end: node.end,
       done: node.done || false,
       milestone: node.milestone || false,
+      assigneeId: node.assigneeId || null,
+      blocker: !!node.blocker,
       children: [],
     };
 
@@ -276,6 +282,8 @@ router.post('/node/:id/split', (req, res) => {
     // Remove task-specific fields from the group
     delete node.done;
     delete node.milestone;
+    delete node.assigneeId;
+    delete node.blocker;
 
     writeData(data);
     res.json(node);
@@ -317,6 +325,8 @@ router.post('/node/:id/batch-subtasks', (req, res) => {
       node.children = childTasks;
       delete node.done;
       delete node.milestone;
+      delete node.assigneeId;
+      delete node.blocker;
     } else if (node.type === 'group') {
       node.children = [...(node.children || []), ...childTasks];
     } else {

@@ -15,10 +15,42 @@
   ],
   "calendarEventIdsVersion": 2,
   "listWidth": 300,
+  "blockerScenarioState": {
+    "version": 1,
+    "activeScenarioId": "default",
+    "scenarios": [
+      {
+        "id": "default",
+        "name": "Default",
+        "calendars": {
+          "visible": true,
+          "filterInitialized": true,
+          "visibleCalendarIds": [],
+          "activeEventIds": [
+            "ical-ff3eec233d27::1plk3uf0v8q1gme85nelse920c@google.com",
+            "ical-ff3eec233d27::p78kclh9r7p4co5bt41otro9rk@google.com",
+            "ical-ff3eec233d27::1j3qmcfl6jdd7l4rkhvk7uu5hc@google.com"
+          ]
+        },
+        "resources": {
+          "teamIds": [
+            "team-aero"
+          ],
+          "memberIds": []
+        }
+      }
+    ]
+  },
   "notePanel": {
     "open": true,
-    "width": 420,
+    "width": 808,
     "tabs": [
+      {
+        "itemId": "group-framing",
+        "filename": "main.md",
+        "type": "main",
+        "pinned": true
+      },
       {
         "itemId": "group-cfd",
         "filename": "main.md",

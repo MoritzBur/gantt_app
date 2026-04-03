@@ -5,6 +5,8 @@ import CalendarSetupModal from './components/CalendarSetupModal.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import QuickBatchSubtasks from './components/QuickBatchSubtasks.jsx';
 import NotePanel from './components/NotePanel.jsx';
+import PersonnelManagerModal from './components/PersonnelManagerModal.jsx';
+import { getBlockerSelectionLabel, getDefaultBlockerScenarioState } from './utils/resourcePlanning.js';
 
 const PHASE_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
@@ -395,6 +397,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState({ activeWorkspaceId: null, workspaces: [] });
   const [calendarStatus, setCalendarStatus] = useState({ connected: false });
   const [calendarEvents, setCalendarEvents] = useState([]);
+  const [personnel, setPersonnel] = useState({ version: 1, members: [], teams: [] });
   const [noteContentItemIds, setNoteContentItemIds] = useState(() => new Set());
   const [saveStatus, setSaveStatus] = useState(null);
   const [saveTimer, setSaveTimer] = useState(null);
@@ -403,6 +406,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [showCalendarSetup, setShowCalendarSetup] = useState(false);
   const [showWorkspaceCreate, setShowWorkspaceCreate] = useState(false);
+  const [showPersonnelManager, setShowPersonnelManager] = useState(false);
   const [calendarConfig, setCalendarConfig] = useState(null);
   const [quickBatchTarget, setQuickBatchTarget] = useState(null); // { id, x, y }
   const [workspaceDeleteTarget, setWorkspaceDeleteTarget] = useState(null);
@@ -473,6 +477,18 @@ export default function App() {
         collapsed: collapsed && typeof collapsed === 'object' ? collapsed : {},
         activeCalEvents: Array.isArray(activeCalEvents) ? activeCalEvents : [],
         listWidth: Number.isFinite(listWidth) ? listWidth : 260,
+        blockerScenarioState: {
+          ...getDefaultBlockerScenarioState(),
+          scenarios: [{
+            ...getDefaultBlockerScenarioState().scenarios[0],
+            calendars: {
+              visible: Array.isArray(activeCalEvents) && activeCalEvents.length > 0,
+              filterInitialized: false,
+              visibleCalendarIds: [],
+              activeEventIds: Array.isArray(activeCalEvents) ? activeCalEvents : [],
+            },
+          }],
+        },
         notePanel: { ...DEFAULT_NOTE_PANEL },
       };
     } catch {
@@ -483,6 +499,7 @@ export default function App() {
         collapsed: {},
         activeCalEvents: [],
         listWidth: 260,
+        blockerScenarioState: getDefaultBlockerScenarioState(),
         notePanel: { ...DEFAULT_NOTE_PANEL },
       };
     }
@@ -491,11 +508,12 @@ export default function App() {
   const loadAppData = useCallback(async (workspaceIdOverride = null) => {
     const workspaceId = workspaceIdOverride || workspaces.activeWorkspaceId || null;
     const headers = getWorkspaceHeaders(workspaceId);
-    const [tasksRes, stateRes, workspacesRes, notesRes] = await Promise.all([
+    const [tasksRes, stateRes, workspacesRes, notesRes, personnelRes] = await Promise.all([
       fetch('/api/tasks'),
       fetch('/api/state', { headers }),
       fetch('/api/workspaces'),
       fetch('/api/notes/all', { headers }),
+      fetch('/api/personnel', { headers }),
     ]);
     if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
     if (!workspacesRes.ok) throw new Error(`Workspace HTTP ${workspacesRes.status}`);
@@ -504,6 +522,7 @@ export default function App() {
     const serverState = stateRes.ok ? await stateRes.json() : null;
     const workspacePayload = await workspacesRes.json();
     const notesPayload = notesRes.ok ? await notesRes.json() : { notes: [] };
+    const personnelPayload = personnelRes.ok ? await personnelRes.json() : { version: 1, members: [], teams: [] };
     const legacyState = readLegacyUiState();
     const shouldMigrateLegacy = !serverState?._exists;
     const nextUiState = shouldMigrateLegacy
@@ -513,12 +532,13 @@ export default function App() {
           zoom: serverState.zoom,
           density: serverState.density,
           collapsed: serverState.collapsed,
-          activeCalEvents: serverState.activeCalEvents,
           listWidth: serverState.listWidth,
+          blockerScenarioState: serverState.blockerScenarioState,
           notePanel: normalizeNotePanel(serverState.notePanel),
         };
 
     setData(d);
+    setPersonnel(personnelPayload);
     clearUndoHistory();
     setUiState(nextUiState);
     setError(null);
@@ -633,12 +653,20 @@ export default function App() {
     return new Map(entries);
   }, [calendarConfig]);
 
+  const calendarLabelById = useMemo(() => {
+    const entries = Array.isArray(calendarConfig?.calendars)
+      ? calendarConfig.calendars.map((calendar) => [calendar.id, calendar.label || calendar.id])
+      : [];
+    return new Map(entries);
+  }, [calendarConfig]);
+
   const displayCalendarEvents = useMemo(() => (
     calendarEvents.map((event) => ({
       ...event,
       color: calendarColorById.get(event.calendarKey) || event.color || '#4A90D9',
+      calendarLabel: calendarLabelById.get(event.calendarKey) || event.calendarKey,
     }))
-  ), [calendarColorById, calendarEvents]);
+  ), [calendarColorById, calendarEvents, calendarLabelById]);
 
   const refreshCalendarEvents = useCallback((dateRange = calendarDateRange, connected = calendarStatus.connected) => {
     if (!connected || !dateRange) {
@@ -1081,7 +1109,7 @@ export default function App() {
       };
       if (JSON.stringify(current) === JSON.stringify(merged)) return prev;
       if (uiStateSaveTimerRef.current) clearTimeout(uiStateSaveTimerRef.current);
-      uiStateSaveTimerRef.current = setTimeout(() => {
+      const persist = () => {
         fetch('/api/state', {
           method: 'PUT',
           headers: {
@@ -1090,10 +1118,50 @@ export default function App() {
           },
           body: JSON.stringify(merged),
         }).catch(() => {});
-      }, 150);
+      };
+      if (Object.prototype.hasOwnProperty.call(nextUiState, 'blockerScenarioState')) {
+        persist();
+      } else {
+        uiStateSaveTimerRef.current = setTimeout(persist, 150);
+      }
       return merged;
     });
   }, [getWorkspaceHeaders, workspaces.activeWorkspaceId]);
+
+  useEffect(() => {
+    if (historicalSnapshot) return;
+    const allCalendarIds = [...new Set(displayCalendarEvents.map((event) => event.calendarKey).filter(Boolean))];
+    if (allCalendarIds.length === 0) return;
+
+    const currentBlockerState = uiState?.blockerScenarioState;
+    if (!currentBlockerState?.scenarios?.length) return;
+
+    let changed = false;
+    const nextScenarios = currentBlockerState.scenarios.map((scenario) => {
+      const filterInitialized = scenario.calendars?.filterInitialized === true;
+      const hasVisibleCalendarIds = Array.isArray(scenario.calendars?.visibleCalendarIds);
+      const visibleCalendarIds = hasVisibleCalendarIds ? scenario.calendars.visibleCalendarIds : [];
+      if ((filterInitialized && hasVisibleCalendarIds) || visibleCalendarIds.length > 0) return scenario;
+      changed = true;
+      return {
+        ...scenario,
+        calendars: {
+          ...scenario.calendars,
+          filterInitialized: true,
+          visibleCalendarIds: allCalendarIds,
+        },
+      };
+    });
+
+    if (changed) {
+      handleUiStateChange({
+        blockerScenarioState: {
+          ...currentBlockerState,
+          scenarios: nextScenarios,
+        },
+      });
+    }
+  }, [displayCalendarEvents, handleUiStateChange, historicalSnapshot, uiState?.blockerScenarioState]);
 
   const updateNotePanelState = useCallback((updater) => {
     setUiState((prev) => {
@@ -1119,6 +1187,41 @@ export default function App() {
       return merged;
     });
   }, [getWorkspaceHeaders, workspaces.activeWorkspaceId]);
+
+  const handlePersonnelSave = useCallback(async (nextPersonnel) => {
+    try {
+      const response = await fetch('/api/personnel', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getWorkspaceHeaders(workspaces.activeWorkspaceId),
+        },
+        body: JSON.stringify(nextPersonnel),
+      });
+      if (!response.ok) throw new Error('Failed to save team');
+      const saved = await response.json();
+      setPersonnel(saved);
+
+      const validMemberIds = new Set((saved.members || []).map((member) => member.id));
+      const validTeamIds = new Set((saved.teams || []).map((team) => team.id));
+      const currentBlockerState = uiState?.blockerScenarioState || getDefaultBlockerScenarioState();
+      handleUiStateChange({
+        blockerScenarioState: {
+          ...currentBlockerState,
+          scenarios: (currentBlockerState.scenarios || []).map((scenario) => ({
+            ...scenario,
+            resources: {
+              teamIds: (scenario.resources?.teamIds || []).filter((id) => validTeamIds.has(id)),
+              memberIds: (scenario.resources?.memberIds || []).filter((id) => validMemberIds.has(id)),
+            },
+          })),
+        },
+      });
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }, [getWorkspaceHeaders, handleUiStateChange, uiState?.blockerScenarioState, workspaces.activeWorkspaceId]);
 
   const openNoteTab = useCallback((itemId, options = {}) => {
     const currentData = dataRef.current;
@@ -1246,6 +1349,7 @@ export default function App() {
     setShowHistoryPanel(false);
     setShowCalendarSetup(false);
     setShowWorkspaceCreate(false);
+    setShowPersonnelManager(false);
     try {
       const response = await fetch('/api/workspaces/active', {
         method: 'POST',
@@ -1280,6 +1384,7 @@ export default function App() {
     setEditTarget(null);
     setShowHistoryPanel(false);
     setShowCalendarSetup(false);
+    setShowPersonnelManager(false);
     setWorkspaceDeleteTarget(null);
     setWorkspaceDeleteError(null);
     await loadAppData(payload.activeWorkspaceId || null);
@@ -1305,6 +1410,7 @@ export default function App() {
       setEditTarget(null);
       setShowHistoryPanel(false);
       setShowCalendarSetup(false);
+      setShowPersonnelManager(false);
       await loadAppData(payload.activeWorkspaceId || null);
       refreshGitStatus();
     } catch (err) {
@@ -1321,6 +1427,7 @@ export default function App() {
   const activeTheme = displayUiState?.theme || uiState?.theme || 'dark';
   const notePanelState = normalizeNotePanel(uiState?.notePanel);
   const noteItemMeta = useMemo(() => buildNoteItemMeta(displayData?.items || []), [displayData]);
+  const displayBlockerScenarioState = displayUiState?.blockerScenarioState || getDefaultBlockerScenarioState();
   const activeWorkspace = useMemo(
     () => workspaces.workspaces.find((workspace) => workspace.id === workspaces.activeWorkspaceId) || null,
     [workspaces.activeWorkspaceId, workspaces.workspaces]
@@ -1460,6 +1567,9 @@ export default function App() {
             uiState={displayUiState}
             calendarEvents={displayCalendarEvents}
             calendarConnected={calendarStatus.connected}
+            personnel={personnel}
+            blockerScenarioState={displayBlockerScenarioState}
+            blockerSelectionLabel={getBlockerSelectionLabel(personnel, displayCalendarEvents, displayBlockerScenarioState)}
             onNodeClick={(nodeId) => {
               if (isHistorical) return;
               const node = findNodeInTree(displayData.items, nodeId);
@@ -1483,6 +1593,18 @@ export default function App() {
             onDeleteNode={handleDeleteNode}
             onDeleteNodes={handleDeleteNodes}
             onSplitNode={handleSplitNode}
+            onAssignTask={(nodeId, assigneeId) => handleSaveNode(nodeId, { assigneeId })}
+            onBlockerScenarioChange={(nextStateOrUpdater) => {
+              const currentState = displayBlockerScenarioState;
+              const nextState = typeof nextStateOrUpdater === 'function'
+                ? nextStateOrUpdater(currentState)
+                : nextStateOrUpdater;
+              handleUiStateChange({ blockerScenarioState: nextState });
+            }}
+            onShowPersonnelManager={() => {
+              if (isHistorical) return;
+              setShowPersonnelManager(true);
+            }}
             onSaveStatus={showSaveStatus}
             onCalendarSetup={() => setShowCalendarSetup(true)}
             onReorder={handleReorder}
@@ -1523,6 +1645,8 @@ export default function App() {
         <TaskEditor
           item={getEditItem()}
           type={editTarget.type}
+          items={data?.items || []}
+          personnel={personnel}
           phaseColors={PHASE_COLORS}
           onSave={(updates) => handleSaveNode(editTarget.id, updates)}
           onDelete={() => handleDeleteNode(editTarget.id)}
@@ -1532,6 +1656,14 @@ export default function App() {
             setEditTarget(null);
           }}
           onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {showPersonnelManager && !isHistorical && (
+        <PersonnelManagerModal
+          personnel={personnel}
+          onSave={handlePersonnelSave}
+          onClose={() => setShowPersonnelManager(false)}
         />
       )}
 

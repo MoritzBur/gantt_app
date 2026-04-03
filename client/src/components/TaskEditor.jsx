@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import AssignmentPicker from './AssignmentPicker.jsx';
 
 const PHASE_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
@@ -7,7 +8,7 @@ const PHASE_COLORS = [
 
 const BATCH_SUBTASK_EXAMPLE = ['- Draft API contract', '- Build timeline sync', '- Polish hover states'].join('\n');
 
-export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate, onOpenNote, onClose }) {
+export default function TaskEditor({ item, type, items, personnel, onSave, onDelete, onBatchCreate, onOpenNote, onClose }) {
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [batchDraft, setBatchDraft] = useState('- ');
@@ -82,7 +83,15 @@ export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate
   const handleSave = () => {
     const isMilestone = type === 'task' && !!form.milestone;
     onSave(type === 'task'
-      ? { name: form.name, start: form.start, end: isMilestone ? form.start : form.end, done: form.done, milestone: isMilestone }
+      ? {
+          name: form.name,
+          start: form.start,
+          end: isMilestone ? form.start : form.end,
+          done: form.done,
+          milestone: isMilestone,
+          assigneeId: form.assigneeId || null,
+          blocker: !!form.blocker,
+        }
       : { name: form.name, start: form.start, end: form.end, color: form.color, prefix: form.prefix ?? 'WP' }
     );
     // type === 'group' uses same fields as old 'phase'
@@ -273,6 +282,33 @@ export default function TaskEditor({ item, type, onSave, onDelete, onBatchCreate
           )}
 
           {/* Done checkbox — tasks only */}
+          {type === 'task' && (
+            <div className="form-group">
+              <label className="form-label">Assigned Person</label>
+              <AssignmentPicker
+                task={form}
+                items={items}
+                personnel={personnel}
+                value={form.assigneeId || null}
+                onChange={(memberId) => handleChange('assigneeId', memberId)}
+                showClear={true}
+              />
+            </div>
+          )}
+
+          {type === 'task' && (
+            <div className="form-group form-group-inline">
+              <input
+                id="task-blocker"
+                type="checkbox"
+                className="form-checkbox"
+                checked={!!form.blocker}
+                onChange={(e) => handleChange('blocker', e.target.checked)}
+              />
+              <label htmlFor="task-blocker" className="form-label-inline">Use this task as a blocker</label>
+            </div>
+          )}
+
           {type === 'task' && (
             <div className="form-group form-group-inline">
               <input

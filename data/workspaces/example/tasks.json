@@ -19,7 +19,9 @@
           "milestone": true,
           "type": "task",
           "children": [],
-          "noteFile": "main.md"
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "blocker": false
         },
         {
           "id": "ms-baseline",
@@ -30,7 +32,9 @@
           "milestone": true,
           "type": "task",
           "children": [],
-          "noteFile": "main.md"
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "blocker": false
         },
         {
           "id": "ms-tunnel",
@@ -41,7 +45,9 @@
           "milestone": true,
           "type": "task",
           "children": [],
-          "noteFile": "main.md"
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "blocker": false
         },
         {
           "id": "ms-freeze",
@@ -52,7 +58,9 @@
           "milestone": true,
           "type": "task",
           "children": [],
-          "noteFile": "main.md"
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "blocker": false
         },
         {
           "id": "ms-submit",
@@ -63,7 +71,9 @@
           "milestone": true,
           "type": "task",
           "children": [],
-          "noteFile": "main.md"
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "blocker": false
         }
       ],
       "noteFile": "main.md"
@@ -86,6 +96,8 @@
           "children": [],
           "done": true,
           "milestone": false,
+          "assigneeId": "member-anna",
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -97,6 +109,8 @@
           "children": [],
           "done": true,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -108,6 +122,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-anna",
+          "blocker": true,
           "noteFile": "main.md"
         }
       ],
@@ -131,6 +147,8 @@
           "children": [],
           "done": true,
           "milestone": false,
+          "assigneeId": "member-anna",
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -142,17 +160,21 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-anna",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
           "id": "task-gust-cases",
           "name": "Generate unsteady gust cases",
           "type": "task",
-          "start": "2026-05-04",
+          "start": "2026-05-06",
           "end": "2026-05-22",
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-anna",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -164,6 +186,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": false,
           "noteFile": "main.md"
         }
       ],
@@ -187,6 +211,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-peter",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -198,6 +224,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-peter",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -209,6 +237,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-peter",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -220,6 +250,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-peter",
+          "blocker": false,
           "noteFile": "main.md"
         }
       ],
@@ -243,6 +275,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -254,6 +288,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -265,6 +301,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": false,
           "noteFile": "main.md"
         }
       ],
@@ -288,6 +326,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -299,6 +339,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": true,
           "noteFile": "main.md"
         },
         {
@@ -310,6 +352,8 @@
           "children": [],
           "done": false,
           "milestone": false,
+          "assigneeId": "member-lina",
+          "blocker": false,
           "noteFile": "main.md"
         }
       ],
