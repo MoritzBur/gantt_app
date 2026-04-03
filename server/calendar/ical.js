@@ -3,10 +3,7 @@ const store = require('../data-store');
 const { normalizeBackendCalendars, toPublicCalendarConfig } = require('./shared');
 
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-
-let calendars = loadCalendars();
-let cache = null;
-let lastFetchOk = false;
+const workspaceCache = new Map();
 
 function loadCalendars() {
   const config = store.readCalendarConfig();
@@ -39,6 +36,22 @@ function saveCalendars(nextCalendars) {
   });
 }
 
+function getWorkspaceKey() {
+  return store.DATA_DIR;
+}
+
+function getWorkspaceState() {
+  const workspaceKey = getWorkspaceKey();
+  if (!workspaceCache.has(workspaceKey)) {
+    workspaceCache.set(workspaceKey, {
+      calendars: loadCalendars(),
+      cache: null,
+      lastFetchOk: false,
+    });
+  }
+  return workspaceCache.get(workspaceKey);
+}
+
 function formatLocalDate(d) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -51,7 +64,7 @@ function isDateOnly(d) {
     d.getHours() === 0 && d.getMinutes() === 0 && d.getSeconds() === 0;
 }
 
-async function fetchAll() {
+async function fetchAll(calendars) {
   const allEvents = [];
   const enabledCalendars = calendars.filter(calendar => calendar.enabled !== false && calendar.icalUrl);
 
@@ -90,32 +103,33 @@ async function fetchAll() {
   return allEvents;
 }
 
-async function refreshCache() {
-  if (calendars.length === 0) return;
+async function refreshCache(state) {
+  if (!state || state.calendars.length === 0) {
+    if (state) state.cache = { events: [], fetchedAt: Date.now() };
+    return;
+  }
   try {
-    const events = await fetchAll();
-    cache = { events, fetchedAt: Date.now() };
-    lastFetchOk = true;
+    const events = await fetchAll(state.calendars);
+    state.cache = { events, fetchedAt: Date.now() };
+    state.lastFetchOk = true;
   } catch (err) {
     console.error('[iCal] Cache refresh failed:', err.message);
-    lastFetchOk = false;
+    state.lastFetchOk = false;
   }
 }
 
-if (calendars.length > 0) {
-  refreshCache();
-}
-setInterval(refreshCache, CACHE_TTL);
-
 module.exports = {
   isConnected() {
-    return calendars.some(calendar => calendar.enabled !== false && calendar.icalUrl);
+    const state = getWorkspaceState();
+    return state.calendars.some(calendar => calendar.enabled !== false && calendar.icalUrl);
   },
 
   async getEvents(start, end) {
-    if (!cache && calendars.length > 0) await refreshCache();
-    if (!cache) return [];
-    return cache.events.filter(ev => ev.start <= end && ev.end >= start);
+    const state = getWorkspaceState();
+    const isExpired = !state.cache || (Date.now() - state.cache.fetchedAt) > CACHE_TTL;
+    if (isExpired) await refreshCache(state);
+    if (!state.cache) return [];
+    return state.cache.events.filter(ev => ev.start <= end && ev.end >= start);
   },
 
   getAuthUrl() {
@@ -127,15 +141,16 @@ module.exports = {
   disconnect() {},
 
   getConfig() {
-    return toPublicCalendarConfig('ical', calendars);
+    return toPublicCalendarConfig('ical', getWorkspaceState().calendars);
   },
 
   async configure(config) {
-    calendars = normalizeBackendCalendars(config?.calendars, 'ical');
-    saveCalendars(calendars);
-    cache = null;
-    lastFetchOk = false;
-    await refreshCache();
+    const state = getWorkspaceState();
+    state.calendars = normalizeBackendCalendars(config?.calendars, 'ical');
+    saveCalendars(state.calendars);
+    state.cache = null;
+    state.lastFetchOk = false;
+    await refreshCache(state);
     return this.getConfig();
   },
 };

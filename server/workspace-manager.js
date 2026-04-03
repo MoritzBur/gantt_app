@@ -77,14 +77,15 @@ function writeEmptyWorkspaceFiles(dirPath) {
   ensureDir(path.join(dirPath, 'notes'));
 }
 
-function copyDirContents(sourceDir, targetDir) {
+function copyDirContents(sourceDir, targetDir, { overwrite = true } = {}) {
   ensureDir(targetDir);
   for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
     const sourcePath = path.join(sourceDir, entry.name);
     const targetPath = path.join(targetDir, entry.name);
     if (entry.isDirectory()) {
-      copyDirContents(sourcePath, targetPath);
+      copyDirContents(sourcePath, targetPath, { overwrite });
     } else {
+      if (!overwrite && fs.existsSync(targetPath)) continue;
       ensureDir(path.dirname(targetPath));
       fs.copyFileSync(sourcePath, targetPath);
     }
@@ -93,6 +94,36 @@ function copyDirContents(sourceDir, targetDir) {
 
 function cloneWorkspaceContents(sourceDir, targetDir) {
   copyDirContents(sourceDir, targetDir);
+}
+
+function ensureWorkspaceFiles(workspace) {
+  if (!workspace) return;
+
+  if (workspace.kind === 'example' && fs.existsSync(EXAMPLE_TEMPLATE_DIR)) {
+    ensureDir(workspace.path);
+    copyDirContents(EXAMPLE_TEMPLATE_DIR, workspace.path, { overwrite: false });
+    return;
+  }
+
+  ensureDir(workspace.path);
+
+  const tasksFile = path.join(workspace.path, 'tasks.json');
+  const stateFile = path.join(workspace.path, 'state.json');
+  const calendarFile = path.join(workspace.path, 'calendar-config.json');
+  const notesDir = path.join(workspace.path, 'notes');
+
+  if (!fs.existsSync(tasksFile)) writeJson(tasksFile, store.DEFAULT_TASKS);
+  if (!fs.existsSync(stateFile)) writeJson(stateFile, store.DEFAULT_STATE);
+  if (!fs.existsSync(calendarFile)) {
+    writeJson(calendarFile, {
+      version: 2,
+      backends: {
+        ical: { calendars: [] },
+        google: { calendars: [] },
+      },
+    });
+  }
+  ensureDir(notesDir);
 }
 
 function readManifest() {
@@ -176,11 +207,12 @@ function initializeWorkspaceManifest() {
 
 function ensureInitialized() {
   const manifest = initializeWorkspaceManifest();
+  manifest.workspaces.forEach(ensureWorkspaceFiles);
   const active = manifest.workspaces.find((workspace) => workspace.id === manifest.activeWorkspaceId) || manifest.workspaces[0];
   if (!active) {
     throw new Error('No workspace available');
   }
-  if (active.pathMode !== 'root') ensureDir(active.path);
+  ensureWorkspaceFiles(active);
   store.setDataDir(active.path);
   return {
     ...manifest,
@@ -192,6 +224,7 @@ function listWorkspaces() {
   const manifest = ensureInitialized();
   return {
     activeWorkspaceId: manifest.activeWorkspaceId,
+    activeWorkspace: manifest.workspaces.find((workspace) => workspace.id === manifest.activeWorkspaceId) || null,
     workspaces: manifest.workspaces,
   };
 }
@@ -220,6 +253,15 @@ function getUniqueWorkspaceId(baseId, manifest) {
   let index = 2;
   while (used.has(`${baseId}-${index}`)) index += 1;
   return `${baseId}-${index}`;
+}
+
+function canDeleteWorkspace(workspaceId, manifest = null) {
+  const currentManifest = manifest || ensureInitialized();
+  const workspace = currentManifest.workspaces.find((entry) => entry.id === workspaceId);
+  if (!workspace) return false;
+  if (workspace.pathMode === 'root') return false;
+  if ((currentManifest.workspaces || []).length <= 1) return false;
+  return true;
 }
 
 function createWorkspace({ name, mode = 'empty', sourceWorkspaceId = null }) {
@@ -260,6 +302,44 @@ function createWorkspace({ name, mode = 'empty', sourceWorkspaceId = null }) {
   };
 }
 
+function deleteWorkspace(workspaceId) {
+  const manifest = ensureInitialized();
+  const workspaceIndex = manifest.workspaces.findIndex((workspace) => workspace.id === workspaceId);
+  if (workspaceIndex === -1) {
+    throw new Error('Workspace not found');
+  }
+  if (!canDeleteWorkspace(workspaceId, manifest)) {
+    throw new Error('This workspace cannot be deleted');
+  }
+
+  const workspace = manifest.workspaces[workspaceIndex];
+  if (workspace.pathMode !== 'root' && fs.existsSync(workspace.path)) {
+    fs.rmSync(workspace.path, { recursive: true, force: true });
+  }
+
+  const nextWorkspaces = manifest.workspaces.filter((entry) => entry.id !== workspaceId);
+  const nextActiveWorkspace = manifest.activeWorkspaceId === workspaceId
+    ? (nextWorkspaces[workspaceIndex] || nextWorkspaces[workspaceIndex - 1] || nextWorkspaces[0] || null)
+    : (nextWorkspaces.find((entry) => entry.id === manifest.activeWorkspaceId) || nextWorkspaces[0] || null);
+
+  const nextManifest = {
+    activeWorkspaceId: nextActiveWorkspace?.id || null,
+    workspaces: nextWorkspaces,
+  };
+
+  writeManifest(nextManifest);
+  if (nextActiveWorkspace) {
+    ensureWorkspaceFiles(nextActiveWorkspace);
+    store.setDataDir(nextActiveWorkspace.path);
+  }
+
+  return {
+    activeWorkspaceId: nextActiveWorkspace?.id || null,
+    activeWorkspace: nextActiveWorkspace,
+    workspaces: nextWorkspaces,
+  };
+}
+
 module.exports = {
   WORKSPACES_ROOT,
   MANIFEST_FILE,
@@ -268,4 +348,6 @@ module.exports = {
   listWorkspaces,
   setActiveWorkspace,
   createWorkspace,
+  deleteWorkspace,
+  canDeleteWorkspace,
 };

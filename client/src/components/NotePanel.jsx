@@ -35,14 +35,29 @@ function getVisibleTabLabel(tab, meta, cacheEntry) {
   return (cacheEntry?.filename || tab?.filename || 'Untitled').replace(/\.md$/i, '');
 }
 
-export default function NotePanel({ panelState, theme, itemMeta, onPanelStateChange, onOpenNote, onMainNoteContentChange }) {
+function getWorkspaceHeaders(workspaceId) {
+  return workspaceId ? { 'x-workspace-id': workspaceId } : {};
+}
+
+function toHistoryEntry(tab) {
+  if (!tab?.itemId || !tab?.filename) return null;
+  return {
+    itemId: tab.itemId,
+    filename: tab.filename,
+    type: tab.type === 'related' ? 'related' : 'main',
+  };
+}
+
+export default function NotePanel({ workspaceId, panelState, theme, itemMeta, onPanelStateChange, onOpenNote, onMainNoteContentChange }) {
   const [noteCache, setNoteCache] = useState({});
   const [allNotes, setAllNotes] = useState([]);
   const [relatedNotes, setRelatedNotes] = useState([]);
   const [relatedNotesLoading, setRelatedNotesLoading] = useState(false);
   const [newRelatedName, setNewRelatedName] = useState('');
   const [draggedTabIndex, setDraggedTabIndex] = useState(null);
+  const [navigation, setNavigation] = useState({ backStack: [], forwardStack: [] });
   const saveTimersRef = useRef({});
+  const workspaceEpochRef = useRef(0);
 
   const normalizedPanel = useMemo(() => ({
     open: !!panelState?.open,
@@ -57,20 +72,27 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
   const activeTabKey = activeTab ? getTabKey(activeTab) : null;
   const activeCacheEntry = activeTabKey ? noteCache[activeTabKey] : null;
   const activeItemMeta = activeTab ? (itemMeta?.[activeTab.itemId] || null) : null;
+  const canNavigateBack = navigation.backStack.length > 0;
+  const canNavigateForward = navigation.forwardStack.length > 0;
 
   const refreshAllNotes = useCallback(() => {
-    fetch('/api/notes/all')
+    const requestEpoch = workspaceEpochRef.current;
+    fetch('/api/notes/all', { headers: getWorkspaceHeaders(workspaceId) })
       .then((response) => {
         if (!response.ok) throw new Error('Failed to load notes');
         return response.json();
       })
-      .then((payload) => setAllNotes(Array.isArray(payload.notes) ? payload.notes : []))
+      .then((payload) => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
+        setAllNotes(Array.isArray(payload.notes) ? payload.notes : []);
+      })
       .catch(() => {});
-  }, []);
+  }, [workspaceId]);
 
   const loadTab = useCallback((tab) => {
     if (!tab) return;
     const key = getTabKey(tab);
+    const requestEpoch = workspaceEpochRef.current;
 
     setNoteCache((current) => ({
       ...current,
@@ -81,12 +103,13 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
       },
     }));
 
-    fetch(getEndpoint(tab))
+    fetch(getEndpoint(tab), { headers: getWorkspaceHeaders(workspaceId) })
       .then((response) => {
         if (!response.ok) throw new Error('Failed to load note');
         return response.json();
       })
       .then((payload) => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
         if (tab.type === 'main') {
           onMainNoteContentChange?.(tab.itemId, String(payload.content || '').trim().length > 0);
         }
@@ -104,6 +127,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         refreshAllNotes();
       })
       .catch(() => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
         setNoteCache((current) => ({
           ...current,
           [key]: {
@@ -113,7 +137,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
           },
         }));
       });
-  }, [refreshAllNotes]);
+  }, [onMainNoteContentChange, refreshAllNotes, workspaceId]);
 
   useEffect(() => {
     refreshAllNotes();
@@ -138,20 +162,42 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
       return;
     }
 
+    const requestEpoch = workspaceEpochRef.current;
     setRelatedNotesLoading(true);
-    fetch(`/api/notes/${activeTab.itemId}/related`)
+    fetch(`/api/notes/${activeTab.itemId}/related`, { headers: getWorkspaceHeaders(workspaceId) })
       .then((response) => {
         if (!response.ok) throw new Error('Failed to load related notes');
         return response.json();
       })
-      .then((payload) => setRelatedNotes(Array.isArray(payload.files) ? payload.files : []))
-      .catch(() => setRelatedNotes([]))
-      .finally(() => setRelatedNotesLoading(false));
-  }, [activeTab]);
+      .then((payload) => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
+        setRelatedNotes(Array.isArray(payload.files) ? payload.files : []);
+      })
+      .catch(() => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
+        setRelatedNotes([]);
+      })
+      .finally(() => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
+        setRelatedNotesLoading(false);
+      });
+  }, [activeTab, workspaceId]);
 
   useEffect(() => () => {
     Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
   }, []);
+
+  useEffect(() => {
+    workspaceEpochRef.current += 1;
+    Object.values(saveTimersRef.current).forEach((timer) => clearTimeout(timer));
+    saveTimersRef.current = {};
+    setNoteCache({});
+    setAllNotes([]);
+    setRelatedNotes([]);
+    setRelatedNotesLoading(false);
+    setNewRelatedName('');
+    setNavigation({ backStack: [], forwardStack: [] });
+  }, [workspaceId]);
 
   useEffect(() => {
     if (!normalizedPanel.open || !activeTab || activeTab.pinned) return undefined;
@@ -238,6 +284,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
   }, [normalizedPanel, onPanelStateChange]);
 
   const persistContent = useCallback((tab, content) => {
+    const requestEpoch = workspaceEpochRef.current;
     setNoteCache((current) => ({
       ...current,
       [getTabKey(tab)]: {
@@ -248,7 +295,10 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
 
     fetch(getSaveEndpoint(tab), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getWorkspaceHeaders(workspaceId),
+      },
       body: JSON.stringify({ content }),
     })
       .then((response) => {
@@ -256,6 +306,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         return response.json();
       })
       .then((payload) => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
         if (tab.type === 'main') {
           onMainNoteContentChange?.(tab.itemId, String(content || '').trim().length > 0);
         }
@@ -274,6 +325,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         refreshAllNotes();
       })
       .catch(() => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
         setNoteCache((current) => ({
           ...current,
           [getTabKey(tab)]: {
@@ -284,7 +336,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
           },
         }));
       });
-  }, [onMainNoteContentChange, refreshAllNotes]);
+  }, [onMainNoteContentChange, refreshAllNotes, workspaceId]);
 
   const handleContentChange = useCallback((tab, content) => {
     const key = getTabKey(tab);
@@ -380,12 +432,23 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
   }, [normalizedPanel, onPanelStateChange]);
 
   const handleNavigateLink = useCallback((tab, linkText, options = {}) => {
-    fetch(`/api/notes/resolve?fromItemId=${encodeURIComponent(tab.itemId)}&link=${encodeURIComponent(linkText)}`)
+    const requestEpoch = workspaceEpochRef.current;
+    fetch(`/api/notes/resolve?fromItemId=${encodeURIComponent(tab.itemId)}&link=${encodeURIComponent(linkText)}`, {
+      headers: getWorkspaceHeaders(workspaceId),
+    })
       .then(async (response) => {
         if (response.ok) return response.json();
         throw new Error('missing');
       })
       .then((resolved) => {
+        if (requestEpoch !== workspaceEpochRef.current) return;
+        const currentEntry = toHistoryEntry(tab);
+        if (!options.newTab && currentEntry) {
+          setNavigation((current) => ({
+            backStack: [...current.backStack, currentEntry],
+            forwardStack: [],
+          }));
+        }
         onOpenNote(resolved.itemId, {
           filename: resolved.filename,
           type: resolved.type,
@@ -393,7 +456,31 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         });
       })
       .catch(() => {});
-  }, [onOpenNote, refreshAllNotes]);
+  }, [onOpenNote, workspaceId]);
+
+  const handleNavigateHistory = useCallback((direction) => {
+    if (!activeTab) return;
+    if (direction === 'back') {
+      if (navigation.backStack.length === 0) return;
+      const target = navigation.backStack[navigation.backStack.length - 1];
+      const currentEntry = toHistoryEntry(activeTab);
+      onOpenNote(target.itemId, { filename: target.filename, type: target.type, replaceActive: true });
+      setNavigation({
+        backStack: navigation.backStack.slice(0, -1),
+        forwardStack: currentEntry ? [...navigation.forwardStack, currentEntry] : navigation.forwardStack,
+      });
+      return;
+    }
+
+    if (navigation.forwardStack.length === 0) return;
+    const target = navigation.forwardStack[navigation.forwardStack.length - 1];
+    const currentEntry = toHistoryEntry(activeTab);
+    onOpenNote(target.itemId, { filename: target.filename, type: target.type, replaceActive: true });
+    setNavigation({
+      backStack: currentEntry ? [...navigation.backStack, currentEntry] : navigation.backStack,
+      forwardStack: navigation.forwardStack.slice(0, -1),
+    });
+  }, [activeTab, navigation, onOpenNote]);
 
   const handleCreateRelatedNote = useCallback((proposedName = newRelatedName) => {
     if (!activeTab) return;
@@ -402,7 +489,10 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
 
     fetch(`/api/notes/${activeTab.itemId}/related`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getWorkspaceHeaders(workspaceId),
+      },
       body: JSON.stringify({ filename: proposed }),
     })
       .then((response) => {
@@ -423,7 +513,7 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
         refreshAllNotes();
       })
       .catch(() => {});
-  }, [activeTab, newRelatedName, onOpenNote, refreshAllNotes]);
+  }, [activeTab, newRelatedName, onOpenNote, refreshAllNotes, workspaceId]);
 
   const activeMainFilename = activeTab?.itemId
     ? (allNotes.find((note) => note.itemId === activeTab.itemId && note.type === 'main')?.filename || 'main.md')
@@ -506,6 +596,26 @@ export default function NotePanel({ panelState, theme, itemMeta, onPanelStateCha
             {activeCacheEntry.saveState === 'error' && 'Save failed'}
           </span>
         )}
+        <div className="note-panel-nav-actions">
+          <button
+            className="note-panel-nav-button"
+            type="button"
+            onClick={() => handleNavigateHistory('back')}
+            disabled={!canNavigateBack}
+            title="Back to previous followed note"
+          >
+            ←
+          </button>
+          <button
+            className="note-panel-nav-button"
+            type="button"
+            onClick={() => handleNavigateHistory('forward')}
+            disabled={!canNavigateForward}
+            title="Forward to next followed note"
+          >
+            →
+          </button>
+        </div>
         <button
           className="note-panel-toggle"
           type="button"

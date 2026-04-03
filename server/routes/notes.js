@@ -3,6 +3,7 @@ const path = require('path');
 const express = require('express');
 const store = require('../data-store');
 const runtimePaths = require('../runtime-paths');
+const workspaceManager = require('../workspace-manager');
 
 const router = express.Router();
 
@@ -40,8 +41,21 @@ function toWorkspacePath(filePath) {
   return filePath;
 }
 
-router.get('/all', (_req, res) => {
+function hasWorkspaceMismatch(req) {
+  const requestedWorkspaceId = String(req.get('x-workspace-id') || '').trim();
+  if (!requestedWorkspaceId) return false;
+  return workspaceManager.listWorkspaces().activeWorkspaceId !== requestedWorkspaceId;
+}
+
+function rejectWorkspaceMismatch(req, res) {
+  if (!hasWorkspaceMismatch(req)) return false;
+  res.status(409).json({ error: 'Workspace changed while this note request was in flight' });
+  return true;
+}
+
+router.get('/all', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const data = store.readTasks();
     res.json({
       notes: store.collectNoteEntries(data).map((note) => ({
@@ -57,6 +71,7 @@ router.get('/all', (_req, res) => {
 
 router.get('/resolve', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const fromItemId = String(req.query.fromItemId || '').trim();
     const link = String(req.query.link || '').trim();
     if (!fromItemId || !link) {
@@ -75,6 +90,7 @@ router.get('/resolve', (req, res) => {
 
 router.get('/:itemId/related', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const data = store.readTasks();
     const binding = store.getNoteBinding(data, req.params.itemId, { assignDefault: false });
     if (!binding) return res.status(404).json({ error: 'Item not found' });
@@ -94,6 +110,7 @@ router.get('/:itemId/related', (req, res) => {
 
 router.post('/:itemId/related', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const data = store.readTasks();
     const binding = store.getNoteBinding(data, req.params.itemId, { assignDefault: false });
     if (!binding) return res.status(404).json({ error: 'Item not found' });
@@ -120,6 +137,7 @@ router.post('/:itemId/related', (req, res) => {
 
 router.get('/:itemId/related/:filename', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const data = store.readTasks();
     const binding = store.getNoteBinding(data, req.params.itemId, { assignDefault: false });
     if (!binding) return res.status(404).json({ error: 'Item not found' });
@@ -145,6 +163,7 @@ router.get('/:itemId/related/:filename', (req, res) => {
 
 router.put('/:itemId/related/:filename', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const data = store.readTasks();
     const binding = store.getNoteBinding(data, req.params.itemId, { assignDefault: false });
     if (!binding) return res.status(404).json({ error: 'Item not found' });
@@ -168,6 +187,7 @@ router.put('/:itemId/related/:filename', (req, res) => {
 
 router.get('/:itemId', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const data = store.readTasks();
     const ensure = req.query.ensure === '1';
     const binding = ensure ? ensureMainBinding(data, req.params.itemId) : store.getNoteBinding(data, req.params.itemId, { assignDefault: false });
@@ -193,6 +213,7 @@ router.get('/:itemId', (req, res) => {
 
 router.put('/:itemId', (req, res) => {
   try {
+    if (rejectWorkspaceMismatch(req, res)) return;
     const data = store.readTasks();
     const binding = ensureMainBinding(data, req.params.itemId);
     if (!binding) return res.status(404).json({ error: 'Item not found' });

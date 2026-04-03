@@ -129,6 +129,7 @@ a:hover {
 .workspace-switcher {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -434,6 +435,27 @@ a:hover {
   font-family: var(--font-mono);
   color: var(--text-dim);
   white-space: nowrap;
+}
+
+.note-panel-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.note-panel-nav-button {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.note-panel-nav-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .note-save-indicator.saved {

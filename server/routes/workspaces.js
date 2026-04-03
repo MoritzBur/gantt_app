@@ -4,6 +4,7 @@ const workspaceManager = require('../workspace-manager');
 const router = express.Router();
 
 function serialize(payload) {
+  const workspaceCount = (payload.workspaces || []).length;
   return {
     activeWorkspaceId: payload.activeWorkspaceId,
     activeWorkspace: payload.activeWorkspace
@@ -11,12 +12,14 @@ function serialize(payload) {
           id: payload.activeWorkspace.id,
           name: payload.activeWorkspace.name,
           kind: payload.activeWorkspace.kind,
+          deletable: payload.activeWorkspace.pathMode !== 'root' && workspaceCount > 1,
         }
       : null,
     workspaces: (payload.workspaces || []).map((workspace) => ({
       id: workspace.id,
       name: workspace.name,
       kind: workspace.kind,
+      deletable: workspace.pathMode !== 'root' && workspaceCount > 1,
     })),
   };
 }
@@ -62,6 +65,22 @@ router.post('/', (req, res) => {
     }
     console.error('Failed to create workspace:', err);
     res.status(500).json({ error: 'Failed to create workspace' });
+  }
+});
+
+router.delete('/:workspaceId', (req, res) => {
+  try {
+    const payload = workspaceManager.deleteWorkspace(String(req.params.workspaceId || '').trim());
+    res.json(serialize(payload));
+  } catch (err) {
+    if (/not found/i.test(err.message)) {
+      return res.status(404).json({ error: err.message });
+    }
+    if (/cannot be deleted/i.test(err.message)) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error('Failed to delete workspace:', err);
+    res.status(500).json({ error: 'Failed to delete workspace' });
   }
 });
 

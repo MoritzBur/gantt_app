@@ -341,6 +341,54 @@ function WorkspaceCreateModal({ workspaces, onCreate, onClose }) {
   );
 }
 
+function WorkspaceDeleteModal({ workspace, onConfirm, onClose, deleting, error }) {
+  useEffect(() => {
+    const handler = (event) => {
+      if (event.key === 'Escape' && !deleting) onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [deleting, onClose]);
+
+  if (!workspace) return null;
+
+  return (
+    <div className="modal-backdrop" onClick={deleting ? undefined : onClose}>
+      <div
+        className="modal workspace-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="workspace-delete-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2 className="modal-title" id="workspace-delete-title">Delete Workspace</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Close" disabled={deleting}>✕</button>
+        </div>
+        <div className="modal-body workspace-modal-form">
+          <p className="delete-confirm-copy">
+            Delete <strong>{workspace.name}</strong> and all of its tasks, notes, calendar settings, and UI state?
+          </p>
+          <p className="workspace-help">
+            This cannot be undone. The safe default is to cancel, and the app will switch to another workspace only if you confirm deletion.
+          </p>
+          {error && <p className="workspace-error">{error}</p>}
+          <div className="modal-footer">
+            <div className="modal-footer-right">
+              <button className="btn btn-ghost" type="button" onClick={onClose} disabled={deleting} autoFocus>
+                Cancel
+              </button>
+              <button className="btn btn-danger" type="button" onClick={onConfirm} disabled={deleting}>
+                {deleting ? 'Deleting…' : 'Delete Workspace'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [data, setData] = useState(null);
   const [uiState, setUiState] = useState(null);
@@ -357,6 +405,9 @@ export default function App() {
   const [showWorkspaceCreate, setShowWorkspaceCreate] = useState(false);
   const [calendarConfig, setCalendarConfig] = useState(null);
   const [quickBatchTarget, setQuickBatchTarget] = useState(null); // { id, x, y }
+  const [workspaceDeleteTarget, setWorkspaceDeleteTarget] = useState(null);
+  const [workspaceDeleteError, setWorkspaceDeleteError] = useState(null);
+  const [workspaceDeleting, setWorkspaceDeleting] = useState(false);
 
   const [gitDirty, setGitDirty] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
@@ -371,6 +422,10 @@ export default function App() {
   const dataRef = useRef(data);
 
   useEffect(() => { dataRef.current = data; }, [data]);
+
+  const getWorkspaceHeaders = useCallback((workspaceId) => (
+    workspaceId ? { 'x-workspace-id': workspaceId } : {}
+  ), []);
 
   const showHistoryFeedback = useCallback((kind) => {
     setHistoryFeedback(kind);
@@ -433,12 +488,14 @@ export default function App() {
     }
   }, []);
 
-  const loadAppData = useCallback(async () => {
+  const loadAppData = useCallback(async (workspaceIdOverride = null) => {
+    const workspaceId = workspaceIdOverride || workspaces.activeWorkspaceId || null;
+    const headers = getWorkspaceHeaders(workspaceId);
     const [tasksRes, stateRes, workspacesRes, notesRes] = await Promise.all([
       fetch('/api/tasks'),
-      fetch('/api/state'),
+      fetch('/api/state', { headers }),
       fetch('/api/workspaces'),
-      fetch('/api/notes/all'),
+      fetch('/api/notes/all', { headers }),
     ]);
     if (!tasksRes.ok) throw new Error(`HTTP ${tasksRes.status}`);
     if (!workspacesRes.ok) throw new Error(`Workspace HTTP ${workspacesRes.status}`);
@@ -479,14 +536,17 @@ export default function App() {
     if (shouldMigrateLegacy || (serverState && serverState.theme !== 'light' && serverState.theme !== 'dark')) {
       fetch('/api/state', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
         body: JSON.stringify(nextUiState),
       }).catch(() => {});
     }
-  }, [clearUndoHistory, readLegacyUiState]);
+  }, [clearUndoHistory, getWorkspaceHeaders, readLegacyUiState, workspaces.activeWorkspaceId]);
 
   const refreshNoteContentIndex = useCallback(() => {
-    fetch('/api/notes/all')
+    fetch('/api/notes/all', { headers: getWorkspaceHeaders(workspaces.activeWorkspaceId) })
       .then((response) => {
         if (!response.ok) throw new Error('Failed to load note index');
         return response.json();
@@ -499,7 +559,7 @@ export default function App() {
         ));
       })
       .catch(() => {});
-  }, []);
+  }, [getWorkspaceHeaders, workspaces.activeWorkspaceId]);
 
   const handleMainNoteContentChange = useCallback((itemId, hasContent) => {
     if (!itemId) return;
@@ -537,17 +597,6 @@ export default function App() {
       document.documentElement.style.colorScheme = '';
     };
   }, [historicalSnapshot?.state?.theme, uiState?.theme]);
-
-  useEffect(() => {
-    fetch('/api/calendar/status')
-      .then(r => r.json())
-      .then(s => setCalendarStatus(s))
-      .catch(() => {});
-    fetch('/api/calendar/config')
-      .then(r => r.json())
-      .then(c => setCalendarConfig(c))
-      .catch(() => {});
-  }, [workspaces.activeWorkspaceId]);
 
   useEffect(() => {
     if (!loading) refreshNoteContentIndex();
@@ -591,16 +640,37 @@ export default function App() {
     }))
   ), [calendarColorById, calendarEvents]);
 
-  useEffect(() => {
-    if (!calendarStatus.connected || !calendarDateRange) return;
-    const [startStr, endStr] = calendarDateRange.split('/');
+  const refreshCalendarEvents = useCallback((dateRange = calendarDateRange, connected = calendarStatus.connected) => {
+    if (!connected || !dateRange) {
+      setCalendarEvents([]);
+      return;
+    }
+    const [startStr, endStr] = dateRange.split('/');
     fetch(`/api/calendar/events?start=${startStr}&end=${endStr}`)
       .then(r => r.json())
       .then(events => {
         if (Array.isArray(events)) setCalendarEvents(events);
       })
       .catch(() => {});
-  }, [calendarStatus.connected, calendarDateRange]);
+  }, [calendarDateRange, calendarStatus.connected, workspaces.activeWorkspaceId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      fetch('/api/calendar/status').then(r => r.json()).catch(() => ({ connected: false })),
+      fetch('/api/calendar/config').then(r => r.json()).catch(() => null),
+    ]).then(([status, config]) => {
+      if (cancelled) return;
+      setCalendarStatus(status);
+      setCalendarConfig(config);
+      refreshCalendarEvents(calendarDateRange, status.connected);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [calendarDateRange, refreshCalendarEvents, workspaces.activeWorkspaceId]);
 
   const showSaveStatus = useCallback((status) => {
     setSaveStatus(status);
@@ -824,7 +894,7 @@ export default function App() {
     } catch (err) {}
   };
 
-  const handleCalendarSave = async (config) => {
+  const handleCalendarSave = useCallback(async (config) => {
     try {
       const res = await fetch('/api/calendar/config', {
         method: 'POST',
@@ -836,20 +906,14 @@ export default function App() {
       setCalendarConfig(result.config);
       setCalendarStatus(s => ({ ...s, connected: result.connected }));
       if (result.connected && calendarDateRange) {
-        const [startStr, endStr] = calendarDateRange.split('/');
-        fetch(`/api/calendar/events?start=${startStr}&end=${endStr}`)
-          .then(r => r.json())
-          .then(events => {
-            if (Array.isArray(events)) setCalendarEvents(events);
-          })
-          .catch(() => {});
+        refreshCalendarEvents(calendarDateRange);
       }
       if (result.connected) setShowCalendarSetup(false);
       return true;
     } catch (err) {
       return false;
     }
-  };
+  }, [calendarDateRange, refreshCalendarEvents]);
 
   const handleUndo = useCallback(async () => {
     const currentData = dataRef.current;
@@ -1020,13 +1084,16 @@ export default function App() {
       uiStateSaveTimerRef.current = setTimeout(() => {
         fetch('/api/state', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...getWorkspaceHeaders(workspaces.activeWorkspaceId),
+          },
           body: JSON.stringify(merged),
         }).catch(() => {});
       }, 150);
       return merged;
     });
-  }, []);
+  }, [getWorkspaceHeaders, workspaces.activeWorkspaceId]);
 
   const updateNotePanelState = useCallback((updater) => {
     setUiState((prev) => {
@@ -1042,13 +1109,16 @@ export default function App() {
       uiStateSaveTimerRef.current = setTimeout(() => {
         fetch('/api/state', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...getWorkspaceHeaders(workspaces.activeWorkspaceId),
+          },
           body: JSON.stringify(merged),
         }).catch(() => {});
       }, 150);
       return merged;
     });
-  }, []);
+  }, [getWorkspaceHeaders, workspaces.activeWorkspaceId]);
 
   const openNoteTab = useCallback((itemId, options = {}) => {
     const currentData = dataRef.current;
@@ -1183,7 +1253,7 @@ export default function App() {
         body: JSON.stringify({ workspaceId }),
       });
       if (!response.ok) throw new Error('Failed to switch workspace');
-      await loadAppData();
+      await loadAppData(workspaceId);
       refreshGitStatus();
     } catch (err) {
       setError('Failed to switch workspace');
@@ -1204,14 +1274,46 @@ export default function App() {
       setLoading(false);
       throw new Error(payload.error || 'Failed to create workspace');
     }
+    const payload = await response.json();
     setShowWorkspaceCreate(false);
     setHistoricalSnapshot(null);
     setEditTarget(null);
     setShowHistoryPanel(false);
     setShowCalendarSetup(false);
-    await loadAppData();
+    setWorkspaceDeleteTarget(null);
+    setWorkspaceDeleteError(null);
+    await loadAppData(payload.activeWorkspaceId || null);
     refreshGitStatus();
   }, [loadAppData, refreshGitStatus]);
+
+  const handleWorkspaceDelete = useCallback(async () => {
+    if (!workspaceDeleteTarget?.id || workspaceDeleting) return;
+    setWorkspaceDeleting(true);
+    setWorkspaceDeleteError(null);
+    setError(null);
+    try {
+      const response = await fetch(`/api/workspaces/${encodeURIComponent(workspaceDeleteTarget.id)}`, {
+        method: 'DELETE',
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete workspace');
+      }
+      setLoading(true);
+      setWorkspaceDeleteTarget(null);
+      setHistoricalSnapshot(null);
+      setEditTarget(null);
+      setShowHistoryPanel(false);
+      setShowCalendarSetup(false);
+      await loadAppData(payload.activeWorkspaceId || null);
+      refreshGitStatus();
+    } catch (err) {
+      setWorkspaceDeleteError(err.message || 'Failed to delete workspace');
+      setLoading(false);
+    } finally {
+      setWorkspaceDeleting(false);
+    }
+  }, [loadAppData, refreshGitStatus, workspaceDeleteTarget, workspaceDeleting]);
 
   const isHistorical = !!historicalSnapshot;
   const displayData = isHistorical ? historicalSnapshot.tasks : data;
@@ -1219,6 +1321,10 @@ export default function App() {
   const activeTheme = displayUiState?.theme || uiState?.theme || 'dark';
   const notePanelState = normalizeNotePanel(uiState?.notePanel);
   const noteItemMeta = useMemo(() => buildNoteItemMeta(displayData?.items || []), [displayData]);
+  const activeWorkspace = useMemo(
+    () => workspaces.workspaces.find((workspace) => workspace.id === workspaces.activeWorkspaceId) || null,
+    [workspaces.activeWorkspaceId, workspaces.workspaces]
+  );
   const activeNoteItemId = !isHistorical && notePanelState.open
     ? (notePanelState.tabs[notePanelState.activeTabIndex]?.itemId || null)
     : null;
@@ -1252,6 +1358,17 @@ export default function App() {
               title="Create a new workspace"
             >
               New Workspace
+            </button>
+            <button
+              className="btn btn-ghost btn-small"
+              onClick={() => {
+                setWorkspaceDeleteError(null);
+                setWorkspaceDeleteTarget(activeWorkspace);
+              }}
+              disabled={isHistorical || loading || !activeWorkspace?.deletable}
+              title={activeWorkspace?.deletable ? 'Delete the current workspace' : 'This workspace cannot be deleted'}
+            >
+              Delete Workspace
             </button>
           </div>
         </div>
@@ -1382,6 +1499,7 @@ export default function App() {
         )}
         {!isHistorical && (
           <NotePanel
+            workspaceId={workspaces.activeWorkspaceId}
             panelState={notePanelState}
             theme={activeTheme}
             itemMeta={noteItemMeta}
@@ -1443,6 +1561,20 @@ export default function App() {
           workspaces={workspaces.workspaces}
           onCreate={handleWorkspaceCreate}
           onClose={() => setShowWorkspaceCreate(false)}
+        />
+      )}
+
+      {workspaceDeleteTarget && !isHistorical && (
+        <WorkspaceDeleteModal
+          workspace={workspaceDeleteTarget}
+          deleting={workspaceDeleting}
+          error={workspaceDeleteError}
+          onConfirm={handleWorkspaceDelete}
+          onClose={() => {
+            if (workspaceDeleting) return;
+            setWorkspaceDeleteError(null);
+            setWorkspaceDeleteTarget(null);
+          }}
         />
       )}
 

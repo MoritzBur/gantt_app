@@ -372,6 +372,7 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
   const onChangeRef = useRef(onChange);
   const onNavigateLinkRef = useRef(onNavigateLink);
   const allNotesRef = useRef(allNotes);
+  const applyingExternalValueRef = useRef(false);
 
   onChangeRef.current = onChange;
   onNavigateLinkRef.current = onNavigateLink;
@@ -459,7 +460,7 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
     EditorView.lineWrapping,
     EditorState.readOnly.of(readOnly),
     EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
+      if (update.docChanged && !applyingExternalValueRef.current) {
         onChangeRef.current?.(update.state.doc.toString());
       }
     }),
@@ -497,9 +498,11 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
     const currentValue = view.state.doc.toString();
     if (currentValue === (value || '')) return;
 
+    applyingExternalValueRef.current = true;
     view.dispatch({
       changes: { from: 0, to: currentValue.length, insert: value || '' },
     });
+    applyingExternalValueRef.current = false;
   }, [value]);
 
   useImperativeHandle(ref, () => ({

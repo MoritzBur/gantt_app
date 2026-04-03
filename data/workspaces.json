@@ -4,12 +4,14 @@
     {
       "id": "main",
       "name": "Main Workspace",
-      "kind": "user"
+      "kind": "user",
+      "pathMode": "workspace"
     },
     {
       "id": "example",
       "name": "Example Project",
-      "kind": "example"
+      "kind": "example",
+      "pathMode": "workspace"
     }
   ]
 }
