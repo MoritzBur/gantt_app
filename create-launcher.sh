@@ -58,7 +58,7 @@ EOF
 
 set_macos_icon() {
   local app_path="$1"
-  local source_icon="$SCRIPT_DIR/client/public/icon-launcher.svg"
+  local source_icon="$SCRIPT_DIR/icons/icon-launcher.svg"
   local iconset_dir
   local icns_path
   local size
@@ -88,9 +88,9 @@ set_macos_icon() {
 }
 
 create_macos_launcher() {
-  local support_dir="$HOME/Library/Application Support/Gantt App"
+  local support_dir="$HOME/Library/Application Support/Actual Plan"
   local wrapper_path="$support_dir/launch-gantt-app.sh"
-  local app_dir="$HOME/Applications/Gantt App.app"
+  local app_dir="$HOME/Applications/Actual Plan.app"
   local applescript_path
   local launch_args
 
@@ -117,7 +117,7 @@ EOF
     return 0
   fi
 
-  local command_path="$HOME/Desktop/Gantt App.command"
+  local command_path="$HOME/Desktop/Actual Plan.command"
   cat >"$command_path" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
@@ -126,7 +126,7 @@ EOF
   chmod +x "$command_path"
 
   say "Created Finder launcher at $command_path"
-  say "Double-click it to start Gantt App."
+  say "Double-click it to start Actual Plan."
 }
 
 create_linux_launcher() {
@@ -134,8 +134,8 @@ create_linux_launcher() {
   local applications_dir="$HOME/.local/share/applications"
   local wrapper_path="$bin_dir/gantt-app-launch"
   local desktop_file="$applications_dir/gantt-app.desktop"
-  local desktop_copy="$HOME/Desktop/Gantt App.desktop"
-  local icon_path="$SCRIPT_DIR/client/public/icon-launcher.svg"
+  local desktop_copy="$HOME/Desktop/Actual Plan.desktop"
+  local icon_path="$SCRIPT_DIR/icons/icon-launcher.svg"
   local launch_args
 
   mkdir -p "$bin_dir" "$applications_dir"
@@ -146,8 +146,8 @@ create_linux_launcher() {
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Gantt App
-Comment=Local-first Gantt planner
+Name=Actual Plan
+Comment=Local-first planning app
 Exec=$(printf '%q' "$wrapper_path")
 Path=$(printf '%q' "$SCRIPT_DIR")
 Icon=$(printf '%q' "$icon_path")

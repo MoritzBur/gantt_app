@@ -1,5 +1,5 @@
 param(
-  [string]$ShortcutPath = $(Join-Path ([Environment]::GetFolderPath("Desktop")) "Gantt App.lnk"),
+  [string]$ShortcutPath = $(Join-Path ([Environment]::GetFolderPath("Desktop")) "Actual Plan.lnk"),
   [string]$IconPath,
   [switch]$OpenBrowser,
   [switch]$Quiet
@@ -10,8 +10,8 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $HiddenLauncherPath = Join-Path $RepoRoot "launch-windows.vbs"
 $WScriptPath = Join-Path $env:SystemRoot "System32\wscript.exe"
-$DefaultIconPath = Join-Path $RepoRoot "client/public/icon-launcher.svg"
-$FallbackIconPath = Join-Path $RepoRoot "icons/gantt-app.ico"
+$DefaultIconPath = Join-Path $RepoRoot "icons\icon-launcher.svg"
+$FallbackIconPath = Join-Path $RepoRoot "icons\gantt-app.ico"
 $LegacyIconPath = Join-Path $RepoRoot "gantt-app.ico"
 
 if (-not (Test-Path $HiddenLauncherPath)) {
@@ -36,7 +36,7 @@ $shortcut = $shell.CreateShortcut($ShortcutPath)
 $shortcut.TargetPath = $WScriptPath
 $shortcut.WorkingDirectory = $RepoRoot
 $shortcut.Arguments = ($arguments -join " ")
-$shortcut.Description = "Launch Gantt App without opening a console window"
+$shortcut.Description = "Launch Actual Plan without opening a console window"
 
 if (-not [string]::IsNullOrWhiteSpace($IconPath)) {
   if (-not (Test-Path $IconPath)) {

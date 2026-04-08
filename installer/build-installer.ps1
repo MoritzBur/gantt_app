@@ -97,7 +97,7 @@ foreach ($relativePath in $IncludedPaths) {
 
 $CompilerPath = Resolve-IsccPath -ExplicitPath $IsccPath
 
-Write-Host "Building Gantt App installer version $Version"
+Write-Host "Building Actual Plan installer version $Version"
 Write-Host "Source staging: $StageRoot"
 Write-Host "Output dir:     $OutputDir"
 Write-Host "ISCC:           $CompilerPath"
@@ -114,4 +114,4 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "Installer build complete."
-Write-Host "Expected output: $(Join-Path $OutputDir "GanttApp-Setup-$Version.exe")"
+Write-Host "Expected output: $(Join-Path $OutputDir "ActualPlan-Setup-$Version.exe")"

@@ -16,12 +16,12 @@ try {
   }
 
   if (Test-AppReady -Port $port) {
-    Write-Host "Gantt App is already running at $url. Opening it now..." -ForegroundColor Green
+    Write-Host "Actual Plan is already running at $url. Opening it now..." -ForegroundColor Green
     Start-Process $url | Out-Null
     exit 0
   }
 
-  Write-Host "Starting Gantt App at $url" -ForegroundColor Green
+  Write-Host "Starting Actual Plan at $url" -ForegroundColor Green
   Write-Host "Data directory: $($envInfo.DataDir)" -ForegroundColor Green
   Write-Host 'Keep this window open while you use the app.' -ForegroundColor Yellow
 

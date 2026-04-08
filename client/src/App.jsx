@@ -12,6 +12,7 @@ import {
   getDefaultBlockerScenarioState,
 } from './utils/resourcePlanning.js';
 
+const APP_NAME = 'Actual Plan';
 const PHASE_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
   '#E74C3C', '#16A085', '#F39C12', '#2C3E50',
@@ -1440,6 +1441,10 @@ export default function App() {
     ? (notePanelState.tabs[notePanelState.activeTabIndex]?.itemId || null)
     : null;
 
+  useEffect(() => {
+    document.title = APP_NAME;
+  }, []);
+
   if (loading) return <div className="app-loading"><p>Loading...</p></div>;
   if (error) return <div className="app-error"><p>{error}</p></div>;
 
@@ -1447,7 +1452,7 @@ export default function App() {
     <div className="app">
       <header className="top-bar">
         <div className="top-bar-left">
-          <span className="app-title">Gantt</span>
+          <span className="app-title">{APP_NAME}</span>
           <div className="workspace-switcher">
             <select
               className="workspace-select"

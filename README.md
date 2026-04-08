@@ -1,4 +1,4 @@
-# <img src="client/public/favicon.svg" alt="Gantt App icon" width="28" /> Gantt App
+# <img src="icons/favicon.svg" alt="Actual Plan icon" width="28" /> Actual Plan
 
 A local-first Gantt planner for people who need a schedule that reflects real life, not just ideal dates.
 
@@ -58,11 +58,11 @@ That makes it useful for students, researchers, freelancers, consultants, and so
 
 Preferred installer flow:
 
-1. Download `GanttApp-Setup-<version>.exe` from the latest GitHub release and run it.
+1. Download `ActualPlan-Setup-<version>.exe` from the latest GitHub release and run it.
 2. Keep the default per-user install path unless you have a reason to change it.
-3. Launch `Gantt App` from the Start Menu or desktop shortcut.
+3. Launch `Actual Plan` from the Start Menu or desktop shortcut.
 
-The installer bundles the app into `Gantt App.exe`, does not require Node.js to be preinstalled, stores config in `%LOCALAPPDATA%\GanttApp\config`, stores planning data in `%LOCALAPPDATA%\GanttApp\data`, and adds Start Menu shortcuts for `Gantt App` and `Stop Gantt App`.
+The installer bundles the app into `Actual Plan.exe`, does not require Node.js to be preinstalled, stores config in `%LOCALAPPDATA%\GanttApp\config`, stores planning data in `%LOCALAPPDATA%\GanttApp\data`, and adds Start Menu shortcuts for `Actual Plan` and `Stop Actual Plan`.
 
 Windows source setup for contributors:
 
@@ -78,13 +78,13 @@ Build Windows releases from source:
 npm run build:windows:exe
 ```
 
-This creates `dist/windows/Gantt App.exe`.
+This creates `dist/windows/Actual Plan.exe`.
 
 ```bash
 npm run build:windows:installer
 ```
 
-This creates both `dist/windows/Gantt App.exe` and `dist/installer/GanttApp-Setup-<version>.exe`.
+This creates both `dist/windows/Actual Plan.exe` and `dist/installer/ActualPlan-Setup-<version>.exe`.
 
 Notes:
 
@@ -111,7 +111,7 @@ powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
 ./create-launcher.sh
 ```
 
-By default this creates `~/Applications/Gantt App.app`.
+By default this creates `~/Applications/Actual Plan.app`.
 
 ## Install On Linux
 
@@ -132,7 +132,7 @@ The helper creates a launcher in `~/.local/share/applications` and usually also 
 
 Simple everyday use:
 
-- Windows: launch `Gantt App` from the installed Start Menu shortcut or your local source launcher
+- Windows: launch `Actual Plan` from the installed Start Menu shortcut or your local source launcher
 - macOS: open the app created by `./create-launcher.sh`
 - Linux: open the launcher created by `./create-launcher.sh`
 
@@ -152,7 +152,7 @@ That runs Express on `http://localhost:3000` and Vite on `http://localhost:5173`
 
 Single-port production run:
 
-- Windows packaged app: run `Gantt App.exe`
+- Windows packaged app: run `Actual Plan.exe`
 - Source checkout: `npm run build` then `npm start`
 
 Windows release build commands:

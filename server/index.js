@@ -80,7 +80,7 @@ if (isProduction) {
 }
 
 const server = app.listen(PORT, () => {
-  console.log(`\nGantt server running at http://localhost:${PORT}`);
+  console.log(`\nActual Plan server running at http://localhost:${PORT}`);
   if (!isProduction) {
     console.log('   Frontend dev server: http://localhost:5173');
   }

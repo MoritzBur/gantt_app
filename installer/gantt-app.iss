@@ -12,12 +12,12 @@
 
 [Setup]
 AppId={{2B8A6517-BA87-4809-9F26-2493646B5BA0}
-AppName=Gantt App
+AppName=Actual Plan
 AppVersion={#AppVersion}
-AppVerName=Gantt App {#AppVersion}
+AppVerName=Actual Plan {#AppVersion}
 AppPublisher=Moritz Bur
-DefaultDirName={localappdata}\Gantt App
-DefaultGroupName=Gantt App
+DefaultDirName={localappdata}\Actual Plan
+DefaultGroupName=Actual Plan
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 WizardStyle=modern
@@ -26,7 +26,7 @@ SolidCompression=yes
 SetupIconFile={#SourceDir}\icons\gantt-app.ico
 UninstallDisplayIcon={app}\icons\gantt-app.ico
 OutputDir={#OutputDir}
-OutputBaseFilename=GanttApp-Setup-{#AppVersion}
+OutputBaseFilename=ActualPlan-Setup-{#AppVersion}
 UsePreviousAppDir=yes
 SetupLogging=yes
 
@@ -35,21 +35,21 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
-Name: "autostart"; Description: "Start Gantt App when I sign in"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "autostart"; Description: "Start Actual Plan when I sign in"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Dirs]
-Name: "{userdocs}\Gantt App Data"
+Name: "{userdocs}\Actual Plan Data"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: ".git\*,.gitignore,.claude\*,.codex,.codex\*,.playwright-mcp\*,node_modules\*,client\dist\*,data\*,data-dev\*,.env,installer\dist\*,installer\staging\*,Thumbs.db,.DS_Store"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Gantt App"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Launch Gantt App"
-Name: "{autodesktop}\Gantt App"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Launch Gantt App"; Tasks: desktopicon
-Name: "{userstartup}\Gantt App"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"" -Quiet"; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Start Gantt App quietly when you sign in"; Tasks: autostart
+Name: "{autoprograms}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Launch Actual Plan"
+Name: "{autodesktop}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Launch Actual Plan"; Tasks: desktopicon
+Name: "{userstartup}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"" -Quiet"; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Start Actual Plan quietly when you sign in"; Tasks: autostart
 
 [Run]
-Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; Description: "Launch Gantt App now"; Flags: postinstall skipifsilent nowait
+Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; Description: "Launch Actual Plan now"; Flags: postinstall skipifsilent nowait
 
 [Code]
 const
@@ -165,7 +165,7 @@ function CurrentInstallDirText(): string;
 begin
   Result := WizardDirValue();
   if Result = '' then begin
-    Result := ExpandConstant('{localappdata}\Gantt App');
+    Result := ExpandConstant('{localappdata}\Actual Plan');
   end;
 end;
 
@@ -175,7 +175,7 @@ begin
     'This installer is a per-user install. Admin rights are not required.' + #13#10#13#10 +
     'Install plan:' + #13#10 +
     '- App files: ' + CurrentInstallDirText() + #13#10 +
-    '- Data folder: ' + ExpandConstant('{userdocs}\Gantt App Data') + #13#10 +
+    '- Data folder: ' + ExpandConstant('{userdocs}\Actual Plan Data') + #13#10 +
     '- During setup: copy files, run npm install, generate .env, build the frontend, and create shortcuts.' + #13#10#13#10 +
     'Dependency check:' + #13#10 +
     '- Node.js: ' + NodeVersionText + #13#10 +
@@ -203,7 +203,7 @@ end;
 function BuildDependencyFailureMessage(): string;
 begin
   Result :=
-    'Gantt App needs Node.js 20 or newer and npm before setup can continue.' + #13#10#13#10 +
+    'Actual Plan needs Node.js 20 or newer and npm before setup can continue.' + #13#10#13#10 +
     'Detected Node.js: ' + NodeVersionText + #13#10 +
     'Detected npm: ' + NpmVersionText;
 end;
@@ -255,7 +255,7 @@ begin
   end;
 
   SetupPrepared := True;
-  DataDir := ExpandConstant('{userdocs}\Gantt App Data');
+  DataDir := ExpandConstant('{userdocs}\Actual Plan Data');
   PowerShellExe := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
 
   if not FileExists(PowerShellExe) then begin
@@ -278,7 +278,7 @@ begin
 
   if ResultCode <> 0 then begin
     RaiseException(
-      'Gantt App setup failed with exit code ' + IntToStr(ResultCode) + '.'#13#10#13#10 +
+      'Actual Plan setup failed with exit code ' + IntToStr(ResultCode) + '.'#13#10#13#10 +
       'Please make sure Node.js and npm work in a normal PowerShell window, then run the installer again.'
     );
   end;

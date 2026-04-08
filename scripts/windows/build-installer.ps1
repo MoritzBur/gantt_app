@@ -28,7 +28,7 @@ try {
   $appVersion = $packageJson.version
   $iscc = Get-InnoCompiler
 
-  if (-not (Test-Path (Join-Path $repoRoot 'dist\windows\Gantt App.exe'))) {
+  if (-not (Test-Path (Join-Path $repoRoot 'dist\windows\Actual Plan.exe'))) {
     Invoke-Npm -Arguments @('run', 'build:windows:exe')
   }
 

@@ -1,6 +1,6 @@
 {
-  "name": "Gantt App",
-  "short_name": "Gantt",
+  "name": "Actual Plan",
+  "short_name": "Actual Plan",
   "icons": [
     {
       "src": "/icon-launcher.svg",

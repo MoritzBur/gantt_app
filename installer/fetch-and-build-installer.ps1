@@ -94,7 +94,7 @@ Invoke-CheckedCommand -FilePath "powershell" -Arguments $buildArguments -Failure
 
 $PackageJson = Get-Content (Join-Path $TargetDir "package.json") -Raw | ConvertFrom-Json
 $Version = $PackageJson.version
-$InstallerPath = Join-Path $TargetDir "installer/dist/GanttApp-Setup-$Version.exe"
+$InstallerPath = Join-Path $TargetDir "installer/dist/ActualPlan-Setup-$Version.exe"
 
 Write-Step ""
 Write-Step "Done."

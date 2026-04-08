@@ -1,7 +1,7 @@
 . (Join-Path $PSScriptRoot 'common.ps1')
 
 try {
-  Write-Host 'Preparing Gantt App for Windows...' -ForegroundColor Green
+  Write-Host 'Preparing Actual Plan for Windows...' -ForegroundColor Green
   Assert-NodeVersion
 
   $envInfo = Ensure-EnvFile

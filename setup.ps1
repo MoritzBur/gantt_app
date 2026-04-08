@@ -70,7 +70,7 @@ function Test-LooksLikeNestedZipExtract([string]$Path) {
   $leafName = Split-Path -Leaf $Path
   $parentName = Split-Path -Leaf (Split-Path -Parent $Path)
 
-  if ($leafName -ieq "gantt_app" -and $parentName -match '^Gantt App(?: \(\d+\))?$') {
+  if ($leafName -ieq "gantt_app" -and $parentName -match '^Actual Plan(?: \(\d+\))?$') {
     return $true
   }
 
@@ -107,7 +107,7 @@ if ($BuildProductionAssets -or -not [string]::IsNullOrWhiteSpace($DefaultDataDir
 }
 
 if (Test-LooksLikeNestedZipExtract -Path $RepoRoot) {
-  Write-Step "Warning: this looks like the nested ZIP layout 'Gantt App\\gantt_app\\...'."
+  Write-Step "Warning: this looks like the nested ZIP layout 'Actual Plan\\gantt_app\\...'."
   Write-Step "The app can still run here, but the cleaner fix is to move the inner gantt_app folder contents up one level or use the Windows installer."
   Write-Step ""
 }
@@ -186,4 +186,4 @@ Write-Step ""
 Write-Step "Setup complete."
 Write-Step "For everyday use, create a launcher shortcut with powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1"
 Write-Step "If you prefer a manual terminal launch, start the app with .\launch-windows.cmd"
-Write-Step "That shortcut uses the app icon and launches Gantt App without leaving a PowerShell window open."
+Write-Step "That shortcut uses the app icon and launches Actual Plan without leaving a PowerShell window open."

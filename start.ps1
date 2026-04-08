@@ -79,7 +79,7 @@ if ([string]::IsNullOrWhiteSpace($DataDir)) {
   $DataDir = Join-Path $RepoRoot "data"
 }
 
-Write-Step "Starting Gantt App from $RepoRoot"
+Write-Step "Starting Actual Plan from $RepoRoot"
 Write-Step "Data directory: $DataDir"
 
 Push-Location $RepoRoot

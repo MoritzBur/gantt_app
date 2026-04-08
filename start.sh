@@ -71,7 +71,7 @@ fi
 
 gantt_data_dir="$(read_env_value GANTT_DATA_DIR)"
 
-say "Starting Gantt App from $SCRIPT_DIR"
+say "Starting Actual Plan from $SCRIPT_DIR"
 if [ -n "$gantt_data_dir" ]; then
   say "Data directory: $gantt_data_dir"
 else

@@ -24,7 +24,7 @@ function Get-EnvValue([string]$Path, [string]$Key) {
   return ($line -replace "^\s*$Key=", "").Trim()
 }
 
-function Show-Notification([string]$Message, [string]$Title = "Gantt App", [string]$Level = "Info") {
+function Show-Notification([string]$Message, [string]$Title = "Actual Plan", [string]$Level = "Info") {
   if ($Quiet) {
     return
   }
@@ -177,12 +177,12 @@ try {
       Start-Process $BaseUrl
     }
 
-    Show-Notification -Message "Gantt App is already running.`n`nAvailable at:`n$BaseUrl"
+    Show-Notification -Message "Actual Plan is already running.`n`nAvailable at:`n$BaseUrl"
     exit 0
   }
 
   if (Test-PortListening -Port $Port) {
-    Show-Notification -Title "Gantt App" -Level "Error" -Message "Port $Port is already in use, so Gantt App could not be started.`n`nChange PORT in .env or stop the other app."
+    Show-Notification -Title "Actual Plan" -Level "Error" -Message "Port $Port is already in use, so Actual Plan could not be started.`n`nChange PORT in .env or stop the other app."
     exit 1
   }
 
@@ -198,12 +198,12 @@ try {
       Start-Process $BaseUrl
     }
 
-    Show-Notification -Message "Gantt App has been started.`n`nAvailable at:`n$BaseUrl"
+    Show-Notification -Message "Actual Plan has been started.`n`nAvailable at:`n$BaseUrl"
     exit 0
   }
 
   if ($launcherProcess.HasExited) {
-    Show-Notification -Title "Gantt App" -Level "Error" -Message "Gantt App could not be started.`n`nTo see the real error, run this in PowerShell from the install folder:`n`npowershell -ExecutionPolicy Bypass -File .\start.ps1 -Production"
+    Show-Notification -Title "Actual Plan" -Level "Error" -Message "Actual Plan could not be started.`n`nTo see the real error, run this in PowerShell from the install folder:`n`npowershell -ExecutionPolicy Bypass -File .\start.ps1 -Production"
     exit 1
   }
 
@@ -211,8 +211,8 @@ try {
     Start-Process $BaseUrl
   }
 
-  Show-Notification -Title "Gantt App" -Level "Warning" -Message "Gantt App is still starting.`n`nTry:`n$BaseUrl"
+  Show-Notification -Title "Actual Plan" -Level "Warning" -Message "Actual Plan is still starting.`n`nTry:`n$BaseUrl"
 } catch {
-  Show-Notification -Title "Gantt App" -Level "Error" -Message $_.Exception.Message
+  Show-Notification -Title "Actual Plan" -Level "Error" -Message $_.Exception.Message
   exit 1
 }

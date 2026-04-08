@@ -89,9 +89,9 @@ show_notification() {
         esac
 
         notify-send \
-          --app-name="Gantt App" \
+          --app-name="Actual Plan" \
           --urgency="$urgency" \
-          --icon="$SCRIPT_DIR/client/public/icon-launcher.svg" \
+          --icon="$SCRIPT_DIR/icons/icon-launcher.svg" \
           "$title" \
           "$message" >/dev/null 2>&1 || true
         return 0
@@ -226,12 +226,12 @@ if test_gantt_api "$port"; then
     open_browser_now "$base_url"
   fi
 
-  show_notification "Gantt App" "$(printf 'Gantt App is already running.\n\nAvailable at:\n%s' "$base_url")"
+  show_notification "Actual Plan" "$(printf 'Actual Plan is already running.\n\nAvailable at:\n%s' "$base_url")"
   exit 0
 fi
 
 if test_port_listening "$port"; then
-  show_notification "Gantt App" "$(printf 'Port %s is already in use, so Gantt App could not be started.\n\nChange PORT in .env or stop the other app.' "$port")" "error"
+  show_notification "Actual Plan" "$(printf 'Port %s is already in use, so Actual Plan could not be started.\n\nChange PORT in .env or stop the other app.' "$port")" "error"
   exit 1
 fi
 
@@ -245,12 +245,12 @@ if wait_for_gantt_api "$port" "$launcher_pid"; then
     open_browser_now "$base_url"
   fi
 
-  show_notification "Gantt App" "$(printf 'Gantt App has been started.\n\nAvailable at:\n%s' "$base_url")"
+  show_notification "Actual Plan" "$(printf 'Actual Plan has been started.\n\nAvailable at:\n%s' "$base_url")"
   exit 0
 fi
 
 if ! kill -0 "$launcher_pid" >/dev/null 2>&1; then
-  show_notification "Gantt App" "$(printf 'Gantt App could not be started.\n\nRun ./start.sh --prod in Terminal to see the error details.\nLog: %s' "$LOG_FILE")" "error"
+  show_notification "Actual Plan" "$(printf 'Actual Plan could not be started.\n\nRun ./start.sh --prod in Terminal to see the error details.\nLog: %s' "$LOG_FILE")" "error"
   exit 1
 fi
 
@@ -258,4 +258,4 @@ if [ "$OPEN_BROWSER" = "1" ]; then
   open_browser_now "$base_url"
 fi
 
-show_notification "Gantt App" "$(printf 'Gantt App is still starting.\n\nTry:\n%s' "$base_url")" "warning"
+show_notification "Actual Plan" "$(printf 'Actual Plan is still starting.\n\nTry:\n%s' "$base_url")" "warning"

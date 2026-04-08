@@ -90,7 +90,7 @@ say "npm:  $(npm -v)"
 
 say ""
 if looks_like_nested_zip_extract; then
-  say "Warning: this looks like the nested ZIP layout 'Gantt App/gantt_app/...'."
+  say "Warning: this looks like the nested ZIP layout 'Actual Plan/gantt_app/...'."
   say "The app can still run here, but the cleaner fix is to move the inner gantt_app folder contents up one level."
   say ""
 fi
