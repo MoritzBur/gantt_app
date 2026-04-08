@@ -1,0 +1,56 @@
+{
+  "zoom": "Month",
+  "density": "Compact",
+  "theme": "light",
+  "collapsed": {},
+  "calendarCollapsed": {},
+  "calendarOrder": [
+    "cal-personal",
+    "cal-site-visits"
+  ],
+  "activeCalEvents": [],
+  "calendarEventIdsVersion": 2,
+  "listWidth": 318,
+  "blockerScenarioState": {
+    "version": 1,
+    "activeScenarioId": "default",
+    "scenarios": [
+      {
+        "id": "default",
+        "name": "Default",
+        "calendars": {
+          "visible": true,
+          "filterInitialized": true,
+          "visibleCalendarIds": [
+            "cal-personal",
+            "cal-site-visits"
+          ],
+          "activeEventIds": [
+            "cal-personal::event-family-weekend",
+            "cal-site-visits::event-harbor-weekend"
+          ]
+        },
+        "resources": {
+          "teamIds": [],
+          "memberIds": [
+            "member-felix",
+            "vehicle-van"
+          ]
+        }
+      }
+    ]
+  },
+  "notePanel": {
+    "open": true,
+    "width": 700,
+    "tabs": [
+      {
+        "itemId": "group-harbor",
+        "filename": "main.md",
+        "type": "main",
+        "pinned": true
+      }
+    ],
+    "activeTabIndex": 0
+  }
+}

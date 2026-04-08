@@ -1,0 +1,373 @@
+{
+  "version": 2,
+  "items": [
+    {
+      "id": "group-milestones",
+      "name": "Milestones",
+      "prefix": "",
+      "color": "#455A64",
+      "start": "2026-04-11",
+      "end": "2026-09-25",
+      "type": "group",
+      "children": [
+        {
+          "id": "ms-spares-order",
+          "name": "Spare parts framework quote accepted",
+          "start": "2026-04-24",
+          "end": "2026-04-24",
+          "done": true,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        },
+        {
+          "id": "ms-poland-service",
+          "name": "Poland service intervention closed",
+          "start": "2026-06-19",
+          "end": "2026-06-19",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        },
+        {
+          "id": "ms-upgrade-order",
+          "name": "Spain upgrade order decision",
+          "start": "2026-08-14",
+          "end": "2026-08-14",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        },
+        {
+          "id": "ms-q4-plan",
+          "name": "Q4 technician capacity frozen",
+          "start": "2026-09-25",
+          "end": "2026-09-25",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-spares",
+      "name": "Spare parts quoting",
+      "prefix": "SR",
+      "color": "#1F78B4",
+      "start": "2026-04-11",
+      "end": "2026-05-08",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-spares-triage",
+          "name": "Review urgent spindle and bearing requests",
+          "type": "task",
+          "start": "2026-04-11",
+          "end": "2026-04-17",
+          "children": [],
+          "done": true,
+          "milestone": false,
+          "assigneeId": "member-mara",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-mara"
+          ]
+        },
+        {
+          "id": "task-spares-bom",
+          "name": "Rebuild legacy BOM links and interchangeability notes",
+          "type": "task",
+          "start": "2026-04-20",
+          "end": "2026-05-01",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-priya",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-priya"
+          ]
+        },
+        {
+          "id": "task-spares-offer",
+          "name": "Issue framework quote with service options",
+          "type": "task",
+          "start": "2026-05-04",
+          "end": "2026-05-08",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-mara",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-mara"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-service-dispatch",
+      "name": "International service dispatch",
+      "prefix": "SV",
+      "color": "#33A02C",
+      "start": "2026-05-04",
+      "end": "2026-06-26",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-service-poland-scope",
+          "name": "Diagnose Poland line stoppage and prepare parts kit",
+          "type": "task",
+          "start": "2026-05-04",
+          "end": "2026-05-15",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-jonas",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-jonas"
+          ]
+        },
+        {
+          "id": "task-service-poland-visit",
+          "name": "Fly Jonas and Elise for four-day repair mission",
+          "type": "task",
+          "start": "2026-06-08",
+          "end": "2026-06-19",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-elise",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-elise"
+          ]
+        },
+        {
+          "id": "task-service-reporting",
+          "name": "Capture service report, follow-up quote, and root cause memo",
+          "type": "task",
+          "start": "2026-06-22",
+          "end": "2026-06-26",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-mara",
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-mara"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-upgrades",
+      "name": "Upgrade proposals",
+      "prefix": "UP",
+      "color": "#FB9A99",
+      "start": "2026-06-15",
+      "end": "2026-08-14",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-upgrade-prestudy",
+          "name": "Rework Spain servo-upgrade concept from old design files",
+          "type": "task",
+          "start": "2026-06-15",
+          "end": "2026-07-03",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-mara",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-mara"
+          ]
+        },
+        {
+          "id": "task-upgrade-scope",
+          "name": "Reserve Marco and PLC trolley for FAT-style prove-out",
+          "type": "task",
+          "start": "2026-07-06",
+          "end": "2026-07-24",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "kit-plc",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "kit-plc"
+          ]
+        },
+        {
+          "id": "task-upgrade-offer",
+          "name": "Submit phased upgrade offer with downtime options",
+          "type": "task",
+          "start": "2026-07-27",
+          "end": "2026-08-14",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-marco",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-marco"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-workshop",
+      "name": "In-house workshop coordination",
+      "prefix": "WS",
+      "color": "#6A3D9A",
+      "start": "2026-05-18",
+      "end": "2026-09-18",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-workshop-priority",
+          "name": "Protect assembly capacity while service jobs pull technicians away",
+          "type": "task",
+          "start": "2026-05-18",
+          "end": "2026-06-05",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-mara",
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-mara"
+          ]
+        },
+        {
+          "id": "task-workshop-laser",
+          "name": "Schedule laser kit for spindle alignment campaign",
+          "type": "task",
+          "start": "2026-08-17",
+          "end": "2026-08-28",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "kit-laser",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "kit-laser"
+          ]
+        },
+        {
+          "id": "task-workshop-q4",
+          "name": "Draft Q4 field-service staffing board",
+          "type": "task",
+          "start": "2026-09-07",
+          "end": "2026-09-18",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-mara",
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-mara"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-vacation",
+      "name": "Vacation tracker",
+      "prefix": "VAC",
+      "color": "#FF7F00",
+      "start": "2026-06-29",
+      "end": "2026-08-28",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-vac-jonas",
+          "name": "Jonas summer leave",
+          "type": "task",
+          "start": "2026-07-20",
+          "end": "2026-07-31",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-jonas",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-jonas"
+          ]
+        },
+        {
+          "id": "task-vac-elise",
+          "name": "Elise family holiday",
+          "type": "task",
+          "start": "2026-08-10",
+          "end": "2026-08-21",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-elise",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-elise"
+          ]
+        },
+        {
+          "id": "task-vac-marco",
+          "name": "Marco training break",
+          "type": "task",
+          "start": "2026-08-24",
+          "end": "2026-08-28",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-marco",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-marco"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    }
+  ]
+}

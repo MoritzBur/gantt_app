@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const nodeIcal = require('node-ical');
 const store = require('../data-store');
 const { normalizeBackendCalendars, toPublicCalendarConfig } = require('./shared');
@@ -21,6 +23,28 @@ function loadCalendars() {
     envUrls.map(icalUrl => ({ icalUrl })),
     'ical'
   );
+}
+
+function resolveWorkspaceCalendarPath(rawPath) {
+  const value = String(rawPath || '').trim();
+  if (!value) return '';
+
+  if (value.startsWith('$workspace/')) {
+    return path.join(store.DATA_DIR, value.slice('$workspace/'.length));
+  }
+
+  if (value.startsWith('$workspace\\')) {
+    return path.join(store.DATA_DIR, value.slice('$workspace\\'.length));
+  }
+
+  if (path.isAbsolute(value)) return value;
+  return path.resolve(store.DATA_DIR, value);
+}
+
+function describeCalendarSource(calendar) {
+  if (calendar.icalUrl) return calendar.icalUrl;
+  if (calendar.icalPath) return resolveWorkspaceCalendarPath(calendar.icalPath);
+  return '(missing source)';
 }
 
 function saveCalendars(nextCalendars) {
@@ -66,11 +90,16 @@ function isDateOnly(d) {
 
 async function fetchAll(calendars) {
   const allEvents = [];
-  const enabledCalendars = calendars.filter(calendar => calendar.enabled !== false && calendar.icalUrl);
+  const enabledCalendars = calendars.filter(
+    (calendar) => calendar.enabled !== false && (calendar.icalUrl || calendar.icalPath)
+  );
 
   for (const calendar of enabledCalendars) {
     try {
-      const data = await nodeIcal.async.fromURL(calendar.icalUrl);
+      const data = calendar.icalUrl
+        ? await nodeIcal.async.fromURL(calendar.icalUrl)
+        : await nodeIcal.async.parseFile(resolveWorkspaceCalendarPath(calendar.icalPath));
+
       for (const [key, ev] of Object.entries(data)) {
         if (ev.type !== 'VEVENT' || !ev.start) continue;
 
@@ -97,7 +126,7 @@ async function fetchAll(calendars) {
         });
       }
     } catch (err) {
-      console.error(`[iCal] Failed to fetch ${calendar.icalUrl}:`, err.message);
+      console.error(`[iCal] Failed to fetch ${describeCalendarSource(calendar)}:`, err.message);
     }
   }
   return allEvents;
@@ -121,7 +150,12 @@ async function refreshCache(state) {
 module.exports = {
   isConnected() {
     const state = getWorkspaceState();
-    return state.calendars.some(calendar => calendar.enabled !== false && calendar.icalUrl);
+    return state.calendars.some((calendar) => {
+      if (calendar.enabled === false) return false;
+      if (calendar.icalUrl) return true;
+      if (!calendar.icalPath) return false;
+      return fs.existsSync(resolveWorkspaceCalendarPath(calendar.icalPath));
+    });
   },
 
   async getEvents(start, end) {
@@ -141,7 +175,11 @@ module.exports = {
   disconnect() {},
 
   getConfig() {
-    return toPublicCalendarConfig('ical', getWorkspaceState().calendars);
+    const calendars = getWorkspaceState().calendars.map((calendar) => ({
+      ...calendar,
+      resolvedIcalPath: calendar.icalPath ? resolveWorkspaceCalendarPath(calendar.icalPath) : '',
+    }));
+    return toPublicCalendarConfig('ical', calendars);
   },
 
   async configure(config) {

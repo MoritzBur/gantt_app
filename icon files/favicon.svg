@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 196 152">
+  <!--
+    Actual Plan — Favicon / Browser Tab Icon
+    No background — browser chrome provides the background (works on both light and dark).
+    Recommended: place as client/public/favicon.svg
+    Reference in index.html: <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    Palette: Emerald #27a85f + Crimson #c0282a
+  -->
+  <rect x="0"   y="0"  width="148" height="54" rx="14" fill="#27a85f"/>
+  <rect x="48"  y="68" width="148" height="54" rx="14" fill="#c0282a"/>
+</svg>

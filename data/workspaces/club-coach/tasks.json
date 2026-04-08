@@ -1,0 +1,313 @@
+{
+  "version": 2,
+  "items": [
+    {
+      "id": "group-milestones",
+      "name": "Milestones",
+      "prefix": "",
+      "color": "#455A64",
+      "start": "2026-04-15",
+      "end": "2026-09-30",
+      "type": "group",
+      "children": [
+        {
+          "id": "ms-grant",
+          "name": "City development grant decision",
+          "start": "2026-05-22",
+          "end": "2026-05-22",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        },
+        {
+          "id": "ms-youth-camp",
+          "name": "Junior summer camp delivered",
+          "start": "2026-07-03",
+          "end": "2026-07-03",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        },
+        {
+          "id": "ms-charter",
+          "name": "Charter fleet autumn contracts signed",
+          "start": "2026-08-28",
+          "end": "2026-08-28",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        },
+        {
+          "id": "ms-budget",
+          "name": "2027 operating budget submitted",
+          "start": "2026-09-30",
+          "end": "2026-09-30",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null,
+          "blocker": false
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-operations",
+      "name": "Club operations & institutional work",
+      "prefix": "OPS",
+      "color": "#7570B3",
+      "start": "2026-04-15",
+      "end": "2026-09-30",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-ops-grant",
+          "name": "Prepare city grant case and committee hearing pack",
+          "type": "task",
+          "start": "2026-04-15",
+          "end": "2026-05-22",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-hugo",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-hugo"
+          ]
+        },
+        {
+          "id": "task-ops-safeguarding",
+          "name": "Update safeguarding and travel policies",
+          "type": "task",
+          "start": "2026-05-25",
+          "end": "2026-06-12",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-sabine",
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-sabine"
+          ]
+        },
+        {
+          "id": "task-ops-budget",
+          "name": "Build 2027 budget narrative for board approval",
+          "type": "task",
+          "start": "2026-09-07",
+          "end": "2026-09-30",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-hugo",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-hugo"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-performance",
+      "name": "Olympic and senior squad support",
+      "prefix": "SQ",
+      "color": "#1B9E77",
+      "start": "2026-05-04",
+      "end": "2026-08-14",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-squad-europeans",
+          "name": "Europeans prep block with boat tuning and staff plan",
+          "type": "task",
+          "start": "2026-05-04",
+          "end": "2026-06-12",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-nora",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-nora"
+          ]
+        },
+        {
+          "id": "task-squad-travel",
+          "name": "Send support team, ribs, and charter kit to Europeans",
+          "type": "task",
+          "start": "2026-07-13",
+          "end": "2026-07-24",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "rib-alpha",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "rib-alpha"
+          ]
+        },
+        {
+          "id": "task-squad-review",
+          "name": "Olympic pathway review with athletes and parents",
+          "type": "task",
+          "start": "2026-08-03",
+          "end": "2026-08-14",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-hugo",
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-hugo"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-juniors",
+      "name": "Junior pathway and camps",
+      "prefix": "JR",
+      "color": "#4C78A8",
+      "start": "2026-05-18",
+      "end": "2026-08-07",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-jr-camp-plan",
+          "name": "Confirm camp coaches, housing, cars, and ribs",
+          "type": "task",
+          "start": "2026-05-18",
+          "end": "2026-06-12",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-jonte",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-jonte"
+          ]
+        },
+        {
+          "id": "task-jr-camp-run",
+          "name": "Run youth camp with shared rib rotation plan",
+          "type": "task",
+          "start": "2026-06-22",
+          "end": "2026-07-03",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "rib-bravo",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "rib-bravo"
+          ]
+        },
+        {
+          "id": "task-jr-fall-calendar",
+          "name": "Publish autumn junior race calendar and coach assignments",
+          "type": "task",
+          "start": "2026-07-20",
+          "end": "2026-08-07",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-jonte",
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-jonte"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-assets",
+      "name": "Fleet, wear, and charter management",
+      "prefix": "AS",
+      "color": "#F28E2B",
+      "start": "2026-04-20",
+      "end": "2026-09-11",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-assets-service",
+          "name": "RIB service, trailer tyres, and tow-car inspection",
+          "type": "task",
+          "start": "2026-04-20",
+          "end": "2026-05-08",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "car-suv",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "car-suv"
+          ]
+        },
+        {
+          "id": "task-assets-charter",
+          "name": "Process charter requests and deposit schedule",
+          "type": "task",
+          "start": "2026-07-27",
+          "end": "2026-08-28",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "charter-ilca-7",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "charter-ilca-7"
+          ]
+        },
+        {
+          "id": "task-assets-overhaul",
+          "name": "Autumn maintenance booking for ribs and trailers",
+          "type": "task",
+          "start": "2026-08-31",
+          "end": "2026-09-11",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "trailer-rib",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "trailer-rib"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    }
+  ]
+}

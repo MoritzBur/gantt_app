@@ -6,6 +6,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirro
 import { markdown, insertNewlineContinueMarkup } from '@codemirror/lang-markdown';
 
 const wikiLinkPattern = /\[\[([^[\]]+)\]\]/g;
+const imagePattern = /^!\[([^\]]*)\]\(([^)]+)\)\s*$/;
 const headingPattern = /^(#{1,3})(\s+)/;
 const checkboxPattern = /^(\s*[-*]\s)\[( |x)\](\s+)/i;
 const tagPattern = /(^|\s)(#[A-Za-z0-9/_-]+)/g;
@@ -52,6 +53,40 @@ class HiddenPrefixWidget extends WidgetType {
     span.className = 'cm-hidden-prefix';
     span.setAttribute('aria-hidden', 'true');
     return span;
+  }
+}
+
+class MarkdownImageWidget extends WidgetType {
+  constructor({ alt, src, title }) {
+    super();
+    this.alt = alt;
+    this.src = src;
+    this.title = title;
+  }
+
+  eq(other) {
+    return other.alt === this.alt && other.src === this.src && other.title === this.title;
+  }
+
+  toDOM() {
+    const figure = document.createElement('figure');
+    figure.className = 'cm-image-widget';
+
+    const image = document.createElement('img');
+    image.className = 'cm-image-widget-img';
+    image.src = this.src;
+    image.alt = this.alt || this.title || 'Note image';
+    image.loading = 'lazy';
+    figure.appendChild(image);
+
+    if (this.title || this.alt) {
+      const caption = document.createElement('figcaption');
+      caption.className = 'cm-image-widget-caption';
+      caption.textContent = this.title || this.alt;
+      figure.appendChild(caption);
+    }
+
+    return figure;
   }
 }
 
@@ -173,6 +208,24 @@ function createThemeExtension(theme) {
       accentColor: 'var(--accent)',
       cursor: 'pointer',
     },
+    '.cm-image-widget': {
+      margin: '0.85rem 0 1rem',
+    },
+    '.cm-image-widget-img': {
+      display: 'block',
+      width: '100%',
+      maxWidth: '100%',
+      borderRadius: '12px',
+      border: '1px solid var(--border)',
+      backgroundColor: 'var(--bg-panel)',
+      boxShadow: isLight ? '0 10px 30px rgba(20, 30, 50, 0.08)' : '0 10px 30px rgba(0, 0, 0, 0.28)',
+    },
+    '.cm-image-widget-caption': {
+      marginTop: '0.45rem',
+      color: 'var(--text-dim)',
+      fontSize: '0.88rem',
+      fontFamily: 'var(--font-sans)',
+    },
   });
 }
 
@@ -223,6 +276,27 @@ function wikiLinkDecorations(view) {
                 view.dispatch({
                   changes: { from: currentMarkerStart + 1, to: currentMarkerStart + 2, insert: nextValue },
                 });
+              }),
+              inclusive: false,
+            }),
+          );
+        }
+      }
+
+      const imageMatch = text.match(imagePattern);
+      if (imageMatch && !isActiveLine) {
+        const [, altText, imagePath] = imageMatch;
+        const resolver = view.imageUrlResolver;
+        const resolvedSrc = resolver ? resolver(imagePath) : '';
+        if (resolvedSrc) {
+          builder.add(
+            line.from,
+            line.to,
+            Decoration.replace({
+              widget: new MarkdownImageWidget({
+                alt: altText.trim(),
+                src: resolvedSrc,
+                title: altText.trim(),
               }),
               inclusive: false,
             }),
@@ -281,6 +355,42 @@ function createWikiLinkPlugin(onNavigateLinkRef) {
 
     update(update) {
       if (update.docChanged || update.viewportChanged) {
+        this.decorations = wikiLinkDecorations(update.view);
+      }
+    }
+  }, {
+    decorations: (instance) => instance.decorations,
+    eventHandlers: {
+      click(event, view) {
+        const position = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        if (position == null) return false;
+
+        const link = findWikiLinkAtPosition(view.state, position);
+        if (!link) return false;
+
+        event.preventDefault();
+        onNavigateLinkRef.current?.(link.text, { newTab: !!event.shiftKey });
+        return true;
+      },
+    },
+  });
+}
+
+function createRichMarkdownPlugin(onNavigateLinkRef, imageUrlResolver) {
+  return ViewPlugin.fromClass(class {
+    constructor(view) {
+      view.imageUrlResolver = imageUrlResolver;
+      this.decorations = wikiLinkDecorations(view);
+    }
+
+    update(update) {
+      update.view.imageUrlResolver = imageUrlResolver;
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.selectionSet ||
+        update.focusChanged
+      ) {
         this.decorations = wikiLinkDecorations(update.view);
       }
     }
@@ -363,6 +473,7 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
   onChange,
   onNavigateLink,
   allNotes,
+  noteWorkspacePath = '',
   theme = 'dark',
   readOnly = false,
   placeholder = 'Write your note here…',
@@ -377,6 +488,15 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
   onChangeRef.current = onChange;
   onNavigateLinkRef.current = onNavigateLink;
   allNotesRef.current = allNotes;
+
+  const resolveImageUrl = useMemo(() => (
+    (imagePath) => {
+      const src = String(imagePath || '').trim();
+      if (!src || !noteWorkspacePath) return '';
+      if (/^(https?:|data:|blob:)/i.test(src)) return src;
+      return `/api/notes/asset?from=${encodeURIComponent(noteWorkspacePath)}&path=${encodeURIComponent(src)}`;
+    }
+  ), [noteWorkspacePath]);
 
   const applyInsertAroundSelection = (view, prefix, suffix = '', placeholderText = '') => {
     const selection = view.state.selection.main;
@@ -465,9 +585,9 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
       }
     }),
     autocompletion({ override: [createWikiLinkCompletions(allNotesRef)] }),
-    createWikiLinkPlugin(onNavigateLinkRef),
+    createRichMarkdownPlugin(onNavigateLinkRef, resolveImageUrl),
     createThemeExtension(theme),
-  ]), [readOnly, theme]);
+  ]), [readOnly, resolveImageUrl, theme]);
 
   useEffect(() => {
     if (!hostRef.current) return undefined;

@@ -91,7 +91,7 @@ show_notification() {
         notify-send \
           --app-name="Gantt App" \
           --urgency="$urgency" \
-          --icon="$SCRIPT_DIR/client/public/web-app-manifest-512x512.png" \
+          --icon="$SCRIPT_DIR/client/public/icon-launcher.svg" \
           "$title" \
           "$message" >/dev/null 2>&1 || true
         return 0

@@ -1,0 +1,163 @@
+{
+  "version": 2,
+  "types": [
+    {
+      "id": "type-people",
+      "name": "People",
+      "comment": "Owner-operator, contractors, and startup helpers.",
+      "color": "#C44E52",
+      "groupLabel": "Crew",
+      "groupLabelPlural": "Crews",
+      "assetLabel": "Person",
+      "assetLabelPlural": "People"
+    },
+    {
+      "id": "type-vehicles",
+      "name": "Vehicles",
+      "comment": "Vans and trailers that constrain site work.",
+      "color": "#4C78A8",
+      "groupLabel": "Pool",
+      "groupLabelPlural": "Pools",
+      "assetLabel": "Vehicle",
+      "assetLabelPlural": "Vehicles"
+    },
+    {
+      "id": "type-sites",
+      "name": "Store Assets",
+      "comment": "Temporary site resources and fixtures worth tracking.",
+      "color": "#59A14F",
+      "groupLabel": "Asset Group",
+      "groupLabelPlural": "Asset Groups",
+      "assetLabel": "Asset",
+      "assetLabelPlural": "Assets"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-field-install",
+      "typeId": "type-people",
+      "name": "Field Install",
+      "comment": "On-site measurements, storage builds, and fit-outs.",
+      "fields": []
+    },
+    {
+      "id": "team-contractors",
+      "typeId": "type-people",
+      "name": "Trades",
+      "comment": "Electricians and data contractors.",
+      "fields": []
+    },
+    {
+      "id": "team-logistics",
+      "typeId": "type-people",
+      "name": "Logistics",
+      "comment": "Move-outs, warehousing, and shipping coordination.",
+      "fields": []
+    },
+    {
+      "id": "team-startup",
+      "typeId": "type-people",
+      "name": "Ash & Birch",
+      "comment": "Furniture startup launch work.",
+      "fields": []
+    },
+    {
+      "id": "pool-vehicles",
+      "typeId": "type-vehicles",
+      "name": "Vehicle Pool",
+      "comment": "Van, box trailer, and borrowed forklift slots.",
+      "fields": []
+    },
+    {
+      "id": "group-site-assets",
+      "typeId": "type-sites",
+      "name": "Store Fixtures",
+      "comment": "Shelving sets and display pieces reused across projects.",
+      "fields": []
+    }
+  ],
+  "members": [
+    {
+      "id": "member-felix",
+      "typeId": "type-people",
+      "name": "Felix Brandt",
+      "comment": "Craft-heavy multi-client operator running all projects.",
+      "teamIds": [
+        "team-field-install",
+        "team-logistics",
+        "team-startup"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-lea",
+      "typeId": "type-people",
+      "name": "Lea Novak",
+      "comment": "Site measurements, merchandising, and storage installs.",
+      "teamIds": [
+        "team-field-install"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-samir",
+      "typeId": "type-people",
+      "name": "Samir Yilmaz",
+      "comment": "Electrical contractor coordinating camera feeds and cabling.",
+      "teamIds": [
+        "team-contractors"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-ines",
+      "typeId": "type-people",
+      "name": "Ines Wolff",
+      "comment": "Warehouse, forwarding, and closed-store logistics.",
+      "teamIds": [
+        "team-logistics"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-mira",
+      "typeId": "type-people",
+      "name": "Mira Geiger",
+      "comment": "Product photos, packaging, and launch copy for the startup.",
+      "teamIds": [
+        "team-startup"
+      ],
+      "fields": []
+    },
+    {
+      "id": "vehicle-van",
+      "typeId": "type-vehicles",
+      "name": "Crafter Van",
+      "comment": "Main install van with tools and ladder rack.",
+      "teamIds": [
+        "pool-vehicles"
+      ],
+      "fields": []
+    },
+    {
+      "id": "vehicle-trailer",
+      "typeId": "type-vehicles",
+      "name": "Box Trailer",
+      "comment": "Used for store closure pallets and launch stock drops.",
+      "teamIds": [
+        "pool-vehicles"
+      ],
+      "fields": []
+    },
+    {
+      "id": "asset-shelving-kit",
+      "typeId": "type-sites",
+      "name": "Modular Shelving Kit",
+      "comment": "Reusable storage solution for short install windows.",
+      "teamIds": [
+        "group-site-assets"
+      ],
+      "fields": []
+    }
+  ]
+}

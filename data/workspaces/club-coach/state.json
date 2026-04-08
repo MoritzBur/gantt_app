@@ -1,0 +1,58 @@
+{
+  "zoom": "Month",
+  "density": "Compact",
+  "theme": "light",
+  "collapsed": {},
+  "calendarCollapsed": {},
+  "calendarOrder": [
+    "cal-personal",
+    "cal-club-racing"
+  ],
+  "activeCalEvents": [],
+  "calendarEventIdsVersion": 2,
+  "listWidth": 328,
+  "blockerScenarioState": {
+    "version": 1,
+    "activeScenarioId": "default",
+    "scenarios": [
+      {
+        "id": "default",
+        "name": "Default",
+        "calendars": {
+          "visible": true,
+          "filterInitialized": true,
+          "visibleCalendarIds": [
+            "cal-personal",
+            "cal-club-racing"
+          ],
+          "activeEventIds": [
+            "cal-personal::event-board-evening",
+            "cal-club-racing::event-youth-camp"
+          ]
+        },
+        "resources": {
+          "teamIds": [],
+          "memberIds": [
+            "member-jonte",
+            "rib-bravo",
+            "car-suv",
+            "trailer-dinghy"
+          ]
+        }
+      }
+    ]
+  },
+  "notePanel": {
+    "open": true,
+    "width": 720,
+    "tabs": [
+      {
+        "itemId": "group-juniors",
+        "filename": "main.md",
+        "type": "main",
+        "pinned": true
+      }
+    ],
+    "activeTabIndex": 0
+  }
+}

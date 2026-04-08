@@ -1,4 +1,4 @@
-# <img src="icons/favicon.svg" alt="Gantt App icon" width="28" /> Gantt App
+# <img src="client/public/favicon.svg" alt="Gantt App icon" width="28" /> Gantt App
 
 A local-first Gantt planner for people who need a schedule that reflects real life, not just ideal dates.
 
@@ -138,7 +138,7 @@ Simple everyday use:
 
 By default the app runs at `http://localhost:3000`.
 
-If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus an `Example Project` workspace, and opens the example by default. By default it stores local data inside `data/` in a source checkout, or `%LOCALAPPDATA%\GanttApp\data` in the packaged Windows app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
+If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus several persona-driven example workspaces with shipped notes and local `.ics` calendars, and opens the first example by default. By default it stores local data inside `data/` in a source checkout, or `%LOCALAPPDATA%\GanttApp\data` in the packaged Windows app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
 
 ## For Contributors
 

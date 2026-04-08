@@ -4,7 +4,36 @@ const store = require('./data-store');
 
 const WORKSPACES_ROOT = path.join(store.ROOT_DATA_DIR, 'workspaces');
 const MANIFEST_FILE = path.join(store.ROOT_DATA_DIR, 'workspaces.json');
-const EXAMPLE_TEMPLATE_DIR = path.join(__dirname, 'workspace-templates', 'aero-thesis');
+const EXAMPLE_TEMPLATES_ROOT = path.join(__dirname, 'workspace-templates');
+const EXAMPLE_WORKSPACES = [
+  {
+    id: 'app-guide',
+    name: 'App Guide & Walkthrough',
+    templateDir: path.join(EXAMPLE_TEMPLATES_ROOT, 'app-guide'),
+  },
+  {
+    id: 'sailor-thesis',
+    name: 'Sailor Thesis, Racing & Notes',
+    templateDir: path.join(EXAMPLE_TEMPLATES_ROOT, 'aero-thesis'),
+  },
+  {
+    id: 'store-support',
+    name: 'Multi-Client Store Support',
+    templateDir: path.join(EXAMPLE_TEMPLATES_ROOT, 'store-support'),
+  },
+  {
+    id: 'mechanics-coordination',
+    name: 'Mechanics Coordination',
+    templateDir: path.join(EXAMPLE_TEMPLATES_ROOT, 'mechanics-coordination'),
+  },
+  {
+    id: 'club-coach',
+    name: 'Chief Coach of Sailing Club',
+    templateDir: path.join(EXAMPLE_TEMPLATES_ROOT, 'club-coach'),
+  },
+];
+const DEFAULT_EXAMPLE_TEMPLATE_DIR = EXAMPLE_WORKSPACES[0]?.templateDir || '';
+const EXAMPLE_TEMPLATE_DIR = DEFAULT_EXAMPLE_TEMPLATE_DIR;
 
 function sanitizeWorkspaceId(value) {
   return String(value || 'workspace')
@@ -78,6 +107,11 @@ function writeEmptyWorkspaceFiles(dirPath) {
   ensureDir(path.join(dirPath, 'notes'));
 }
 
+function writeStarterMainWorkspaceFiles(dirPath) {
+  ensureDir(dirPath);
+  copyDirContents(path.join(EXAMPLE_TEMPLATES_ROOT, 'main-starter'), dirPath, { overwrite: true });
+}
+
 function copyDirContents(sourceDir, targetDir, { overwrite = true } = {}) {
   ensureDir(targetDir);
   for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
@@ -97,12 +131,17 @@ function cloneWorkspaceContents(sourceDir, targetDir) {
   copyDirContents(sourceDir, targetDir);
 }
 
+function getExampleTemplate(workspaceId) {
+  return EXAMPLE_WORKSPACES.find((template) => template.id === workspaceId) || null;
+}
+
 function ensureWorkspaceFiles(workspace) {
   if (!workspace) return;
 
-  if (workspace.kind === 'example' && fs.existsSync(EXAMPLE_TEMPLATE_DIR)) {
+  const exampleTemplate = workspace.kind === 'example' ? getExampleTemplate(workspace.id) : null;
+  if (exampleTemplate && fs.existsSync(exampleTemplate.templateDir)) {
     ensureDir(workspace.path);
-    copyDirContents(EXAMPLE_TEMPLATE_DIR, workspace.path, { overwrite: false });
+    copyDirContents(exampleTemplate.templateDir, workspace.path, { overwrite: false });
     return;
   }
 
@@ -148,19 +187,19 @@ function writeManifest(manifest) {
 }
 
 function ensureExampleWorkspace(manifest) {
-  if (!fs.existsSync(EXAMPLE_TEMPLATE_DIR)) return manifest;
-  if (manifest.workspaces.some((workspace) => workspace.id === 'example')) return manifest;
+  let next = { ...manifest, workspaces: [...manifest.workspaces] };
 
-  const next = {
-    ...manifest,
-    workspaces: [...manifest.workspaces, buildWorkspaceRecord({
-      id: 'example',
-      name: 'Example Project',
+  for (const example of EXAMPLE_WORKSPACES) {
+    if (!fs.existsSync(example.templateDir)) continue;
+    if (next.workspaces.some((workspace) => workspace.id === example.id)) continue;
+    next.workspaces.push(buildWorkspaceRecord({
+      id: example.id,
+      name: example.name,
       kind: 'example',
-    })],
-  };
+    }));
+    cloneWorkspaceContents(example.templateDir, workspaceDir(example.id));
+  }
 
-  cloneWorkspaceContents(EXAMPLE_TEMPLATE_DIR, workspaceDir('example'));
   return next;
 }
 
@@ -168,7 +207,13 @@ function initializeWorkspaceManifest() {
   ensureDir(store.ROOT_DATA_DIR);
 
   let manifest = readManifest();
-  if (manifest) return manifest;
+  if (manifest) {
+    const nextManifest = ensureExampleWorkspace(manifest);
+    if ((nextManifest.workspaces || []).length !== (manifest.workspaces || []).length) {
+      writeManifest(nextManifest);
+    }
+    return nextManifest;
+  }
 
   const legacyEntries = listLegacyEntries();
   const hasLegacyData = legacyEntries.length > 0;
@@ -198,10 +243,10 @@ function initializeWorkspaceManifest() {
     })],
   };
 
-  writeEmptyWorkspaceFiles(manifest.workspaces[0].path);
+  writeStarterMainWorkspaceFiles(manifest.workspaces[0].path);
   manifest = ensureExampleWorkspace(manifest);
-  if (manifest.workspaces.some((workspace) => workspace.id === 'example')) {
-    manifest.activeWorkspaceId = 'example';
+  if (EXAMPLE_WORKSPACES.length > 0 && manifest.workspaces.some((workspace) => workspace.id === EXAMPLE_WORKSPACES[0].id)) {
+    manifest.activeWorkspaceId = EXAMPLE_WORKSPACES[0].id;
   }
 
   writeManifest(manifest);
@@ -286,8 +331,8 @@ function createWorkspace({ name, mode = 'empty', sourceWorkspaceId = null }) {
     if (!source) throw new Error('Source workspace not found');
     cloneWorkspaceContents(source.path, nextWorkspace.path);
   } else if (mode === 'example') {
-    if (!fs.existsSync(EXAMPLE_TEMPLATE_DIR)) throw new Error('Example template is not available');
-    cloneWorkspaceContents(EXAMPLE_TEMPLATE_DIR, nextWorkspace.path);
+    if (!fs.existsSync(DEFAULT_EXAMPLE_TEMPLATE_DIR)) throw new Error('Example template is not available');
+    cloneWorkspaceContents(DEFAULT_EXAMPLE_TEMPLATE_DIR, nextWorkspace.path);
   } else {
     writeEmptyWorkspaceFiles(nextWorkspace.path);
   }
@@ -347,6 +392,7 @@ module.exports = {
   WORKSPACES_ROOT,
   MANIFEST_FILE,
   EXAMPLE_TEMPLATE_DIR,
+  EXAMPLE_WORKSPACES,
   ensureInitialized,
   listWorkspaces,
   setActiveWorkspace,

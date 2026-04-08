@@ -1,0 +1,77 @@
+{
+  "version": 2,
+  "items": [
+    {
+      "id": "group-plan",
+      "name": "Plan",
+      "prefix": "WP",
+      "color": "#4A90D9",
+      "start": "2026-04-08",
+      "end": "2026-04-18",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-scope",
+          "name": "Define scope",
+          "type": "task",
+          "start": "2026-04-08",
+          "end": "2026-04-11",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-milestones",
+          "name": "Draft first milestones",
+          "type": "task",
+          "start": "2026-04-14",
+          "end": "2026-04-18",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-do",
+      "name": "Do",
+      "prefix": "WP",
+      "color": "#27AE60",
+      "start": "2026-04-21",
+      "end": "2026-05-02",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-first-block",
+          "name": "First work block",
+          "type": "task",
+          "start": "2026-04-21",
+          "end": "2026-04-26",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-review-plan",
+          "name": "Review and adjust plan",
+          "type": "task",
+          "start": "2026-04-28",
+          "end": "2026-05-02",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    }
+  ]
+}

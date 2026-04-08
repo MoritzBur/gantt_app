@@ -1,0 +1,128 @@
+{
+  "version": 2,
+  "types": [
+    {
+      "id": "type-people",
+      "name": "People",
+      "comment": "Technical support staff, technicians, and quote owners.",
+      "color": "#C44E52",
+      "groupLabel": "Team",
+      "groupLabelPlural": "Teams",
+      "assetLabel": "Person",
+      "assetLabelPlural": "People"
+    },
+    {
+      "id": "type-kits",
+      "name": "Service Kits",
+      "comment": "Travel kits and test rigs needed on customer jobs.",
+      "color": "#4C78A8",
+      "groupLabel": "Pool",
+      "groupLabelPlural": "Pools",
+      "assetLabel": "Kit",
+      "assetLabelPlural": "Kits"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-support-office",
+      "typeId": "type-people",
+      "name": "Support Office",
+      "comment": "Customer triage, spare quotes, and engineering callbacks.",
+      "fields": []
+    },
+    {
+      "id": "team-service-techs",
+      "typeId": "type-people",
+      "name": "Service Technicians",
+      "comment": "Traveling machine technicians.",
+      "fields": []
+    },
+    {
+      "id": "team-field-support",
+      "typeId": "type-people",
+      "name": "Upgrade Specialists",
+      "comment": "Commissioning and retrofit visits.",
+      "fields": []
+    },
+    {
+      "id": "pool-service-kits",
+      "typeId": "type-kits",
+      "name": "Service Kits",
+      "comment": "Laser alignment kit and spare PLC trolley.",
+      "fields": []
+    }
+  ],
+  "members": [
+    {
+      "id": "member-mara",
+      "typeId": "type-people",
+      "name": "Mara Lenz",
+      "comment": "Technical support lead, former design engineer.",
+      "teamIds": [
+        "team-support-office"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-jonas",
+      "typeId": "type-people",
+      "name": "Jonas Richter",
+      "comment": "Senior field technician for press retrofits.",
+      "teamIds": [
+        "team-service-techs",
+        "team-field-support"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-elise",
+      "typeId": "type-people",
+      "name": "Elise Fournier",
+      "comment": "Packaging line expert for diagnostics and rebuilds.",
+      "teamIds": [
+        "team-service-techs"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-marco",
+      "typeId": "type-people",
+      "name": "Marco de Vries",
+      "comment": "Upgrade specialist for motion packages and safety retrofits.",
+      "teamIds": [
+        "team-field-support"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-priya",
+      "typeId": "type-people",
+      "name": "Priya Shah",
+      "comment": "Spare parts quote support and ERP cleanup.",
+      "teamIds": [
+        "team-support-office"
+      ],
+      "fields": []
+    },
+    {
+      "id": "kit-laser",
+      "typeId": "type-kits",
+      "name": "Laser Alignment Kit",
+      "comment": "Required for spindle replacement and geometry checks.",
+      "teamIds": [
+        "pool-service-kits"
+      ],
+      "fields": []
+    },
+    {
+      "id": "kit-plc",
+      "typeId": "type-kits",
+      "name": "PLC Commissioning Trolley",
+      "comment": "Needed for motion upgrades and IO testing.",
+      "teamIds": [
+        "pool-service-kits"
+      ],
+      "fields": []
+    }
+  ]
+}

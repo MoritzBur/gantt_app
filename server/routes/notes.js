@@ -53,6 +53,44 @@ function rejectWorkspaceMismatch(req, res) {
   return true;
 }
 
+function workspacePathToAbsolute(workspacePath) {
+  const value = String(workspacePath || '').trim();
+  if (!value) return null;
+  return path.isAbsolute(value) ? value : path.resolve(runtimePaths.REPO_ROOT, value);
+}
+
+function ensurePathInsideWorkspace(filePath) {
+  const relative = path.relative(store.DATA_DIR, filePath);
+  return !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+router.get('/asset', (req, res) => {
+  try {
+    if (rejectWorkspaceMismatch(req, res)) return;
+
+    const fromPath = workspacePathToAbsolute(req.query.from);
+    const assetPath = String(req.query.path || '').trim();
+    if (!fromPath || !assetPath) {
+      return res.status(400).json({ error: 'from and path are required' });
+    }
+
+    const baseDir = path.dirname(fromPath);
+    const resolvedPath = path.resolve(baseDir, assetPath);
+
+    if (!ensurePathInsideWorkspace(resolvedPath)) {
+      return res.status(403).json({ error: 'Asset path is outside the workspace' });
+    }
+    if (!fs.existsSync(resolvedPath)) {
+      return res.status(404).json({ error: 'Asset not found' });
+    }
+
+    res.sendFile(resolvedPath);
+  } catch (err) {
+    console.error('Failed to serve note asset:', err);
+    res.status(500).json({ error: 'Failed to serve note asset' });
+  }
+});
+
 router.get('/all', (req, res) => {
   try {
     if (rejectWorkspaceMismatch(req, res)) return;

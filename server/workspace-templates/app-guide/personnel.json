@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "types": [
+    {
+      "id": "type-people",
+      "name": "People",
+      "comment": "A tiny example set for trying assignments and blockers.",
+      "color": "#D95F5F",
+      "groupLabel": "Team",
+      "groupLabelPlural": "Teams",
+      "assetLabel": "Person",
+      "assetLabelPlural": "People"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-example",
+      "typeId": "type-people",
+      "name": "Example Team",
+      "comment": "Use this for assignment experiments.",
+      "fields": []
+    }
+  ],
+  "members": [
+    {
+      "id": "member-alex",
+      "typeId": "type-people",
+      "name": "Alex",
+      "comment": "Example assignee for trying resource blockers.",
+      "teamIds": [
+        "team-example"
+      ],
+      "fields": []
+    }
+  ]
+}

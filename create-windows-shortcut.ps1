@@ -10,7 +10,8 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $HiddenLauncherPath = Join-Path $RepoRoot "launch-windows.vbs"
 $WScriptPath = Join-Path $env:SystemRoot "System32\wscript.exe"
-$DefaultIconPath = Join-Path $RepoRoot "icons/gantt-app.ico"
+$DefaultIconPath = Join-Path $RepoRoot "client/public/icon-launcher.svg"
+$FallbackIconPath = Join-Path $RepoRoot "icons/gantt-app.ico"
 $LegacyIconPath = Join-Path $RepoRoot "gantt-app.ico"
 
 if (-not (Test-Path $HiddenLauncherPath)) {
@@ -44,6 +45,8 @@ if (-not [string]::IsNullOrWhiteSpace($IconPath)) {
   $shortcut.IconLocation = "$IconPath,0"
 } elseif (Test-Path $DefaultIconPath) {
   $shortcut.IconLocation = "$DefaultIconPath,0"
+} elseif (Test-Path $FallbackIconPath) {
+  $shortcut.IconLocation = "$FallbackIconPath,0"
 } elseif (Test-Path $LegacyIconPath) {
   $shortcut.IconLocation = "$LegacyIconPath,0"
 }

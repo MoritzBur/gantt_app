@@ -12,6 +12,8 @@ function createDraftIcalCalendar(index) {
     label: `Calendar ${index + 1}`,
     color: CALENDAR_COLORS[index % CALENDAR_COLORS.length],
     icalUrl: '',
+    icalPath: '',
+    resolvedIcalPath: '',
     enabled: true,
   };
 }
@@ -24,9 +26,10 @@ function sanitizeIcalCalendars(calendars) {
       label: (calendar.label || '').trim() || `Calendar ${index + 1}`,
       color: calendar.color || CALENDAR_COLORS[index % CALENDAR_COLORS.length],
       icalUrl: (calendar.icalUrl || '').trim(),
+      icalPath: (calendar.icalPath || '').trim(),
       enabled: calendar.enabled !== false,
     }))
-    .filter(calendar => calendar.icalUrl);
+    .filter(calendar => calendar.icalUrl || calendar.icalPath);
 }
 
 function sanitizeGoogleCalendars(calendars) {
@@ -135,7 +138,7 @@ export default function CalendarSetupModal({ status, config, onSave, onClose }) 
               <span className="cal-option-tag">Recommended</span>
             </div>
             <p className="cal-option-desc">
-              Each saved feed becomes its own calendar group with its own color, order, and collapse state.
+              Each saved feed becomes its own calendar group with its own color, order, and collapse state. You can use either a remote subscription URL or a local <code>.ics</code> file.
             </p>
 
             {isIcal ? (
@@ -175,9 +178,32 @@ export default function CalendarSetupModal({ status, config, onSave, onClose }) 
                         />
                       </label>
 
+                      <label className="cal-option-label">
+                        Local <code>.ics</code> file
+                        <input
+                          className="cal-text-input cal-url-input"
+                          value={calendar.icalPath || ''}
+                          onChange={e => updateIcalCalendar(calendar.id, { icalPath: e.target.value })}
+                          placeholder="$workspace/calendars/personal.ics or /Users/you/Calendars/personal.ics"
+                          spellCheck={false}
+                        />
+                      </label>
+
+                      {calendar.resolvedIcalPath ? (
+                        <label className="cal-option-label">
+                          Resolved local path
+                          <input
+                            className="cal-text-input cal-readonly-input"
+                            value={calendar.resolvedIcalPath}
+                            readOnly
+                            spellCheck={false}
+                          />
+                        </label>
+                      ) : null}
+
                       <div className="cal-editor-actions">
                         <span className="cal-option-hint">
-                          Find it in Google Calendar → Settings → your calendar → <em>Secret address in iCal format</em>
+                          Demo workspaces use <code>$workspace/...</code> so the shipped calendars stay portable across install locations.
                         </span>
                         <button
                           className="btn btn-ghost btn-small"

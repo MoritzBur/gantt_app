@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "backends": {
+    "ical": {
+      "calendars": [
+        {
+          "id": "cal-personal",
+          "source": "ical",
+          "label": "Personal Calendar",
+          "color": "#4C78A8",
+          "icalPath": "$workspace/calendars/personal-calendar.ics",
+          "enabled": true
+        },
+        {
+          "id": "cal-site-visits",
+          "source": "ical",
+          "label": "Client Windows",
+          "color": "#2C7FB8",
+          "icalPath": "$workspace/calendars/site-visits.ics",
+          "enabled": true
+        }
+      ]
+    },
+    "google": {
+      "calendars": []
+    }
+  }
+}

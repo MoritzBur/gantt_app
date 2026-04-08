@@ -1,0 +1,62 @@
+{
+  "zoom": "Week",
+  "density": "Compact",
+  "theme": "dark",
+  "collapsed": {},
+  "calendarCollapsed": {},
+  "calendarOrder": [
+    "cal-guide-personal"
+  ],
+  "activeCalEvents": [],
+  "calendarEventIdsVersion": 2,
+  "listWidth": 340,
+  "blockerScenarioState": {
+    "version": 1,
+    "activeScenarioId": "default",
+    "scenarios": [
+      {
+        "id": "default",
+        "name": "Default",
+        "calendars": {
+          "visible": true,
+          "filterInitialized": true,
+          "visibleCalendarIds": [
+            "cal-guide-personal"
+          ],
+          "activeEventIds": [
+            "cal-guide-personal::event-family-trip"
+          ]
+        },
+        "resources": {
+          "teamIds": [],
+          "memberIds": []
+        }
+      }
+    ]
+  },
+  "notePanel": {
+    "open": true,
+    "width": 612,
+    "tabs": [
+      {
+        "itemId": "group-start",
+        "filename": "main.md",
+        "type": "main",
+        "pinned": true
+      },
+      {
+        "itemId": "task-related-notes",
+        "filename": "main.md",
+        "type": "main",
+        "pinned": false
+      },
+      {
+        "itemId": "task-related-notes",
+        "filename": "ege.md",
+        "type": "related",
+        "pinned": true
+      }
+    ],
+    "activeTabIndex": 2
+  }
+}

@@ -100,7 +100,7 @@
           "done": true,
           "milestone": false,
           "assigneeId": "member-lina",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -113,7 +113,7 @@
           "done": false,
           "milestone": false,
           "assigneeId": "member-anna",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         }
       ],
@@ -151,7 +151,7 @@
           "done": false,
           "milestone": false,
           "assigneeId": "member-anna",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -164,7 +164,7 @@
           "done": false,
           "milestone": false,
           "assigneeId": "member-lina",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -201,8 +201,8 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-peter",
-          "blocker": true,
+          "assigneeId": "member-anna",
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -214,8 +214,8 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-peter",
-          "blocker": true,
+          "assigneeId": "member-leon",
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -227,8 +227,8 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-peter",
-          "blocker": true,
+          "assigneeId": "member-leon",
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -240,7 +240,7 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-peter",
+          "assigneeId": "member-lina",
           "blocker": false,
           "noteFile": "main.md"
         }
@@ -266,7 +266,7 @@
           "done": false,
           "milestone": false,
           "assigneeId": "member-anna",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -279,7 +279,7 @@
           "done": false,
           "milestone": false,
           "assigneeId": "member-lina",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -291,7 +291,7 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-lina",
+          "assigneeId": "member-leon",
           "blocker": false,
           "noteFile": "main.md"
         }
@@ -317,7 +317,7 @@
           "done": false,
           "milestone": false,
           "assigneeId": "member-lina",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -330,7 +330,7 @@
           "done": false,
           "milestone": false,
           "assigneeId": "member-lina",
-          "blocker": true,
+          "blocker": false,
           "noteFile": "main.md"
         },
         {
@@ -342,7 +342,58 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-lina",
+          "assigneeId": "member-leon",
+          "blocker": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-racing",
+      "name": "Regatta option scenarios",
+      "prefix": "RC",
+      "color": "#E67E22",
+      "start": "2026-06-19",
+      "end": "2026-09-21",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-kiel-week-campaign",
+          "name": "Kiel Week campaign option",
+          "type": "task",
+          "start": "2026-06-19",
+          "end": "2026-06-29",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-leon",
+          "blocker": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-eurocup-logistics",
+          "name": "Foiling Euro Cup option",
+          "type": "task",
+          "start": "2026-08-10",
+          "end": "2026-08-16",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-leon",
+          "blocker": false,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-offshore-series",
+          "name": "Late-summer offshore series option",
+          "type": "task",
+          "start": "2026-09-10",
+          "end": "2026-09-21",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-leon",
           "blocker": false,
           "noteFile": "main.md"
         }

@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "backends": {
+    "ical": {
+      "calendars": [
+        {
+          "id": "cal-personal",
+          "source": "ical",
+          "label": "Personal Calendar",
+          "color": "#7570B3",
+          "icalPath": "$workspace/calendars/personal-calendar.ics",
+          "enabled": true
+        },
+        {
+          "id": "cal-club-racing",
+          "source": "ical",
+          "label": "Club Season",
+          "color": "#1B9E77",
+          "icalPath": "$workspace/calendars/club-racing.ics",
+          "enabled": true
+        }
+      ]
+    },
+    "google": {
+      "calendars": []
+    }
+  }
+}

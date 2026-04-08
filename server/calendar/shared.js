@@ -35,14 +35,18 @@ function makeCalendarId(source, identity, index) {
 
 function normalizeIcalCalendar(entry, index) {
   const icalUrl = typeof entry?.icalUrl === 'string' ? entry.icalUrl.trim() : '';
+  const icalPath = typeof entry?.icalPath === 'string' ? entry.icalPath.trim() : '';
   const fallbackLabel = `Calendar ${index + 1}`;
+  const identity = icalUrl || icalPath;
 
   return {
-    id: normalizeLabel(entry?.id, makeCalendarId('ical', icalUrl, index)),
+    id: normalizeLabel(entry?.id, makeCalendarId('ical', identity, index)),
     source: 'ical',
     label: normalizeLabel(entry?.label, fallbackLabel),
     color: isHexColor(entry?.color) ? entry.color.trim() : getDefaultCalendarColor(index),
     icalUrl,
+    icalPath,
+    resolvedIcalPath: typeof entry?.resolvedIcalPath === 'string' ? entry.resolvedIcalPath.trim() : '',
     enabled: entry?.enabled !== false,
   };
 }
@@ -72,7 +76,7 @@ function normalizeBackendCalendars(calendars, source) {
   if (source === 'google') {
     return normalized.filter(calendar => calendar.calendarId);
   }
-  return normalized.filter(calendar => calendar.icalUrl);
+  return normalized.filter(calendar => calendar.icalUrl || calendar.icalPath);
 }
 
 function normalizeCalendarStore(raw) {

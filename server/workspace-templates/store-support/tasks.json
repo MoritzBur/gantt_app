@@ -1,0 +1,290 @@
+{
+  "version": 2,
+  "items": [
+    {
+      "id": "group-milestones",
+      "name": "Milestones",
+      "prefix": "",
+      "color": "#455A64",
+      "start": "2026-04-10",
+      "end": "2026-09-18",
+      "type": "group",
+      "children": [
+        {
+          "id": "ms-camera-signoff",
+          "name": "Northline camera layout approved",
+          "start": "2026-04-17",
+          "end": "2026-04-17",
+          "done": true,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        },
+        {
+          "id": "ms-harbor-install",
+          "name": "Harbor outlet storage installed",
+          "start": "2026-05-29",
+          "end": "2026-05-29",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        },
+        {
+          "id": "ms-bremen-clear",
+          "name": "Bremen closed-store handover completed",
+          "start": "2026-07-24",
+          "end": "2026-07-24",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        },
+        {
+          "id": "ms-launch",
+          "name": "Ash & Birch launch weekend",
+          "start": "2026-09-18",
+          "end": "2026-09-18",
+          "done": false,
+          "milestone": true,
+          "type": "task",
+          "children": [],
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-northline",
+      "name": "Northline security retrofit",
+      "prefix": "CL",
+      "color": "#2C7FB8",
+      "start": "2026-04-10",
+      "end": "2026-05-15",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-northline-survey",
+          "name": "Night survey and camera coverage plan",
+          "type": "task",
+          "start": "2026-04-10",
+          "end": "2026-04-17",
+          "children": [],
+          "done": true,
+          "milestone": false,
+          "assigneeId": "member-felix",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-northline-cabling",
+          "name": "Coordinate electrical recabling and patch routes",
+          "type": "task",
+          "start": "2026-04-20",
+          "end": "2026-05-01",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-samir",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-northline-install",
+          "name": "Install heads, recorder, signage, and training",
+          "type": "task",
+          "start": "2026-05-04",
+          "end": "2026-05-15",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "vehicle-van",
+          "blocker": true,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-harbor",
+      "name": "Harbor outlet storage refresh",
+      "prefix": "CL",
+      "color": "#59A14F",
+      "start": "2026-04-27",
+      "end": "2026-05-29",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-harbor-measure",
+          "name": "Measure back room and stock flow bottlenecks",
+          "type": "task",
+          "start": "2026-04-27",
+          "end": "2026-05-01",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-lea",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-harbor-build",
+          "name": "Prefabricate storage modules in workshop",
+          "type": "task",
+          "start": "2026-05-04",
+          "end": "2026-05-15",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "asset-shelving-kit",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-harbor-install",
+          "name": "Weekend install with relabeling and handoff",
+          "type": "task",
+          "start": "2026-05-18",
+          "end": "2026-05-29",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "vehicle-trailer",
+          "blocker": true,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-bremen",
+      "name": "Bremen closeout logistics",
+      "prefix": "CL",
+      "color": "#8E6C8A",
+      "start": "2026-06-01",
+      "end": "2026-07-24",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-bremen-inventory",
+          "name": "Tag sale fixtures, salvage stock, and archive documents",
+          "type": "task",
+          "start": "2026-06-01",
+          "end": "2026-06-12",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-ines",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-bremen-forwarding",
+          "name": "Book warehouse slots, hauler windows, and disposal runs",
+          "type": "task",
+          "start": "2026-06-15",
+          "end": "2026-07-03",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "vehicle-trailer",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-bremen-handover",
+          "name": "Two-city closeout week and landlord handover",
+          "type": "task",
+          "start": "2026-07-13",
+          "end": "2026-07-24",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-felix",
+          "blocker": true,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-startup",
+      "name": "Ash & Birch launch",
+      "prefix": "ST",
+      "color": "#D95F0E",
+      "start": "2026-06-22",
+      "end": "2026-09-18",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-startup-production",
+          "name": "Sign off first production run of folding sideboard",
+          "type": "task",
+          "start": "2026-06-22",
+          "end": "2026-07-10",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-felix",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-startup-packaging",
+          "name": "Finalize packaging inserts, assembly guide, and QR support card",
+          "type": "task",
+          "start": "2026-07-13",
+          "end": "2026-08-07",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-mira",
+          "blocker": true,
+          "noteFile": "main.md"
+        },
+        {
+          "id": "task-startup-launch",
+          "name": "Photo shoot, preorder page, and launch pop-up prep",
+          "type": "task",
+          "start": "2026-08-10",
+          "end": "2026-09-18",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-mira",
+          "blocker": true,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-ops",
+      "name": "Personal ops & procurement",
+      "prefix": "OP",
+      "color": "#6B6ECF",
+      "start": "2026-04-14",
+      "end": "2026-09-11",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-ops-bookkeeping",
+          "name": "Weekly cashflow, invoices, and VAT prep",
+          "type": "task",
+          "start": "2026-04-14",
+          "end": "2026-09-11",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-felix",
+          "blocker": false,
+          "noteFile": "main.md"
+        }
+      ],
+      "noteFile": "main.md"
+    }
+  ]
+}

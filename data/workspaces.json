@@ -1,5 +1,5 @@
 {
-  "activeWorkspaceId": "example",
+  "activeWorkspaceId": "app-guide",
   "workspaces": [
     {
       "id": "main",
@@ -8,8 +8,32 @@
       "pathMode": "workspace"
     },
     {
-      "id": "example",
-      "name": "Example Project",
+      "id": "app-guide",
+      "name": "App Guide & Walkthrough",
+      "kind": "example",
+      "pathMode": "workspace"
+    },
+    {
+      "id": "sailor-thesis",
+      "name": "Sailor Thesis, Racing & Notes",
+      "kind": "example",
+      "pathMode": "workspace"
+    },
+    {
+      "id": "store-support",
+      "name": "Multi-Client Store Support",
+      "kind": "example",
+      "pathMode": "workspace"
+    },
+    {
+      "id": "mechanics-coordination",
+      "name": "Mechanics Coordination",
+      "kind": "example",
+      "pathMode": "workspace"
+    },
+    {
+      "id": "club-coach",
+      "name": "Chief Coach of Sailing Club",
       "kind": "example",
       "pathMode": "workspace"
     }

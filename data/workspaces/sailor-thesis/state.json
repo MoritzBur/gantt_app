@@ -1,0 +1,53 @@
+{
+  "zoom": "Month",
+  "density": "Compact",
+  "theme": "light",
+  "collapsed": {},
+  "calendarCollapsed": {},
+  "calendarOrder": [
+    "cal-personal",
+    "cal-regatta"
+  ],
+  "activeCalEvents": [],
+  "calendarEventIdsVersion": 2,
+  "listWidth": 320,
+  "blockerScenarioState": {
+    "version": 1,
+    "activeScenarioId": "default",
+    "scenarios": [
+      {
+        "id": "default",
+        "name": "Default",
+        "calendars": {
+          "visible": true,
+          "filterInitialized": true,
+          "visibleCalendarIds": [
+            "cal-personal",
+            "cal-regatta"
+          ],
+          "activeEventIds": [
+            "cal-personal::event-coach-weekend-may",
+            "cal-personal::event-coach-weekend-june"
+          ]
+        },
+        "resources": {
+          "teamIds": [],
+          "memberIds": []
+        }
+      }
+    ]
+  },
+  "notePanel": {
+    "open": false,
+    "width": 780,
+    "tabs": [
+      {
+        "itemId": "group-racing",
+        "filename": "main.md",
+        "type": "main",
+        "pinned": true
+      }
+    ],
+    "activeTabIndex": 0
+  }
+}

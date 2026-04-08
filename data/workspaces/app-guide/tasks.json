@@ -1,0 +1,221 @@
+{
+  "version": 2,
+  "items": [
+    {
+      "id": "group-start",
+      "name": "Start Here",
+      "prefix": "START",
+      "color": "#4A90D9",
+      "start": "2026-04-08",
+      "end": "2026-04-15",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-rename",
+          "name": "Rename tasks and drag bars",
+          "type": "task",
+          "start": "2026-04-08",
+          "end": "2026-04-10",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null
+        },
+        {
+          "id": "task-add",
+          "name": "Add your first work package",
+          "type": "task",
+          "start": "2026-04-11",
+          "end": "2026-04-15",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-calendar",
+      "name": "Calendar Context",
+      "prefix": "CAL",
+      "color": "#E67E22",
+      "start": "2026-04-16",
+      "end": "2026-04-24",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-connect-calendar",
+          "name": "Connect a personal calendar",
+          "type": "task",
+          "start": "2026-04-16",
+          "end": "2026-04-19",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null
+        },
+        {
+          "id": "task-toggle-events",
+          "name": "Toggle blocker events and compare free time",
+          "type": "task",
+          "start": "2026-04-20",
+          "end": "2026-04-24",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeIds": [],
+          "assigneeId": null
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-notes",
+      "name": "Notes and Thinking",
+      "prefix": "NOTE",
+      "color": "#27AE60",
+      "start": "2026-04-25",
+      "end": "2026-05-02",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-open-notes",
+          "name": "Open, pin, and edit notes",
+          "type": "task",
+          "start": "2026-04-25",
+          "end": "2026-04-28",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "assigneeIds": []
+        },
+        {
+          "id": "task-related-notes",
+          "name": "Create a related checklist note",
+          "type": "task",
+          "start": "2026-04-29",
+          "end": "2026-05-02",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "assigneeIds": []
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-resources",
+      "name": "Resources and Blockers",
+      "prefix": "RES",
+      "color": "#8E44AD",
+      "start": "2026-05-03",
+      "end": "2026-05-12",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-assign",
+          "name": "Assign tasks to people or assets",
+          "type": "task",
+          "start": "2026-05-03",
+          "end": "2026-05-06",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "assigneeIds": []
+        },
+        {
+          "id": "task-blocker-scenario",
+          "name": "Use blockers for a specific availability question",
+          "type": "task",
+          "start": "2026-05-07",
+          "end": "2026-05-12",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "assigneeId": "member-alex",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "member-alex"
+          ]
+        }
+      ],
+      "noteFile": "main.md"
+    },
+    {
+      "id": "group-advanced",
+      "name": "Iterate Safely",
+      "prefix": "ADV",
+      "color": "#D14B3F",
+      "start": "2026-05-13",
+      "end": "2026-05-23",
+      "type": "group",
+      "children": [
+        {
+          "id": "task-compare",
+          "name": "Compare options by moving tasks and toggling blockers",
+          "type": "task",
+          "start": "2026-05-13",
+          "end": "2026-05-16",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "assigneeIds": []
+        },
+        {
+          "id": "task-history",
+          "name": "Capture snapshots and revisit earlier plans",
+          "type": "task",
+          "start": "2026-05-17",
+          "end": "2026-05-20",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "assigneeIds": []
+        },
+        {
+          "id": "task-reference",
+          "name": "Keep this workspace as your reference manual",
+          "type": "task",
+          "start": "2026-05-21",
+          "end": "2026-05-23",
+          "children": [],
+          "done": false,
+          "milestone": false,
+          "blocker": false,
+          "noteFile": "main.md",
+          "assigneeId": null,
+          "assigneeIds": []
+        }
+      ],
+      "noteFile": "main.md"
+    }
+  ]
+}

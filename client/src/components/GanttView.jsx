@@ -16,7 +16,9 @@ import {
 // ─── Date helpers ───────────────────────────────────────────────────────────
 
 function parseDate(str) {
+  if (typeof str !== 'string' || !str.includes('-')) return null;
   const [y, m, d] = str.split('-').map(Number);
+  if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
 }
 
@@ -258,8 +260,13 @@ function GanttBar({
   const [labelFits, setLabelFits] = useState(true);
   const displayStart = dragState?.newStart || previewStart || taskStart;
   const displayEnd = dragState?.newEnd || previewEnd || taskEnd;
-  const startOffset = diffDays(startDate, parseDate(displayStart));
-  const duration = diffDays(parseDate(displayStart), parseDate(displayEnd)) + 1;
+  const parsedDisplayStart = parseDate(displayStart);
+  const parsedDisplayEnd = parseDate(displayEnd);
+
+  if (!parsedDisplayStart || !parsedDisplayEnd) return null;
+
+  const startOffset = diffDays(startDate, parsedDisplayStart);
+  const duration = diffDays(parsedDisplayStart, parsedDisplayEnd) + 1;
   const left = startOffset * dayWidth;
   const width = Math.max(duration * dayWidth, dayWidth);
 

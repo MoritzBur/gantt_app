@@ -58,12 +58,12 @@ EOF
 
 set_macos_icon() {
   local app_path="$1"
-  local source_png="$SCRIPT_DIR/client/public/web-app-manifest-512x512.png"
+  local source_icon="$SCRIPT_DIR/client/public/icon-launcher.svg"
   local iconset_dir
   local icns_path
   local size
 
-  if [ ! -f "$source_png" ]; then
+  if [ ! -f "$source_icon" ]; then
     return 0
   fi
 
@@ -75,9 +75,9 @@ set_macos_icon() {
   icns_path="$iconset_dir/applet.icns"
 
   for size in 16 32 128 256 512; do
-    sips -z "$size" "$size" "$source_png" --out "$iconset_dir/icon_${size}x${size}.png" >/dev/null
+    sips -z "$size" "$size" "$source_icon" --out "$iconset_dir/icon_${size}x${size}.png" >/dev/null
     if [ "$size" -lt 512 ]; then
-      sips -z "$((size * 2))" "$((size * 2))" "$source_png" --out "$iconset_dir/icon_${size}x${size}@2x.png" >/dev/null
+      sips -z "$((size * 2))" "$((size * 2))" "$source_icon" --out "$iconset_dir/icon_${size}x${size}@2x.png" >/dev/null
     fi
   done
 
@@ -135,7 +135,7 @@ create_linux_launcher() {
   local wrapper_path="$bin_dir/gantt-app-launch"
   local desktop_file="$applications_dir/gantt-app.desktop"
   local desktop_copy="$HOME/Desktop/Gantt App.desktop"
-  local icon_path="$SCRIPT_DIR/client/public/web-app-manifest-512x512.png"
+  local icon_path="$SCRIPT_DIR/client/public/icon-launcher.svg"
   local launch_args
 
   mkdir -p "$bin_dir" "$applications_dir"

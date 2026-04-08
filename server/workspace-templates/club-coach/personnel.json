@@ -1,0 +1,212 @@
+{
+  "version": 2,
+  "types": [
+    {
+      "id": "type-people",
+      "name": "People",
+      "comment": "Club staff and coaches across junior to Olympic squads.",
+      "color": "#D95F5F",
+      "groupLabel": "Team",
+      "groupLabelPlural": "Teams",
+      "assetLabel": "Person",
+      "assetLabelPlural": "People"
+    },
+    {
+      "id": "type-ribs",
+      "name": "RIBs",
+      "comment": "Coach boats for race management and on-water support.",
+      "color": "#1B9E77",
+      "groupLabel": "Fleet",
+      "groupLabelPlural": "Fleets",
+      "assetLabel": "RIB",
+      "assetLabelPlural": "RIBs"
+    },
+    {
+      "id": "type-cars",
+      "name": "Cars",
+      "comment": "Tow vehicles and support vans.",
+      "color": "#4C78A8",
+      "groupLabel": "Fleet",
+      "groupLabelPlural": "Fleets",
+      "assetLabel": "Car",
+      "assetLabelPlural": "Cars"
+    },
+    {
+      "id": "type-trailers",
+      "name": "Trailers",
+      "comment": "Road trailers for dinghy and RIB transport.",
+      "color": "#F28E2B",
+      "groupLabel": "Fleet",
+      "groupLabelPlural": "Fleets",
+      "assetLabel": "Trailer",
+      "assetLabelPlural": "Trailers"
+    },
+    {
+      "id": "type-charter",
+      "name": "Charter Boats",
+      "comment": "Club-owned boats chartered to members.",
+      "color": "#8E6C8A",
+      "groupLabel": "Fleet",
+      "groupLabelPlural": "Fleets",
+      "assetLabel": "Boat",
+      "assetLabelPlural": "Boats"
+    }
+  ],
+  "teams": [
+    {
+      "id": "team-coaches",
+      "typeId": "type-people",
+      "name": "Coaches",
+      "comment": "Head coach, Olympic coach, and junior coach line-up.",
+      "fields": []
+    },
+    {
+      "id": "team-admin",
+      "typeId": "type-people",
+      "name": "Club Admin",
+      "comment": "Funding, safeguarding, and board-facing work.",
+      "fields": []
+    },
+    {
+      "id": "fleet-ribs",
+      "typeId": "type-ribs",
+      "name": "RIB Fleet",
+      "comment": "Coach boats.",
+      "fields": []
+    },
+    {
+      "id": "fleet-cars",
+      "typeId": "type-cars",
+      "name": "Vehicle Fleet",
+      "comment": "Cars and vans.",
+      "fields": []
+    },
+    {
+      "id": "fleet-trailers",
+      "typeId": "type-trailers",
+      "name": "Trailer Fleet",
+      "comment": "Road trailers and rib trailers.",
+      "fields": []
+    },
+    {
+      "id": "fleet-charter",
+      "typeId": "type-charter",
+      "name": "Charter Fleet",
+      "comment": "Boats loaned or chartered to members.",
+      "fields": []
+    }
+  ],
+  "members": [
+    {
+      "id": "member-hugo",
+      "typeId": "type-people",
+      "name": "Hugo Stein",
+      "comment": "Chief coach balancing politics, funding, and operations.",
+      "teamIds": [
+        "team-coaches",
+        "team-admin"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-nora",
+      "typeId": "type-people",
+      "name": "Nora Weiss",
+      "comment": "Olympic campaign coach.",
+      "teamIds": [
+        "team-coaches"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-jonte",
+      "typeId": "type-people",
+      "name": "Jonte Berg",
+      "comment": "Junior squad and transition coach.",
+      "teamIds": [
+        "team-coaches"
+      ],
+      "fields": []
+    },
+    {
+      "id": "member-sabine",
+      "typeId": "type-people",
+      "name": "Sabine Krug",
+      "comment": "Club operations and funding administrator.",
+      "teamIds": [
+        "team-admin"
+      ],
+      "fields": []
+    },
+    {
+      "id": "rib-alpha",
+      "typeId": "type-ribs",
+      "name": "RIB Alpha",
+      "comment": "Fast coaching rib for Olympic groups.",
+      "teamIds": [
+        "fleet-ribs"
+      ],
+      "fields": []
+    },
+    {
+      "id": "rib-bravo",
+      "typeId": "type-ribs",
+      "name": "RIB Bravo",
+      "comment": "Primary junior camp coach boat.",
+      "teamIds": [
+        "fleet-ribs"
+      ],
+      "fields": []
+    },
+    {
+      "id": "car-transporter",
+      "typeId": "type-cars",
+      "name": "Club Transporter",
+      "comment": "Van for sails, marks, and support kit.",
+      "teamIds": [
+        "fleet-cars"
+      ],
+      "fields": []
+    },
+    {
+      "id": "car-suv",
+      "typeId": "type-cars",
+      "name": "Tow SUV",
+      "comment": "Primary trailer tow car.",
+      "teamIds": [
+        "fleet-cars"
+      ],
+      "fields": []
+    },
+    {
+      "id": "trailer-dinghy",
+      "typeId": "type-trailers",
+      "name": "Dinghy Road Trailer",
+      "comment": "Used for youth team regattas.",
+      "teamIds": [
+        "fleet-trailers"
+      ],
+      "fields": []
+    },
+    {
+      "id": "trailer-rib",
+      "typeId": "type-trailers",
+      "name": "RIB Trailer",
+      "comment": "Required when away events need extra on-water cover.",
+      "teamIds": [
+        "fleet-trailers"
+      ],
+      "fields": []
+    },
+    {
+      "id": "charter-ilca-7",
+      "typeId": "type-charter",
+      "name": "ILCA Charter Set",
+      "comment": "Chartered to members for big regattas.",
+      "teamIds": [
+        "fleet-charter"
+      ],
+      "fields": []
+    }
+  ]
+}

@@ -99,6 +99,7 @@ export default function NotePanelTab({
           onChange={onContentChange}
           onNavigateLink={onNavigateLink}
           allNotes={allNotes}
+          noteWorkspacePath={cacheEntry?.workspacePath || ''}
           theme={theme}
         />
       </div>

@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "backends": {
+    "ical": {
+      "calendars": [
+        {
+          "id": "cal-guide-personal",
+          "source": "ical",
+          "label": "Example Personal Calendar",
+          "color": "#4A90D9",
+          "icalPath": "$workspace/calendars/example-personal.ics",
+          "enabled": true
+        }
+      ]
+    },
+    "google": {
+      "calendars": []
+    }
+  }
+}
