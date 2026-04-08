@@ -223,6 +223,57 @@ router.put('/:itemId/related/:filename', (req, res) => {
   }
 });
 
+router.delete('/:itemId/related/:filename', (req, res) => {
+  try {
+    if (rejectWorkspaceMismatch(req, res)) return;
+    const data = store.readTasks();
+    const binding = store.getNoteBinding(data, req.params.itemId, { assignDefault: false });
+    if (!binding) return res.status(404).json({ error: 'Item not found' });
+
+    const filename = normalizeFilename(req.params.filename);
+    const filePath = path.join(binding.relatedDir, filename);
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Related note not found' });
+    }
+
+    fs.unlinkSync(filePath);
+    res.json({
+      itemId: req.params.itemId,
+      type: 'related',
+      filename,
+      deleted: true,
+    });
+  } catch (err) {
+    console.error('Failed to delete related note:', err);
+    res.status(500).json({ error: 'Failed to delete related note' });
+  }
+});
+
+router.delete('/:itemId', (req, res) => {
+  try {
+    if (rejectWorkspaceMismatch(req, res)) return;
+    const data = store.readTasks();
+    const binding = ensureMainBinding(data, req.params.itemId);
+    if (!binding) return res.status(404).json({ error: 'Item not found' });
+
+    if (binding.mainPath && fs.existsSync(binding.mainPath)) {
+      fs.unlinkSync(binding.mainPath);
+    }
+
+    res.json({
+      itemId: req.params.itemId,
+      type: 'main',
+      filename: binding.noteFile,
+      deleted: true,
+      exists: false,
+      content: '',
+    });
+  } catch (err) {
+    console.error('Failed to reset main note:', err);
+    res.status(500).json({ error: 'Failed to reset main note' });
+  }
+});
+
 router.get('/:itemId', (req, res) => {
   try {
     if (rejectWorkspaceMismatch(req, res)) return;

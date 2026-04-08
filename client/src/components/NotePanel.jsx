@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import NotePanelTab, { getTabKey } from './NotePanelTab.jsx';
+import ContextMenu from './ContextMenu.jsx';
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH_RATIO = 0.6;
@@ -48,12 +49,75 @@ function toHistoryEntry(tab) {
   };
 }
 
+function DeleteNoteModal({ target, deleting, onConfirm, onClose }) {
+  const cancelButtonRef = useRef(null);
+
+  useEffect(() => {
+    if (!target || deleting) return;
+    cancelButtonRef.current?.focus();
+  }, [deleting, target]);
+
+  useEffect(() => {
+    if (!target || deleting) return undefined;
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [deleting, onClose, target]);
+
+  if (!target) return null;
+
+  const title = 'Delete Note';
+  const primaryCopy = (
+    <>
+      Delete <strong>{target.label || target.filename.replace(/\.md$/i, '') || 'this note'}</strong>?
+    </>
+  );
+  const secondaryCopy = target.type === 'main'
+    ? 'This removes the current note file. If you open the task note again later, the app can create a fresh empty note.'
+    : 'This removes the markdown file from the workspace. The safe choice is No unless you are sure.';
+  const confirmLabel = deleting ? 'Deleting…' : 'Delete Note';
+
+  return (
+    <div className="modal-backdrop" onClick={deleting ? undefined : onClose}>
+      <div
+        className="modal delete-confirm-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="delete-note-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-header">
+          <h2 className="modal-title" id="delete-note-title">{title}</h2>
+          <button className="modal-close" type="button" onClick={onClose} aria-label="Close" disabled={deleting}>✕</button>
+        </div>
+        <div className="modal-body">
+          <p className="delete-confirm-copy">{primaryCopy}</p>
+          <p className="delete-confirm-copy">{secondaryCopy}</p>
+        </div>
+        <div className="modal-footer">
+          <div className="modal-footer-right">
+            <button ref={cancelButtonRef} className="btn btn-ghost" type="button" onClick={onClose} disabled={deleting}>No</button>
+            <button className="btn btn-danger" type="button" onClick={onConfirm} disabled={deleting}>
+              {confirmLabel}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function NotePanel({ workspaceId, panelState, theme, itemMeta, onPanelStateChange, onOpenNote, onMainNoteContentChange }) {
   const [noteCache, setNoteCache] = useState({});
   const [allNotes, setAllNotes] = useState([]);
   const [relatedNotes, setRelatedNotes] = useState([]);
   const [relatedNotesLoading, setRelatedNotesLoading] = useState(false);
   const [newRelatedName, setNewRelatedName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletingRelatedNote, setDeletingRelatedNote] = useState(false);
+  const [tabContextMenu, setTabContextMenu] = useState(null);
   const [draggedTabIndex, setDraggedTabIndex] = useState(null);
   const [navigation, setNavigation] = useState({ backStack: [], forwardStack: [] });
   const saveTimersRef = useRef({});
@@ -196,6 +260,9 @@ export default function NotePanel({ workspaceId, panelState, theme, itemMeta, on
     setRelatedNotes([]);
     setRelatedNotesLoading(false);
     setNewRelatedName('');
+    setDeleteTarget(null);
+    setDeletingRelatedNote(false);
+    setTabContextMenu(null);
     setNavigation({ backStack: [], forwardStack: [] });
   }, [workspaceId]);
 
@@ -515,6 +582,115 @@ export default function NotePanel({ workspaceId, panelState, theme, itemMeta, on
       .catch(() => {});
   }, [activeTab, newRelatedName, onOpenNote, refreshAllNotes, workspaceId]);
 
+  const handleConfirmDeleteRelatedNote = useCallback(() => {
+    if (!deleteTarget) return;
+
+    setDeletingRelatedNote(true);
+    const endpoint = deleteTarget.type === 'main'
+      ? `/api/notes/${deleteTarget.itemId}`
+      : `/api/notes/${deleteTarget.itemId}/related/${encodeURIComponent(deleteTarget.filename)}`;
+
+    fetch(endpoint, {
+      method: 'DELETE',
+      headers: getWorkspaceHeaders(workspaceId),
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error('Failed to delete related note');
+        return response.json();
+      })
+      .then(() => {
+        const deletedTabKey = getTabKey(deleteTarget);
+        if (deleteTarget.type === 'main') {
+          onMainNoteContentChange?.(deleteTarget.itemId, false);
+        } else {
+          setRelatedNotes((current) => current.filter((filename) => filename !== deleteTarget.filename));
+        }
+        setNoteCache((current) => {
+          const next = { ...current };
+          delete next[deletedTabKey];
+          return next;
+        });
+        setNavigation((current) => ({
+          backStack: current.backStack.filter((entry) => getTabKey(entry) !== deletedTabKey),
+          forwardStack: current.forwardStack.filter((entry) => getTabKey(entry) !== deletedTabKey),
+        }));
+        onPanelStateChange((currentPanel) => {
+          const current = {
+            open: !!currentPanel?.open,
+            width: currentPanel?.width,
+            tabs: Array.isArray(currentPanel?.tabs)
+              ? currentPanel.tabs.map((tab) => ({ ...tab, pinned: tab?.pinned !== false }))
+              : [],
+            activeTabIndex: Number.isInteger(currentPanel?.activeTabIndex) ? currentPanel.activeTabIndex : 0,
+          };
+          const removedIndex = current.tabs.findIndex((tab) => getTabKey(tab) === deletedTabKey);
+          if (removedIndex === -1) return current;
+          const nextTabs = current.tabs.filter((tab) => getTabKey(tab) !== deletedTabKey);
+          const nextActiveIndex = Math.max(
+            0,
+            Math.min(current.activeTabIndex - (removedIndex <= current.activeTabIndex ? 1 : 0), nextTabs.length - 1),
+          );
+          return {
+            ...current,
+            open: nextTabs.length > 0,
+            tabs: nextTabs,
+            activeTabIndex: nextTabs.length > 0 ? nextActiveIndex : 0,
+          };
+        });
+        setDeleteTarget(null);
+        setTabContextMenu(null);
+        refreshAllNotes();
+      })
+      .catch(() => {})
+      .finally(() => {
+        setDeletingRelatedNote(false);
+      });
+  }, [deleteTarget, onPanelStateChange, refreshAllNotes, workspaceId]);
+
+  const handleTabContextMenu = useCallback((event, tab, index, tabMeta, cacheEntry) => {
+    event.preventDefault();
+    setTabContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      index,
+      tab,
+      label: getVisibleTabLabel(tab, tabMeta, cacheEntry),
+    });
+  }, []);
+
+  const buildTabContextMenuItems = useCallback(() => {
+    if (!tabContextMenu) return [];
+    const items = [];
+    if (normalizedPanel.activeTabIndex !== tabContextMenu.index) {
+      items.push({
+        label: 'Show note',
+        action: () => onPanelStateChange({ ...normalizedPanel, activeTabIndex: tabContextMenu.index }),
+      });
+    }
+    if (tabContextMenu.tab.pinned === false) {
+      items.push({
+        label: 'Pin tab',
+        action: () => handlePinTab(tabContextMenu.index),
+      });
+    }
+    items.push({
+      label: 'Close tab',
+      action: () => handleCloseTab(tabContextMenu.index),
+    });
+    items.push({ separator: true });
+    items.push({
+      label: `Delete "${tabContextMenu.label}"`,
+      danger: true,
+      action: () => setDeleteTarget({
+        itemId: tabContextMenu.tab.itemId,
+        filename: tabContextMenu.tab.filename,
+        type: tabContextMenu.tab.type,
+        label: tabContextMenu.label,
+      }),
+    });
+    return items;
+  }, [handleCloseTab, handlePinTab, normalizedPanel, onPanelStateChange, tabContextMenu]);
+
   const activeMainFilename = activeTab?.itemId
     ? (allNotes.find((note) => note.itemId === activeTab.itemId && note.type === 'main')?.filename || 'main.md')
     : null;
@@ -550,6 +726,7 @@ export default function NotePanel({ workspaceId, panelState, theme, itemMeta, on
                 title={tab.filename}
                 style={{ '--note-accent': tabMeta?.color || 'var(--accent)' }}
                 draggable
+                onContextMenu={(event) => handleTabContextMenu(event, tab, index, tabMeta, cacheEntry)}
                 onDragStart={(event) => {
                   setDraggedTabIndex(index);
                   event.dataTransfer.effectAllowed = 'move';
@@ -698,6 +875,23 @@ export default function NotePanel({ workspaceId, panelState, theme, itemMeta, on
         <div className="note-panel-empty">
           <p>Click a task to preview its note, or use “Show Note” to open one here.</p>
         </div>
+      )}
+      <DeleteNoteModal
+        target={deleteTarget}
+        deleting={deletingRelatedNote}
+        onConfirm={handleConfirmDeleteRelatedNote}
+        onClose={() => {
+          if (deletingRelatedNote) return;
+          setDeleteTarget(null);
+        }}
+      />
+      {tabContextMenu && (
+        <ContextMenu
+          x={tabContextMenu.x}
+          y={tabContextMenu.y}
+          items={buildTabContextMenuItems()}
+          onClose={() => setTabContextMenu(null)}
+        />
       )}
     </aside>
   );
