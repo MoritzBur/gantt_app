@@ -2620,9 +2620,42 @@ a:hover {
   color: var(--text-muted);
 }
 
+.blocker-menu-helper,
+.personnel-helper-copy {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.blocker-menu-type-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.blocker-menu-type-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.blocker-menu-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 .blocker-menu-team-group {
   display: flex;
   flex-direction: column;
+  gap: 2px;
 }
 
 .blocker-menu-option {
@@ -2737,6 +2770,13 @@ a:hover {
   gap: 12px;
 }
 
+.assignment-option-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 10px;
+  align-items: center;
+}
+
 .assignment-option-name {
   font-weight: 600;
 }
@@ -2751,9 +2791,17 @@ a:hover {
   font-weight: 700;
 }
 
+.assignment-option-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .assignment-option-bar {
   position: relative;
-  height: 10px;
+  height: 8px;
   overflow: hidden;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(73, 180, 112, 0.16) 0%, rgba(222, 77, 77, 0.24) 100%);
@@ -2772,14 +2820,31 @@ a:hover {
   color: var(--text-muted);
 }
 
-.task-assignee-badge {
+.assignment-picker-hint {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.task-assignee-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.task-assignee-badge {
   padding: 2px 8px;
   border-radius: 999px;
   background: rgba(93, 161, 255, 0.14);
   color: var(--text);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.task-assignee-badge--more {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .resource-blocker-strip {
@@ -2794,24 +2859,83 @@ a:hover {
 }
 
 .personnel-modal {
-  width: min(1120px, calc(100vw - 40px));
+  width: min(1180px, calc(100vw - 32px));
 }
 
 .personnel-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 20px;
+}
+
+.personnel-concept-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(93, 161, 255, 0.14), transparent 36%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+}
+
+.personnel-concept-copy {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.personnel-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.personnel-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(11, 16, 24, 0.28);
+}
+
+.personnel-summary-card strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.personnel-summary-card span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.personnel-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.personnel-tab {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.personnel-tab.active {
+  border-color: rgba(93, 161, 255, 0.48);
+  background: rgba(93, 161, 255, 0.12);
 }
 
 .personnel-toolbar {
   display: flex;
   gap: 10px;
-}
-
-.personnel-columns {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
 }
 
 .personnel-column {
@@ -2833,10 +2957,11 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px;
+  padding: 16px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.018));
 }
 
 .personnel-card-header {
@@ -2847,6 +2972,73 @@ a:hover {
 
 .personnel-card-header .form-input {
   flex: 1;
+}
+
+.personnel-color-input {
+  width: 48px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+}
+
+.personnel-type-card {
+  gap: 14px;
+}
+
+.personnel-type-preview,
+.personnel-advanced-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.personnel-advanced-toggle {
+  align-self: flex-start;
+}
+
+.personnel-type-card-accent,
+.personnel-overview-type-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+}
+
+.personnel-type-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.personnel-type-label-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.personnel-inline-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.personnel-type-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.personnel-group-row {
+  display: grid;
+  grid-template-columns: minmax(0, 260px);
+  gap: 12px;
 }
 
 .personnel-team-members,
@@ -2890,11 +3082,17 @@ a:hover {
 .personnel-structure {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
+  gap: 16px;
+  padding: 18px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.02);
+}
+
+.personnel-overview-type {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .personnel-structure-row {
@@ -2929,7 +3127,19 @@ a:hover {
     flex-wrap: wrap;
   }
 
-  .personnel-columns {
+  .personnel-concept-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .personnel-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .personnel-type-label-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .personnel-group-row {
     grid-template-columns: 1fr;
   }
 

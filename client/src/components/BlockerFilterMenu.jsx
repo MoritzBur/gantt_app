@@ -1,8 +1,15 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
   getActiveBlockerScenario,
+  getAssetTypeForGroup,
+  getAssetTypeForMember,
+  getAssetTypeMap,
+  getDefaultAssetType,
   getSavedCalendarEventIds,
   getSelectedMemberIds,
+  getTeamMap,
+  groupPersonnelByType,
+  rgbaFromHex,
 } from '../utils/resourcePlanning.js';
 
 function SectionTitle({ children }) {
@@ -22,6 +29,9 @@ export default function BlockerFilterMenu({
     () => getActiveBlockerScenario(blockerScenarioState),
     [blockerScenarioState]
   );
+  const assetTypeMap = useMemo(() => getAssetTypeMap(personnel), [personnel]);
+  const fallbackAssetType = useMemo(() => getDefaultAssetType(personnel), [personnel]);
+  const teamMap = useMemo(() => getTeamMap(personnel), [personnel]);
   const savedCalendarEventIds = useMemo(
     () => new Set(getSavedCalendarEventIds(calendarEvents, blockerScenarioState)),
     [calendarEvents, blockerScenarioState]
@@ -29,6 +39,10 @@ export default function BlockerFilterMenu({
   const selectedMemberIds = useMemo(
     () => new Set(getSelectedMemberIds(personnel, blockerScenarioState)),
     [personnel, blockerScenarioState]
+  );
+  const selectedTeamIds = useMemo(
+    () => new Set(activeScenario?.resources?.teamIds || []),
+    [activeScenario]
   );
   const calendars = useMemo(() => {
     const map = new Map();
@@ -46,10 +60,20 @@ export default function BlockerFilterMenu({
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [calendarEvents]);
-  const teams = useMemo(
-    () => [...(personnel?.teams || [])].sort((a, b) => a.name.localeCompare(b.name)),
-    [personnel]
-  );
+  const groupedTypes = useMemo(() => {
+    const baseGroups = groupPersonnelByType(personnel);
+    return baseGroups.map(({ type, teams, members }) => {
+      const sortedTeams = [...teams].sort((a, b) => a.name.localeCompare(b.name));
+      const sortedMembers = [...members].sort((a, b) => a.name.localeCompare(b.name));
+      const ungroupedMembers = sortedMembers.filter((member) => (member.teamIds || []).length === 0);
+      return {
+        type,
+        teams: sortedTeams,
+        members: sortedMembers,
+        ungroupedMembers,
+      };
+    }).filter(({ teams, members }) => teams.length > 0 || members.length > 0);
+  }, [personnel]);
   const visibleCalendarIds = useMemo(
     () => new Set(activeScenario?.calendars?.visibleCalendarIds || []),
     [activeScenario]
@@ -166,6 +190,9 @@ export default function BlockerFilterMenu({
           ✕
         </button>
       </div>
+      <p className="blocker-menu-helper">
+        Select calendars, groups, or assets to overlay tasks that are marked as blockers.
+      </p>
 
       <SectionTitle>Calendars</SectionTitle>
       <label className="blocker-menu-option blocker-menu-option-root">
@@ -191,54 +218,83 @@ export default function BlockerFilterMenu({
         </label>
       ))}
 
-      <SectionTitle>People</SectionTitle>
-      {teams.map((team) => {
-        const teamMembers = (personnel?.members || [])
-          .filter((member) => (member.teamIds || []).includes(team.id))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        const teamChecked = (activeScenario?.resources?.teamIds || []).includes(team.id);
-        return (
-          <div key={team.id} className="blocker-menu-team-group">
-            <label className="blocker-menu-option blocker-menu-option-root">
-              <input
-                type="checkbox"
-                checked={teamChecked}
-                onChange={() => toggleTeam(team.id)}
-              />
-              <span>{team.name}</span>
-            </label>
-            {teamMembers.map((member) => (
-              <label key={member.id} className="blocker-menu-option blocker-menu-option-child">
-                <input
-                  type="checkbox"
-                  checked={selectedMemberIds.has(member.id)}
-                  onChange={() => toggleMember(member.id)}
-                />
-                <span>{member.name}</span>
-              </label>
-            ))}
-          </div>
-        );
-      })}
-
-      {(personnel?.members || []).filter((member) => (member.teamIds || []).length === 0).length > 0 && (
-        <>
-          <SectionTitle>Unassigned</SectionTitle>
-          {(personnel?.members || [])
-            .filter((member) => (member.teamIds || []).length === 0)
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((member) => (
-              <label key={member.id} className="blocker-menu-option blocker-menu-option-root">
-                <input
-                  type="checkbox"
-                  checked={selectedMemberIds.has(member.id)}
-                  onChange={() => toggleMember(member.id)}
-                />
-                <span>{member.name}</span>
-              </label>
-            ))}
-        </>
+      <SectionTitle>Assets</SectionTitle>
+      {groupedTypes.length === 0 && (
+        <div className="assignment-picker-empty">Create an asset type, group, or asset to use task blockers.</div>
       )}
+      {groupedTypes.map(({ type, teams, ungroupedMembers }) => (
+        <div key={type.id} className="blocker-menu-type-section">
+          <div
+            className="blocker-menu-type-header"
+            style={{
+              backgroundColor: rgbaFromHex(type.color, 0.12),
+              borderColor: rgbaFromHex(type.color, 0.28),
+            }}
+          >
+            <span className="blocker-menu-color" style={{ backgroundColor: type.color }} />
+            <span>{type.name}</span>
+          </div>
+
+          {teams.length > 0 && (
+            <>
+              <div className="blocker-menu-subtitle">{type.groupLabelPlural}</div>
+              {teams.map((team) => {
+                const teamType = getAssetTypeForGroup(team, assetTypeMap, fallbackAssetType);
+                const teamMembers = (personnel?.members || [])
+                  .filter((member) => (member.teamIds || []).includes(team.id))
+                  .sort((a, b) => a.name.localeCompare(b.name));
+                return (
+                  <div key={team.id} className="blocker-menu-team-group">
+                    <label className="blocker-menu-option blocker-menu-option-root">
+                      <input
+                        type="checkbox"
+                        checked={selectedTeamIds.has(team.id)}
+                        onChange={() => toggleTeam(team.id)}
+                      />
+                      <span className="blocker-menu-color" style={{ backgroundColor: teamType.color }} />
+                      <span>{team.name}</span>
+                    </label>
+                    {teamMembers.map((member) => {
+                      const memberType = getAssetTypeForMember(member, assetTypeMap, fallbackAssetType);
+                      return (
+                        <label key={member.id} className="blocker-menu-option blocker-menu-option-child">
+                          <input
+                            type="checkbox"
+                            checked={selectedMemberIds.has(member.id)}
+                            onChange={() => toggleMember(member.id)}
+                          />
+                          <span className="blocker-menu-color" style={{ backgroundColor: memberType.color }} />
+                          <span>{member.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </>
+          )}
+
+          {ungroupedMembers.length > 0 && (
+            <>
+              <div className="blocker-menu-subtitle">Ungrouped {type.assetLabelPlural}</div>
+              {ungroupedMembers.map((member) => {
+                const memberType = getAssetTypeForMember(member, assetTypeMap, fallbackAssetType);
+                return (
+                  <label key={member.id} className="blocker-menu-option blocker-menu-option-root">
+                    <input
+                      type="checkbox"
+                      checked={selectedMemberIds.has(member.id)}
+                      onChange={() => toggleMember(member.id)}
+                    />
+                    <span className="blocker-menu-color" style={{ backgroundColor: memberType.color }} />
+                    <span>{member.name}</span>
+                  </label>
+                );
+              })}
+            </>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

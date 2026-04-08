@@ -1,22 +1,54 @@
 {
-  "version": 1,
+  "version": 2,
+  "types": [
+    {
+      "id": "type-people",
+      "name": "Personnel",
+      "comment": "People involved in the project and tunnel campaign.",
+      "color": "#D95F5F",
+      "groupLabel": "Team",
+      "groupLabelPlural": "Teams",
+      "assetLabel": "Person",
+      "assetLabelPlural": "People"
+    },
+    {
+      "id": "type-boats",
+      "name": "Coach Boats",
+      "comment": "Support craft that can be blocked and reviewed alongside personnel.",
+      "color": "#D9A441",
+      "groupLabel": "Fleet",
+      "groupLabelPlural": "Fleets",
+      "assetLabel": "Boat",
+      "assetLabelPlural": "Boats"
+    }
+  ],
   "teams": [
     {
       "id": "team-aero",
       "name": "Aerodynamics",
       "comment": "CFD and loads work.",
+      "typeId": "type-people",
       "fields": []
     },
     {
       "id": "team-test",
       "name": "Testing",
       "comment": "Tunnel prep and execution.",
+      "typeId": "type-people",
       "fields": []
     },
     {
       "id": "team-writing",
       "name": "Writing",
       "comment": "Documentation and thesis drafting.",
+      "typeId": "type-people",
+      "fields": []
+    },
+    {
+      "id": "fleet-ribs",
+      "name": "RIB Fleet",
+      "comment": "Fast support boats.",
+      "typeId": "type-boats",
       "fields": []
     }
   ],
@@ -25,22 +57,52 @@
       "id": "member-anna",
       "name": "Anna",
       "comment": "Lead CFD engineer",
-      "teamIds": ["team-aero"],
-      "fields": []
+      "typeId": "type-people",
+      "fields": [],
+      "teamIds": [
+        "team-aero"
+      ]
     },
     {
       "id": "member-peter",
       "name": "Peter",
       "comment": "Wind-tunnel coordination",
-      "teamIds": ["team-test"],
-      "fields": []
+      "typeId": "type-people",
+      "fields": [],
+      "teamIds": [
+        "team-test"
+      ]
     },
     {
       "id": "member-lina",
       "name": "Lina",
       "comment": "Analysis and writing support",
-      "teamIds": ["team-aero", "team-writing"],
-      "fields": []
+      "typeId": "type-people",
+      "fields": [],
+      "teamIds": [
+        "team-aero",
+        "team-writing"
+      ]
+    },
+    {
+      "id": "boat-rib-1",
+      "name": "Coach Boat 1",
+      "comment": "Primary support RIB",
+      "typeId": "type-boats",
+      "fields": [],
+      "teamIds": [
+        "fleet-ribs"
+      ]
+    },
+    {
+      "id": "boat-rib-2",
+      "name": "Coach Boat 2",
+      "comment": "Backup support RIB",
+      "typeId": "type-boats",
+      "fields": [],
+      "teamIds": [
+        "fleet-ribs"
+      ]
     }
   ]
 }

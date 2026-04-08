@@ -168,12 +168,12 @@
           "id": "task-gust-cases",
           "name": "Generate unsteady gust cases",
           "type": "task",
-          "start": "2026-05-06",
+          "start": "2026-05-04",
           "end": "2026-05-22",
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-anna",
+          "assigneeId": "member-lina",
           "blocker": true,
           "noteFile": "main.md"
         },
@@ -275,7 +275,7 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-lina",
+          "assigneeId": "member-anna",
           "blocker": true,
           "noteFile": "main.md"
         },
@@ -301,9 +301,13 @@
           "children": [],
           "done": false,
           "milestone": false,
-          "assigneeId": "member-lina",
-          "blocker": false,
-          "noteFile": "main.md"
+          "assigneeId": "boat-rib-1",
+          "blocker": true,
+          "noteFile": "main.md",
+          "assigneeIds": [
+            "boat-rib-1",
+            "member-anna"
+          ]
         }
       ],
       "noteFile": "main.md"

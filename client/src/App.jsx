@@ -6,7 +6,11 @@ import HistoryPanel from './components/HistoryPanel.jsx';
 import QuickBatchSubtasks from './components/QuickBatchSubtasks.jsx';
 import NotePanel from './components/NotePanel.jsx';
 import PersonnelManagerModal from './components/PersonnelManagerModal.jsx';
-import { getBlockerSelectionLabel, getDefaultBlockerScenarioState } from './utils/resourcePlanning.js';
+import {
+  DEFAULT_ASSET_TYPE,
+  getBlockerSelectionLabel,
+  getDefaultBlockerScenarioState,
+} from './utils/resourcePlanning.js';
 
 const PHASE_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
@@ -397,7 +401,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState({ activeWorkspaceId: null, workspaces: [] });
   const [calendarStatus, setCalendarStatus] = useState({ connected: false });
   const [calendarEvents, setCalendarEvents] = useState([]);
-  const [personnel, setPersonnel] = useState({ version: 1, members: [], teams: [] });
+  const [personnel, setPersonnel] = useState({ version: 2, types: [DEFAULT_ASSET_TYPE], members: [], teams: [] });
   const [noteContentItemIds, setNoteContentItemIds] = useState(() => new Set());
   const [saveStatus, setSaveStatus] = useState(null);
   const [saveTimer, setSaveTimer] = useState(null);
@@ -522,7 +526,7 @@ export default function App() {
     const serverState = stateRes.ok ? await stateRes.json() : null;
     const workspacePayload = await workspacesRes.json();
     const notesPayload = notesRes.ok ? await notesRes.json() : { notes: [] };
-    const personnelPayload = personnelRes.ok ? await personnelRes.json() : { version: 1, members: [], teams: [] };
+    const personnelPayload = personnelRes.ok ? await personnelRes.json() : { version: 2, types: [DEFAULT_ASSET_TYPE], members: [], teams: [] };
     const legacyState = readLegacyUiState();
     const shouldMigrateLegacy = !serverState?._exists;
     const nextUiState = shouldMigrateLegacy
@@ -1198,7 +1202,7 @@ export default function App() {
         },
         body: JSON.stringify(nextPersonnel),
       });
-      if (!response.ok) throw new Error('Failed to save team');
+      if (!response.ok) throw new Error('Failed to save assets');
       const saved = await response.json();
       setPersonnel(saved);
 
@@ -1593,7 +1597,10 @@ export default function App() {
             onDeleteNode={handleDeleteNode}
             onDeleteNodes={handleDeleteNodes}
             onSplitNode={handleSplitNode}
-            onAssignTask={(nodeId, assigneeId) => handleSaveNode(nodeId, { assigneeId })}
+            onAssignTask={(nodeId, assigneeIds) => handleSaveNode(nodeId, {
+              assigneeIds,
+              assigneeId: Array.isArray(assigneeIds) ? (assigneeIds[0] || null) : assigneeIds,
+            })}
             onBlockerScenarioChange={(nextStateOrUpdater) => {
               const currentState = displayBlockerScenarioState;
               const nextState = typeof nextStateOrUpdater === 'function'

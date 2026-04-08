@@ -58,6 +58,7 @@ function buildEvenlyDistributedSubtasks(node, names) {
       end: formatDate(taskEnd > end ? end : taskEnd),
       done: false,
       milestone: false,
+      assigneeIds: Array.isArray(node.assigneeIds) ? [...node.assigneeIds] : (node.assigneeId ? [node.assigneeId] : []),
       assigneeId: node.assigneeId || null,
       blocker: !!node.blocker,
       children: [],
@@ -144,6 +145,7 @@ router.post('/node', (req, res) => {
     } else {
       node.done = false;
       node.milestone = false;
+      node.assigneeIds = [];
       node.assigneeId = null;
       node.blocker = false;
     }
@@ -265,6 +267,7 @@ router.post('/node/:id/split', (req, res) => {
       end: node.end,
       done: node.done || false,
       milestone: node.milestone || false,
+      assigneeIds: Array.isArray(node.assigneeIds) ? [...node.assigneeIds] : (node.assigneeId ? [node.assigneeId] : []),
       assigneeId: node.assigneeId || null,
       blocker: !!node.blocker,
       children: [],
@@ -282,6 +285,7 @@ router.post('/node/:id/split', (req, res) => {
     // Remove task-specific fields from the group
     delete node.done;
     delete node.milestone;
+    delete node.assigneeIds;
     delete node.assigneeId;
     delete node.blocker;
 
@@ -325,6 +329,7 @@ router.post('/node/:id/batch-subtasks', (req, res) => {
       node.children = childTasks;
       delete node.done;
       delete node.milestone;
+      delete node.assigneeIds;
       delete node.assigneeId;
       delete node.blocker;
     } else if (node.type === 'group') {

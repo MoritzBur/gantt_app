@@ -1,7 +1,7 @@
 {
   "zoom": "Month",
   "density": "Compact",
-  "theme": "dark",
+  "theme": "light",
   "collapsed": {},
   "calendarCollapsed": {},
   "calendarOrder": [],
@@ -14,7 +14,7 @@
     "ical-ff3eec233d27::du5ku1snarjq1le38ksv78jj7c@google.com"
   ],
   "calendarEventIdsVersion": 2,
-  "listWidth": 300,
+  "listWidth": 349,
   "blockerScenarioState": {
     "version": 1,
     "activeScenarioId": "default",
@@ -25,15 +25,14 @@
         "calendars": {
           "visible": true,
           "filterInitialized": true,
-          "visibleCalendarIds": [],
-          "activeEventIds": [
-            "ical-ff3eec233d27::1plk3uf0v8q1gme85nelse920c@google.com",
-            "ical-ff3eec233d27::p78kclh9r7p4co5bt41otro9rk@google.com",
-            "ical-ff3eec233d27::1j3qmcfl6jdd7l4rkhvk7uu5hc@google.com"
-          ]
+          "visibleCalendarIds": [
+            "ical-ff3eec233d27"
+          ],
+          "activeEventIds": []
         },
         "resources": {
           "teamIds": [
+            "fleet-ribs",
             "team-aero"
           ],
           "memberIds": []
@@ -58,6 +57,6 @@
         "pinned": true
       }
     ],
-    "activeTabIndex": 0
+    "activeTabIndex": 1
   }
 }

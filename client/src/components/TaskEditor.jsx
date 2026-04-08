@@ -8,9 +8,41 @@ const PHASE_COLORS = [
 
 const BATCH_SUBTASK_EXAMPLE = ['- Draft API contract', '- Build timeline sync', '- Polish hover states'].join('\n');
 
+function buildEditorForm(item) {
+  return {
+    ...item,
+    assigneeIds: Array.isArray(item?.assigneeIds)
+      ? item.assigneeIds
+      : (item?.assigneeId ? [item.assigneeId] : []),
+  };
+}
+
+function getComparableTaskForm(form, type) {
+  if (!form) return null;
+  if (type === 'task') {
+    return {
+      name: form.name || '',
+      start: form.start || '',
+      end: form.milestone ? (form.start || '') : (form.end || ''),
+      done: !!form.done,
+      milestone: !!form.milestone,
+      blocker: !!form.blocker,
+      assigneeIds: Array.from(new Set(form.assigneeIds || [])),
+    };
+  }
+  return {
+    name: form.name || '',
+    start: form.start || '',
+    end: form.end || '',
+    color: form.color || '',
+    prefix: form.prefix ?? 'WP',
+  };
+}
+
 export default function TaskEditor({ item, type, items, personnel, onSave, onDelete, onBatchCreate, onOpenNote, onClose }) {
   const [form, setForm] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [batchDraft, setBatchDraft] = useState('- ');
   const [isBatchCreating, setIsBatchCreating] = useState(false);
   const [notePreview, setNotePreview] = useState({ loading: false, content: '', exists: false });
@@ -19,8 +51,9 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
 
   useEffect(() => {
     if (!item) return;
-    setForm({ ...item });
+    setForm(buildEditorForm(item));
     setConfirmDelete(false);
+    setConfirmDiscard(false);
     setBatchDraft('- ');
     setIsBatchCreating(false);
     setNotePreview({ loading: false, content: '', exists: false });
@@ -56,11 +89,21 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
   }, [item]);
 
   // Close on Escape key
+  const isDirty = JSON.stringify(getComparableTaskForm(form, type)) !== JSON.stringify(getComparableTaskForm(buildEditorForm(item), type));
+
+  const requestClose = () => {
+    if (isDirty) {
+      setConfirmDiscard(true);
+      return;
+    }
+    onClose();
+  };
+
   useEffect(() => {
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e) => { if (e.key === 'Escape') requestClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [isDirty, onClose]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only close when pointer down and up both happen on the backdrop.
   const handleBackdropMouseDown = (e) => {
@@ -68,7 +111,7 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
   };
 
   const handleBackdropMouseUp = (e) => {
-    if (backdropMouseDownRef.current && e.target === e.currentTarget) onClose();
+    if (backdropMouseDownRef.current && e.target === e.currentTarget) requestClose();
     backdropMouseDownRef.current = false;
   };
 
@@ -89,7 +132,8 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
           end: isMilestone ? form.start : form.end,
           done: form.done,
           milestone: isMilestone,
-          assigneeId: form.assigneeId || null,
+          assigneeIds: Array.from(new Set(form.assigneeIds || [])),
+          assigneeId: (form.assigneeIds || [])[0] || null,
           blocker: !!form.blocker,
         }
       : { name: form.name, start: form.start, end: form.end, color: form.color, prefix: form.prefix ?? 'WP' }
@@ -154,7 +198,7 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
           <h2 className="modal-title">
             {type === 'group' ? 'Edit Group' : 'Edit Task'}
           </h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">✕</button>
+          <button className="modal-close" onClick={requestClose} aria-label="Close">✕</button>
         </div>
 
         <div className="modal-body">
@@ -284,13 +328,14 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
           {/* Done checkbox — tasks only */}
           {type === 'task' && (
             <div className="form-group">
-              <label className="form-label">Assigned Person</label>
+              <label className="form-label">Assigned Assets</label>
               <AssignmentPicker
                 task={form}
                 items={items}
                 personnel={personnel}
-                value={form.assigneeId || null}
-                onChange={(memberId) => handleChange('assigneeId', memberId)}
+                value={form.assigneeIds || []}
+                onChange={(memberIds) => handleChange('assigneeIds', memberIds)}
+                multiple={true}
                 showClear={true}
               />
             </div>
@@ -305,7 +350,7 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
                 checked={!!form.blocker}
                 onChange={(e) => handleChange('blocker', e.target.checked)}
               />
-              <label htmlFor="task-blocker" className="form-label-inline">Use this task as a blocker</label>
+              <label htmlFor="task-blocker" className="form-label-inline">Show this task in blocker overlays</label>
             </div>
           )}
 
@@ -388,8 +433,11 @@ export default function TaskEditor({ item, type, items, personnel, onSave, onDel
             {confirmDelete ? 'Click again to confirm delete' : 'Delete'}
           </button>
           <div className="modal-footer-right">
-            <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleSave}>Save</button>
+            {confirmDiscard && (
+              <button className="btn btn-danger" onClick={onClose}>Discard Changes</button>
+            )}
+            <button className="btn btn-ghost" onClick={requestClose}>{confirmDiscard ? 'Keep Editing' : 'Cancel'}</button>
+            <button className="btn btn-primary" onClick={handleSave}>{isDirty ? 'Save Changes' : 'Save'}</button>
           </div>
         </div>
       </div>

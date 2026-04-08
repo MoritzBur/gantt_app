@@ -2,7 +2,16 @@ import React, { useState, useRef, useCallback, useEffect, useLayoutEffect } from
 import ContextMenu from './ContextMenu.jsx';
 import AssignmentPicker from './AssignmentPicker.jsx';
 import BlockerFilterMenu from './BlockerFilterMenu.jsx';
-import { buildBlockerSegments, getSelectedCalendarEventIds, getSelectedMemberIds, getMemberMap } from '../utils/resourcePlanning.js';
+import {
+  buildBlockerSegments,
+  getAssetTypeForMember,
+  getAssetTypeMap,
+  getDefaultAssetType,
+  getSelectedCalendarEventIds,
+  getSelectedMemberIds,
+  getMemberMap,
+  getTaskAssigneeIds,
+} from '../utils/resourcePlanning.js';
 
 // ─── Date helpers ───────────────────────────────────────────────────────────
 
@@ -83,6 +92,17 @@ function getNodeLabel(node, numberPath) {
 function formatShortDate(str) {
   const d = parseDate(str);
   return d.toLocaleDateString('en', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function findNodeById(items, targetId) {
+  for (const item of items || []) {
+    if (item.id === targetId) return item;
+    if (item.children?.length) {
+      const found = findNodeById(item.children, targetId);
+      if (found) return found;
+    }
+  }
+  return null;
 }
 
 // ─── Color inheritance ──────────────────────────────────────────────────────
@@ -693,6 +713,8 @@ export default function GanttView({
 
   const items = data.items || [];
   const memberMap = getMemberMap(personnel);
+  const assetTypeMap = getAssetTypeMap(personnel);
+  const fallbackAssetType = getDefaultAssetType(personnel);
   const selectedResourceMemberIds = getSelectedMemberIds(personnel, blockerScenarioState);
   const activeCalendarEventIds = new Set(getSelectedCalendarEventIds(calendarEvents, blockerScenarioState));
   const resourceBlockerTasks = buildBlockerSegments(items, selectedResourceMemberIds);
@@ -1004,17 +1026,19 @@ export default function GanttView({
         action: () => onNodeUpdate(node.id, { done: !node.done }),
       });
       items.push({
-        label: node.assigneeId ? `Assign to… (${memberMap.get(node.assigneeId)?.name || 'selected'})` : 'Assign to…',
+        label: getTaskAssigneeIds(node).length > 0
+          ? `Assign to… (${getTaskAssigneeIds(node).length} selected)`
+          : 'Assign to…',
         action: () => setAssignmentMenu({
           node,
           x: contextMenu.x + 8,
           y: contextMenu.y + 8,
         }),
       });
-      if (node.assigneeId) {
+      if (getTaskAssigneeIds(node).length > 0) {
         items.push({
-          label: 'Clear assignee',
-          action: () => onAssignTask?.(node.id, null),
+          label: 'Clear assignments',
+          action: () => onAssignTask?.(node.id, []),
         });
       }
       items.push({
@@ -1155,7 +1179,7 @@ export default function GanttView({
             type="button"
             onClick={onShowPersonnelManager}
           >
-            Manage Team
+            Manage Assets
           </button>
         </div>
       </div>
@@ -1323,9 +1347,27 @@ export default function GanttView({
                         {row.node.name}
                       </span>
                     </span>
-                    {row.node.assigneeId && (
-                      <span className="task-assignee-badge">
-                        {memberMap.get(row.node.assigneeId)?.name || 'Assigned'}
+                    {getTaskAssigneeIds(row.node).length > 0 && (
+                      <span className="task-assignee-badge-row">
+                        {getTaskAssigneeIds(row.node).slice(0, 2).map((assigneeId) => (
+                          <span
+                            key={assigneeId}
+                            className="task-assignee-badge"
+                            style={{
+                              backgroundColor: rgbaFromHex(
+                                getAssetTypeForMember(memberMap.get(assigneeId), assetTypeMap, fallbackAssetType)?.color,
+                                0.18
+                              ),
+                            }}
+                          >
+                            {memberMap.get(assigneeId)?.name || 'Assigned'}
+                          </span>
+                        ))}
+                        {getTaskAssigneeIds(row.node).length > 2 && (
+                          <span className="task-assignee-badge task-assignee-badge--more">
+                            +{getTaskAssigneeIds(row.node).length - 2}
+                          </span>
+                        )}
                       </span>
                     )}
                     <span className="task-dates muted">
@@ -1377,20 +1419,28 @@ export default function GanttView({
                 );
               })}
 
-              {selectedResourceMemberIds.length > 0 && resourceBlockerTasks.map((task) => {
-                const taskEnd = task.end || task.start;
-                const startOff = diffDays(rangeStart, parseDate(task.start));
-                const taskDuration = diffDays(parseDate(task.start), parseDate(taskEnd)) + 1;
-                const assigneeName = memberMap.get(task.assigneeId)?.name;
+              {selectedResourceMemberIds.length > 0 && resourceBlockerTasks.map((segment, index) => {
+                const taskEnd = segment.end || segment.start;
+                const startOff = diffDays(rangeStart, parseDate(segment.start));
+                const taskDuration = diffDays(parseDate(segment.start), parseDate(taskEnd)) + 1;
+                const assignee = memberMap.get(segment.assigneeId);
+                const assigneeName = assignee?.name;
+                const assetType = getAssetTypeForMember(assignee, assetTypeMap, fallbackAssetType);
+                const laneOffset = (index % 3) * 3;
                 return (
                   <div
-                    key={`resource-strip-${task.id}`}
+                    key={`resource-strip-${segment.id}-${segment.assigneeId}`}
                     className="resource-blocker-strip"
                     style={{
                       left: startOff * dayWidth,
                       width: Math.max(taskDuration * dayWidth, dayWidth),
+                      top: `${laneOffset}px`,
+                      bottom: `${Math.max(0, 6 - laneOffset)}px`,
+                      backgroundColor: rgbaFromHex(assetType?.color, 0.14),
+                      borderLeftColor: rgbaFromHex(assetType?.color, 0.26),
+                      borderRightColor: rgbaFromHex(assetType?.color, 0.26),
                     }}
-                    title={assigneeName ? `${assigneeName}: ${task.name}` : task.name}
+                    title={assigneeName ? `${assigneeName} (${assetType?.name || 'Asset'}): ${segment.name}` : segment.name}
                   />
                 );
               })}
@@ -1631,13 +1681,14 @@ export default function GanttView({
 
       {assignmentMenu && !readonly && (
         <AssignmentPicker
-          task={assignmentMenu.node}
+          task={findNodeById(items, assignmentMenu.node.id) || assignmentMenu.node}
           items={items}
           personnel={personnel}
-          value={assignmentMenu.node.assigneeId || null}
+          value={getTaskAssigneeIds(findNodeById(items, assignmentMenu.node.id) || assignmentMenu.node)}
           variant="popover"
           position={{ x: assignmentMenu.x, y: assignmentMenu.y }}
-          onChange={(memberId) => onAssignTask?.(assignmentMenu.node.id, memberId)}
+          onChange={(memberIds) => onAssignTask?.(assignmentMenu.node.id, memberIds)}
+          multiple={true}
           onClose={() => setAssignmentMenu(null)}
         />
       )}
@@ -1666,19 +1717,6 @@ export default function GanttView({
       )}
     </div>
   );
-}
-
-// ─── Utility: find node by id in tree ───────────────────────────────────────
-
-function findNodeById(items, id) {
-  for (const item of items) {
-    if (item.id === id) return item;
-    if (item.children) {
-      const found = findNodeById(item.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
 }
 
 /** Find the parentId of a node, or null if top-level */

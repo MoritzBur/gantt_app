@@ -29,7 +29,17 @@ function setDataDir(nextDataDir) {
 setDataDir(ROOT_DATA_DIR);
 
 const DEFAULT_TASKS = { version: 2, items: [] };
-const DEFAULT_PERSONNEL = { version: 1, members: [], teams: [] };
+const DEFAULT_ASSET_TYPE = {
+  id: 'type-people',
+  name: 'Personnel',
+  comment: 'Use for teams and people.',
+  color: '#D95F5F',
+  groupLabel: 'Team',
+  groupLabelPlural: 'Teams',
+  assetLabel: 'Person',
+  assetLabelPlural: 'People',
+};
+const DEFAULT_PERSONNEL = { version: 2, types: [DEFAULT_ASSET_TYPE], members: [], teams: [] };
 const MAX_DEPTH = 5;
 
 // ─── Tree helpers ────────────────────────────────────────────────────────────
@@ -567,11 +577,22 @@ function normalizeTaskPlanningFields(node) {
   let changed = false;
 
   if (node.type === 'task') {
-    if (!Object.prototype.hasOwnProperty.call(node, 'assigneeId')) {
-      node.assigneeId = null;
+    const normalizedAssigneeIds = Array.isArray(node.assigneeIds)
+      ? Array.from(new Set(node.assigneeIds
+        .map((id) => String(id || '').trim())
+        .filter(Boolean)))
+      : (typeof node.assigneeId === 'string' && node.assigneeId.trim() ? [node.assigneeId.trim()] : []);
+    if (JSON.stringify(node.assigneeIds || []) !== JSON.stringify(normalizedAssigneeIds)) {
+      node.assigneeIds = normalizedAssigneeIds;
       changed = true;
-    } else if (node.assigneeId !== null && typeof node.assigneeId !== 'string') {
-      node.assigneeId = String(node.assigneeId || '').trim() || null;
+    } else if (!Array.isArray(node.assigneeIds)) {
+      node.assigneeIds = normalizedAssigneeIds;
+      changed = true;
+    }
+
+    const primaryAssigneeId = normalizedAssigneeIds[0] || null;
+    if (node.assigneeId !== primaryAssigneeId) {
+      node.assigneeId = primaryAssigneeId;
       changed = true;
     }
 
@@ -601,36 +622,100 @@ function normalizeFieldEntries(entries) {
     .filter((entry) => entry.key || entry.value);
 }
 
+function normalizeHexColor(value, fallback) {
+  const candidate = typeof value === 'string' ? value.trim() : '';
+  return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toUpperCase() : fallback;
+}
+
+function normalizeLabel(value, fallback) {
+  const candidate = typeof value === 'string' ? value.trim() : '';
+  return candidate || fallback;
+}
+
 function normalizePersonnel(raw) {
   const base = raw && typeof raw === 'object' ? raw : DEFAULT_PERSONNEL;
+  const types = Array.isArray(base.types) && base.types.length > 0
+    ? base.types
+      .map((type, index) => {
+        const fallback = index === 0 ? DEFAULT_ASSET_TYPE : null;
+        return {
+          id: typeof type?.id === 'string' && type.id.trim()
+            ? type.id.trim()
+            : (fallback ? fallback.id : null),
+          name: normalizeLabel(type?.name, fallback?.name || 'Asset Type'),
+          comment: typeof type?.comment === 'string'
+            ? type.comment
+            : (fallback?.comment || ''),
+          color: normalizeHexColor(type?.color, fallback?.color || '#4A90D9'),
+          groupLabel: normalizeLabel(type?.groupLabel, fallback?.groupLabel || 'Group'),
+          groupLabelPlural: normalizeLabel(type?.groupLabelPlural, fallback?.groupLabelPlural || 'Groups'),
+          assetLabel: normalizeLabel(type?.assetLabel, fallback?.assetLabel || 'Asset'),
+          assetLabelPlural: normalizeLabel(type?.assetLabelPlural, fallback?.assetLabelPlural || 'Assets'),
+        };
+      })
+      .filter((type) => type.id && type.name)
+    : [DEFAULT_ASSET_TYPE];
+
+  const uniqueTypes = [];
+  const seenTypeIds = new Set();
+  for (const type of types) {
+    if (seenTypeIds.has(type.id)) continue;
+    seenTypeIds.add(type.id);
+    uniqueTypes.push(type);
+  }
+  if (!uniqueTypes.some((type) => type.id === DEFAULT_ASSET_TYPE.id)) {
+    uniqueTypes.unshift(DEFAULT_ASSET_TYPE);
+  }
+
+  const validTypeIds = new Set(uniqueTypes.map((type) => type.id));
+  const fallbackTypeId = uniqueTypes[0]?.id || DEFAULT_ASSET_TYPE.id;
   const teams = Array.isArray(base.teams)
     ? base.teams
       .map((team) => ({
         id: typeof team?.id === 'string' && team.id.trim() ? team.id.trim() : null,
         name: typeof team?.name === 'string' ? team.name.trim() : '',
         comment: typeof team?.comment === 'string' ? team.comment : '',
+        typeId: typeof team?.typeId === 'string' && validTypeIds.has(team.typeId.trim())
+          ? team.typeId.trim()
+          : fallbackTypeId,
         fields: normalizeFieldEntries(team?.fields),
       }))
       .filter((team) => team.id && team.name)
     : [];
 
-  const validTeamIds = new Set(teams.map((team) => team.id));
+  const teamMap = new Map(teams.map((team) => [team.id, team]));
   const members = Array.isArray(base.members)
     ? base.members
       .map((member) => ({
         id: typeof member?.id === 'string' && member.id.trim() ? member.id.trim() : null,
         name: typeof member?.name === 'string' ? member.name.trim() : '',
         comment: typeof member?.comment === 'string' ? member.comment : '',
-        teamIds: Array.isArray(member?.teamIds)
-          ? Array.from(new Set(member.teamIds.map((teamId) => String(teamId || '').trim()).filter((teamId) => validTeamIds.has(teamId))))
-          : [],
+        typeId: typeof member?.typeId === 'string' && validTypeIds.has(member.typeId.trim())
+          ? member.typeId.trim()
+          : fallbackTypeId,
         fields: normalizeFieldEntries(member?.fields),
       }))
       .filter((member) => member.id && member.name)
+      .map((member) => ({
+        ...member,
+        teamIds: Array.isArray(base.members.find((entry) => entry?.id === member.id)?.teamIds)
+          ? Array.from(new Set(
+            base.members
+              .find((entry) => entry?.id === member.id)
+              .teamIds
+              .map((teamId) => String(teamId || '').trim())
+              .filter((teamId) => {
+                const team = teamMap.get(teamId);
+                return team && team.typeId === member.typeId;
+              })
+          ))
+          : [],
+      }))
     : [];
 
   return {
-    version: 1,
+    version: 2,
+    types: uniqueTypes,
     teams,
     members,
   };
