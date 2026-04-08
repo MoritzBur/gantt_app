@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Gantt App//Mechanics Demo//EN
+PRODID:-//Actual Plan//Mechanics Demo//EN
 BEGIN:VEVENT
 UID:event-poland-service
 DTSTAMP:20260401T080000Z

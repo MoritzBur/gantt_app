@@ -3,7 +3,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const APP_DIR_NAME = 'GanttApp';
+const APP_DIR_NAME = 'ActualPlan';
 const isPackaged = Boolean(process.pkg);
 const repoRoot = path.resolve(__dirname, '..');
 const executableDir = isPackaged ? path.dirname(process.execPath) : repoRoot;

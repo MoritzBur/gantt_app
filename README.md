@@ -62,7 +62,7 @@ Preferred installer flow:
 2. Keep the default per-user install path unless you have a reason to change it.
 3. Launch `Actual Plan` from the Start Menu or desktop shortcut.
 
-The installer bundles the app into `Actual Plan.exe`, does not require Node.js to be preinstalled, stores config in `%LOCALAPPDATA%\GanttApp\config`, stores planning data in `%LOCALAPPDATA%\GanttApp\data`, and adds Start Menu shortcuts for `Actual Plan` and `Stop Actual Plan`.
+The installer bundles the app into `Actual Plan.exe`, does not require Node.js to be preinstalled, stores config in `%LOCALAPPDATA%\ActualPlan\config`, stores planning data in `%LOCALAPPDATA%\ActualPlan\data`, and adds Start Menu shortcuts for `Actual Plan` and `Stop Actual Plan`.
 
 Windows source setup for contributors:
 
@@ -138,7 +138,7 @@ Simple everyday use:
 
 By default the app runs at `http://localhost:3000`.
 
-If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus several persona-driven example workspaces with shipped notes and local `.ics` calendars, and opens the first example by default. By default it stores local data inside `data/` in a source checkout, or `%LOCALAPPDATA%\GanttApp\data` in the packaged Windows app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
+If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus several persona-driven example workspaces with shipped notes and local `.ics` calendars, and opens the first example by default. By default it stores local data inside `data/` in a source checkout, or `%LOCALAPPDATA%\ActualPlan\data` in the packaged Windows app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
 
 ## For Contributors
 
@@ -186,20 +186,20 @@ Example `.env` values:
 
 ```env
 # Windows example
-GANTT_DATA_DIR=C:/Users/you/Documents/gantt_app_data
+GANTT_DATA_DIR=C:/Users/you/Documents/actual_plan_data
 
 # macOS example
-# GANTT_DATA_DIR=/Users/you/Documents/gantt_app_data
+# GANTT_DATA_DIR=/Users/you/Documents/actual_plan_data
 
 # Linux example
-# GANTT_DATA_DIR=/home/you/gantt_app_data
+# GANTT_DATA_DIR=/home/you/actual_plan_data
 ```
 
 Typical setup:
 
 ```bash
-mkdir -p /path/to/your/gantt_app_data
-cd /path/to/your/gantt_app_data
+mkdir -p /path/to/your/actual_plan_data
+cd /path/to/your/actual_plan_data
 git init
 ```
 

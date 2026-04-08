@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Gantt App//Store Support Demo//EN
+PRODID:-//Actual Plan//Store Support Demo//EN
 BEGIN:VEVENT
 UID:event-cable-delivery
 DTSTAMP:20260401T080000Z

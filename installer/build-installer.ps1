@@ -52,7 +52,7 @@ function Resolve-IsccPath([string]$ExplicitPath) {
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
-$IssPath = Join-Path $ScriptDir "gantt-app.iss"
+$IssPath = Join-Path $ScriptDir "actual-plan.iss"
 $PackageJsonPath = Join-Path $RepoRoot "package.json"
 $OutputDir = Join-Path $ScriptDir "dist"
 
@@ -63,7 +63,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 }
 
 $StageDir = Join-Path $ScriptDir "staging"
-$StageRoot = Join-Path $StageDir "gantt-app-$Version"
+$StageRoot = Join-Path $StageDir "actual-plan-$Version"
 
 if (Test-Path $StageRoot) {
   Remove-Item -Path $StageRoot -Recurse -Force

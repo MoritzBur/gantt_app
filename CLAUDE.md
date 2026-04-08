@@ -11,8 +11,8 @@ All data lives in flat JSON files. No database.
 
 | Instance | Path | Port | Data | Purpose |
 |----------|------|------|------|---------|
-| **Production** | `~/Apps/gantt-app-prod/` | `localhost:3000` | `~/private/gantt_app_data/` (real) | Daily use |
-| **Development** | `~/dev/gantt_app/` | `localhost:5173` (Vite) + `3001` (Express) | `data-dev/` (test data) | Agent work, feature dev |
+| **Production** | `~/Apps/actual-plan-prod/` | `localhost:3000` | `~/private/actual_plan_data/` (real) | Daily use |
+| **Development** | `~/dev/actual_plan/` | `localhost:5173` (Vite) + `3001` (Express) | `data-dev/` (test data) | Agent work, feature dev |
 
 **Never touch production data from the dev instance.** Agents work exclusively on the dev instance.
 
@@ -22,13 +22,13 @@ All data lives in flat JSON files. No database.
 # Development (this repo)
 npm run dev       # Vite on :5173 + Express on :3001, hot reload
 
-# Production (~/Apps/gantt-app-prod/)
+# Production (~/Apps/actual-plan-prod/)
 npm start         # Express on :3000, serves built frontend
 ```
 
 To update production after stable changes land on master:
 ```bash
-cd ~/Apps/gantt-app-prod && git pull && npm install && npm run build
+cd ~/Apps/actual-plan-prod && git pull && npm install && npm run build
 ```
 
 ## Architecture

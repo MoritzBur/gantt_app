@@ -70,7 +70,7 @@ function Test-LooksLikeNestedZipExtract([string]$Path) {
   $leafName = Split-Path -Leaf $Path
   $parentName = Split-Path -Leaf (Split-Path -Parent $Path)
 
-  if ($leafName -ieq "gantt_app" -and $parentName -match '^Actual Plan(?: \(\d+\))?$') {
+  if ($leafName -ieq "actual_plan" -and $parentName -match '^Actual Plan(?: \(\d+\))?$') {
     return $true
   }
 
@@ -107,8 +107,8 @@ if ($BuildProductionAssets -or -not [string]::IsNullOrWhiteSpace($DefaultDataDir
 }
 
 if (Test-LooksLikeNestedZipExtract -Path $RepoRoot) {
-  Write-Step "Warning: this looks like the nested ZIP layout 'Actual Plan\\gantt_app\\...'."
-  Write-Step "The app can still run here, but the cleaner fix is to move the inner gantt_app folder contents up one level or use the Windows installer."
+  Write-Step "Warning: this looks like the nested ZIP layout 'Actual Plan\\actual_plan\\...'."
+  Write-Step "The app can still run here, but the cleaner fix is to move the inner actual_plan folder contents up one level or use the Windows installer."
   Write-Step ""
 }
 

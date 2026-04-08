@@ -23,8 +23,8 @@ PrivilegesRequired=lowest
 WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
-SetupIconFile={#SourceDir}\icons\gantt-app.ico
-UninstallDisplayIcon={app}\icons\gantt-app.ico
+SetupIconFile={#SourceDir}\icons\actual-plan.ico
+UninstallDisplayIcon={app}\icons\actual-plan.ico
 OutputDir={#OutputDir}
 OutputBaseFilename=ActualPlan-Setup-{#AppVersion}
 UsePreviousAppDir=yes
@@ -44,9 +44,9 @@ Name: "{userdocs}\Actual Plan Data"
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Excludes: ".git\*,.gitignore,.claude\*,.codex,.codex\*,.playwright-mcp\*,node_modules\*,client\dist\*,data\*,data-dev\*,.env,installer\dist\*,installer\staging\*,Thumbs.db,.DS_Store"; Flags: recursesubdirs createallsubdirs ignoreversion
 
 [Icons]
-Name: "{autoprograms}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Launch Actual Plan"
-Name: "{autodesktop}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Launch Actual Plan"; Tasks: desktopicon
-Name: "{userstartup}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"" -Quiet"; WorkingDir: "{app}"; IconFilename: "{app}\icons\gantt-app.ico"; Comment: "Start Actual Plan quietly when you sign in"; Tasks: autostart
+Name: "{autoprograms}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\actual-plan.ico"; Comment: "Launch Actual Plan"
+Name: "{autodesktop}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; IconFilename: "{app}\icons\actual-plan.ico"; Comment: "Launch Actual Plan"; Tasks: desktopicon
+Name: "{userstartup}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"" -Quiet"; WorkingDir: "{app}"; IconFilename: "{app}\icons\actual-plan.ico"; Comment: "Start Actual Plan quietly when you sign in"; Tasks: autostart
 
 [Run]
 Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch-windows.vbs"""; WorkingDir: "{app}"; Description: "Launch Actual Plan now"; Flags: postinstall skipifsilent nowait
@@ -85,7 +85,7 @@ var
   TempPath: string;
   RawOutput: AnsiString;
 begin
-  TempPath := ExpandConstant('{tmp}\gantt-installer-check.txt');
+  TempPath := ExpandConstant('{tmp}\actual-plan-installer-check.txt');
   if FileExists(TempPath) then begin
     DeleteFile(TempPath);
   end;

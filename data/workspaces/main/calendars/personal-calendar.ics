@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Gantt App//Main Starter//EN
+PRODID:-//Actual Plan//Main Starter//EN
 BEGIN:VEVENT
 UID:event-example-appointment
 DTSTAMP:20260401T080000Z

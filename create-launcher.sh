@@ -71,7 +71,7 @@ set_macos_icon() {
     return 0
   fi
 
-  iconset_dir="$(mktemp -d "${TMPDIR:-/tmp}/gantt-app.iconset.XXXXXX")"
+  iconset_dir="$(mktemp -d "${TMPDIR:-/tmp}/actual-plan.iconset.XXXXXX")"
   icns_path="$iconset_dir/applet.icns"
 
   for size in 16 32 128 256 512; do
@@ -89,7 +89,7 @@ set_macos_icon() {
 
 create_macos_launcher() {
   local support_dir="$HOME/Library/Application Support/Actual Plan"
-  local wrapper_path="$support_dir/launch-gantt-app.sh"
+  local wrapper_path="$support_dir/launch-actual-plan.sh"
   local app_dir="$HOME/Applications/Actual Plan.app"
   local applescript_path
   local launch_args
@@ -99,7 +99,7 @@ create_macos_launcher() {
   write_wrapper "$wrapper_path" "$launch_args"
 
   if command -v osacompile >/dev/null 2>&1; then
-    applescript_path="$(mktemp "${TMPDIR:-/tmp}/gantt-app-launcher.XXXXXX.applescript")"
+    applescript_path="$(mktemp "${TMPDIR:-/tmp}/actual-plan-launcher.XXXXXX.applescript")"
     cat >"$applescript_path" <<EOF
 on run
   set launcherPath to $(apple_literal "$wrapper_path")
@@ -132,8 +132,8 @@ EOF
 create_linux_launcher() {
   local bin_dir="$HOME/.local/bin"
   local applications_dir="$HOME/.local/share/applications"
-  local wrapper_path="$bin_dir/gantt-app-launch"
-  local desktop_file="$applications_dir/gantt-app.desktop"
+  local wrapper_path="$bin_dir/actual-plan-launch"
+  local desktop_file="$applications_dir/actual-plan.desktop"
   local desktop_copy="$HOME/Desktop/Actual Plan.desktop"
   local icon_path="$SCRIPT_DIR/icons/icon-launcher.svg"
   local launch_args

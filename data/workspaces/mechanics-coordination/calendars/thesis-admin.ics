@@ -1,6 +1,6 @@
 BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Gantt App//Sailor Thesis Demo//EN
+PRODID:-//Actual Plan//Sailor Thesis Demo//EN
 BEGIN:VEVENT
 UID:event-supervisor-review
 DTSTAMP:20260401T080000Z

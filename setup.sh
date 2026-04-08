@@ -68,7 +68,7 @@ looks_like_nested_zip_extract() {
   local parent_name
   leaf_name="$(basename "$SCRIPT_DIR")"
   parent_name="$(basename "$(dirname "$SCRIPT_DIR")")"
-  [[ "$leaf_name" = "gantt_app" && "$parent_name" =~ ^Gantt\ App(\ \([0-9]+\))?$ ]]
+  [[ "$leaf_name" = "actual_plan" && "$parent_name" =~ ^Actual\ Plan(\ \([0-9]+\))?$ ]]
 }
 
 generate_session_secret() {
@@ -90,8 +90,8 @@ say "npm:  $(npm -v)"
 
 say ""
 if looks_like_nested_zip_extract; then
-  say "Warning: this looks like the nested ZIP layout 'Actual Plan/gantt_app/...'."
-  say "The app can still run here, but the cleaner fix is to move the inner gantt_app folder contents up one level."
+  say "Warning: this looks like the nested ZIP layout 'Actual Plan/actual_plan/...'."
+  say "The app can still run here, but the cleaner fix is to move the inner actual_plan folder contents up one level."
   say ""
 fi
 

@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$DefaultIconPath = Join-Path $RepoRoot "icons/gantt-app.ico"
+$DefaultIconPath = Join-Path $RepoRoot "icons/actual-plan.ico"
 
 function Fail([string]$Message) {
   throw $Message

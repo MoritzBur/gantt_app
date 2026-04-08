@@ -23,7 +23,7 @@ function Get-InnoCompiler {
 
 try {
   $repoRoot = Get-RepoRoot
-  $issPath = Join-Path $repoRoot 'installer\windows\gantt-app.iss'
+  $issPath = Join-Path $repoRoot 'installer\windows\actual-plan.iss'
   $packageJson = Get-Content (Join-Path $repoRoot 'package.json') -Raw | ConvertFrom-Json
   $appVersion = $packageJson.version
   $iscc = Get-InnoCompiler

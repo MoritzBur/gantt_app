@@ -1,7 +1,7 @@
 param(
-  [string]$RepoUrl = "https://github.com/MoritzBur/gantt_app.git",
+  [string]$RepoUrl = "https://github.com/MoritzBur/actual_plan.git",
   [string]$Branch = "master",
-  [string]$TargetDir = "$env:USERPROFILE\Apps\gantt-app-installer-build",
+  [string]$TargetDir = "$env:USERPROFILE\Apps\actual-plan-installer-build",
   [string]$IsccPath
 )
 

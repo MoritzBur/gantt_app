@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$SCRIPT_DIR/.env"
-STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/gantt-app"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/actual-plan"
 LOG_FILE="$STATE_DIR/launch.log"
 
 OPEN_BROWSER=0

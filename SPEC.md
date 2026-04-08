@@ -1,4 +1,4 @@
-# Personal Gantt App — Claude Code Spec
+# Personal Actual Plan — Claude Code Spec
 
 ## What we're building
 
@@ -22,7 +22,7 @@ A personal project timeline tool that runs in your browser but is served from yo
 ## Project structure to generate
 
 ```
-gantt-app/
+actual-plan/
 ├── .env.example          # Template for secrets — COMMITTED to git
 ├── .env                  # Actual secrets — NEVER committed to git
 ├── .gitignore            # Must block .env, tokens.json, node_modules

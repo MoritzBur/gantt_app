@@ -43,20 +43,8 @@
         "filename": "main.md",
         "type": "main",
         "pinned": true
-      },
-      {
-        "itemId": "task-related-notes",
-        "filename": "main.md",
-        "type": "main",
-        "pinned": false
-      },
-      {
-        "itemId": "task-related-notes",
-        "filename": "ege.md",
-        "type": "related",
-        "pinned": true
       }
     ],
-    "activeTabIndex": 2
+    "activeTabIndex": 0
   }
 }

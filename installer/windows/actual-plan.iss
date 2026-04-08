@@ -40,4 +40,4 @@ Name: "{autodesktop}\Actual Plan"; Filename: "{sys}\wscript.exe"; Parameters: ""
 Filename: "{sys}\wscript.exe"; Parameters: """{app}\launch.vbs"""; Description: "Launch Actual Plan"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "{sys}\wscript.exe"; Parameters: """{app}\stop.vbs"""; Flags: runhidden skipifdoesntexist; RunOnceId: "StopGanttApp"
+Filename: "{sys}\wscript.exe"; Parameters: """{app}\stop.vbs"""; Flags: runhidden skipifdoesntexist; RunOnceId: "StopActualPlan"

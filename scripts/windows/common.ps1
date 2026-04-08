@@ -66,7 +66,7 @@ function Ensure-EnvFile {
   $repoRoot = Get-RepoRoot
   $envPath = Join-Path $repoRoot '.env'
   $examplePath = Join-Path $repoRoot '.env.example'
-  $dataDir = Join-Path $env:LOCALAPPDATA 'GanttApp\data'
+  $dataDir = Join-Path $env:LOCALAPPDATA 'ActualPlan\data'
   $created = $false
 
   if (-not (Test-Path $envPath)) {
@@ -95,12 +95,12 @@ function Ensure-EnvFile {
     $updated = $true
   }
 
-  if ($content -match '(?m)^# GANTT_DATA_DIR=/absolute/path/to/private/gantt_app_data\s*$') {
+  if ($content -match '(?m)^# GANTT_DATA_DIR=/absolute/path/to/private/actual_plan_data\s*$') {
     $escapedDataDir = [regex]::Escape($dataDir)
     if ($content -notmatch "(?m)^GANTT_DATA_DIR=$escapedDataDir\s*$") {
       $content = [regex]::Replace(
         $content,
-        '(?m)^# GANTT_DATA_DIR=/absolute/path/to/private/gantt_app_data\s*$',
+        '(?m)^# GANTT_DATA_DIR=/absolute/path/to/private/actual_plan_data\s*$',
         "GANTT_DATA_DIR=$dataDir"
       )
       $updated = $true
