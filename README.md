@@ -115,6 +115,37 @@ By default this creates `~/Applications/Actual Plan.app`.
 
 ## Install On Linux
 
+Ubuntu 22.04+ `.deb` package:
+
+1. Download `actual-plan_<version>_amd64.deb`.
+2. Install it with:
+
+```bash
+sudo dpkg -i ./actual-plan_<version>_amd64.deb
+```
+
+3. Launch `Actual Plan` from your app menu or run:
+
+```bash
+actual-plan
+```
+
+The package is self-contained: it installs the app into `/opt/actual-plan`, bundles its own Node.js runtime and production dependencies, creates the launcher command `actual-plan`, and adds an app-menu entry for `Actual Plan`.
+
+By default the installed app creates its per-user config in `~/.config/actual-plan/.env` and stores planning data in `~/Actual Plan Data`.
+
+If you want a different default data directory or port at install time, set them when installing:
+
+```bash
+sudo ACTUAL_PLAN_DEFAULT_DATA_DIR="$HOME/Documents/Actual Plan Data" \
+  ACTUAL_PLAN_DEFAULT_PORT=3001 \
+  dpkg -i ./actual-plan_<version>_amd64.deb
+```
+
+Those install defaults are written to `/etc/actual-plan/install.env` and can be edited later.
+
+Linux source setup for contributors:
+
 1. Install Node.js 20+ using your preferred Linux install path.
 2. Optional: install Git if you want snapshot history or a private Git-backed data repo.
 3. Download this repo as a ZIP or clone it.
@@ -136,9 +167,9 @@ Simple everyday use:
 - macOS: open the app created by `./create-launcher.sh`
 - Linux: open the launcher created by `./create-launcher.sh`
 
-By default the app runs at `http://localhost:3000`.
+Packaged installs default to `http://localhost:3000`. Source checkouts created from `.env.example` default to `http://localhost:3001` so both can coexist on the same machine.
 
-If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus several persona-driven example workspaces with shipped notes and local `.ics` calendars, and opens the first example by default. By default it stores local data inside `data/` in a source checkout, or `%LOCALAPPDATA%\ActualPlan\data` in the packaged Windows app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
+If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus several persona-driven example workspaces with shipped notes and local `.ics` calendars, and opens the first example by default. By default it stores local data inside `data/` in a source checkout, `%LOCALAPPDATA%\ActualPlan\data` in the packaged Windows app, or `~/Actual Plan Data` in the packaged Linux app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
 
 ## For Contributors
 
@@ -148,16 +179,20 @@ Development servers:
 - macOS/Linux: `./start.sh`
 - Manual equivalent: `npm run dev`
 
-That runs Express on `http://localhost:3000` and Vite on `http://localhost:5173`.
+That runs Express on `http://localhost:3001` and Vite on `http://localhost:5173` when you use the default `.env.example`.
 
 Single-port production run:
 
 - Windows packaged app: run `Actual Plan.exe`
+- Linux packaged app: run `actual-plan`
 - Source checkout: `npm run build` then `npm start`
 
-Windows release build commands:
+If you want your source checkout to use a different port, change `PORT` in `.env`.
+
+Release build commands:
 
 ```bash
+npm run build:linux:deb
 npm run build:windows:exe
 npm run build:windows:installer
 ```

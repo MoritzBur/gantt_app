@@ -18,6 +18,8 @@ node_modules/
 client/dist/
 installer/dist/
 installer/staging/
+packaging/linux/dist/
+packaging/linux/staging/
 
 # Atomic write temp files
 *.tmp.json

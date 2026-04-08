@@ -6,11 +6,34 @@ const path = require('path');
 const APP_DIR_NAME = 'ActualPlan';
 const isPackaged = Boolean(process.pkg);
 const repoRoot = path.resolve(__dirname, '..');
+const isInstalledLinuxApp = process.platform === 'linux' && repoRoot === '/opt/actual-plan';
+const isManagedInstall = isPackaged || isInstalledLinuxApp;
 const executableDir = isPackaged ? path.dirname(process.execPath) : repoRoot;
 const localAppData = process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
-const appRoot = path.join(localAppData, APP_DIR_NAME);
-const configDir = path.join(appRoot, 'config');
-const dataDir = path.join(appRoot, 'data');
+const xdgConfigHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+const xdgDataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
+
+function resolveManagedPaths() {
+  if (isInstalledLinuxApp) {
+    return {
+      appRoot: path.join(xdgDataHome, 'actual-plan'),
+      configDir: path.join(xdgConfigHome, 'actual-plan'),
+      dataDir: path.resolve(process.env.ACTUAL_PLAN_DEFAULT_DATA_DIR || path.join(xdgDataHome, 'actual-plan', 'data')),
+    };
+  }
+
+  const appRoot = path.join(localAppData, APP_DIR_NAME);
+  return {
+    appRoot,
+    configDir: path.join(appRoot, 'config'),
+    dataDir: path.join(appRoot, 'data'),
+  };
+}
+
+const managedPaths = resolveManagedPaths();
+const appRoot = managedPaths.appRoot;
+const configDir = managedPaths.configDir;
+const dataDir = managedPaths.dataDir;
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -24,18 +47,18 @@ function resolveEnvPath() {
   const candidates = [];
 
   if (process.env.GANTT_ENV_PATH) candidates.push(path.resolve(process.env.GANTT_ENV_PATH));
-  if (isPackaged) candidates.push(path.join(configDir, '.env'));
+  if (isManagedInstall) candidates.push(path.join(configDir, '.env'));
   candidates.push(path.join(executableDir, '.env'));
   candidates.push(path.join(repoRoot, '.env'));
 
   const existing = candidates.find(candidate => fs.existsSync(candidate));
   if (existing) return existing;
 
-  return isPackaged ? path.join(configDir, '.env') : path.join(repoRoot, '.env');
+  return isManagedInstall ? path.join(configDir, '.env') : path.join(repoRoot, '.env');
 }
 
 function ensurePackagedEnvFile() {
-  if (!isPackaged) return;
+  if (!isManagedInstall) return;
 
   const envPath = resolveEnvPath();
   ensureDir(path.dirname(envPath));
@@ -48,7 +71,7 @@ function ensurePackagedEnvFile() {
     'GOOGLE_CLIENT_ID=',
     'GOOGLE_CLIENT_SECRET=',
     'GOOGLE_CALENDAR_IDS=',
-    'PORT=3000',
+    `PORT=${process.env.ACTUAL_PLAN_DEFAULT_PORT || '3000'}`,
     `GANTT_DATA_DIR=${dataDir}`,
     `SESSION_SECRET=${newSecret()}`,
     '',
@@ -62,7 +85,7 @@ function resolveDataDir() {
     return path.resolve(process.env.GANTT_DATA_DIR);
   }
 
-  return isPackaged ? dataDir : path.join(repoRoot, 'data');
+  return isManagedInstall ? dataDir : path.join(repoRoot, 'data');
 }
 
 module.exports = {
@@ -75,6 +98,8 @@ module.exports = {
   ENV_PATH: resolveEnvPath(),
   DIST_DIR: path.join(__dirname, '../client/dist'),
   isPackaged,
+  isInstalledLinuxApp,
+  isManagedInstall,
   ensurePackagedEnvFile,
   ensureDir,
   resolveDataDir,

@@ -12,6 +12,7 @@
     "client": "vite client/",
     "build": "vite build client/",
     "start": "node server/prod.js",
+    "build:linux:deb": "bash packaging/linux/build-deb.sh",
     "build:windows:exe": "npm run build && pkg . --targets node18-win-x64 --output \"dist/windows/Actual Plan.exe\" --public --public-packages \"*\" --compress GZip",
     "build:windows:installer": "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts/windows/build-installer.ps1"
   },
