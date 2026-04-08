@@ -4,6 +4,7 @@ import AssignmentPicker from './AssignmentPicker.jsx';
 import BlockerFilterMenu from './BlockerFilterMenu.jsx';
 import {
   buildBlockerSegments,
+  buildOccupancyByDate,
   getAssetTypeForMember,
   getAssetTypeMap,
   getDefaultAssetType,
@@ -42,7 +43,7 @@ function diffDays(a, b) {
 
 // ─── Duration breakdown ─────────────────────────────────────────────────────
 
-function calcTaskDays(startStr, endStr, activeCalendarEventIds, calendarEvents) {
+function calcTaskDays(startStr, endStr, activeCalendarEventIds, calendarEvents, extraBlockedDates = []) {
   const start = parseDate(startStr);
   const end = parseDate(endStr);
   const total = diffDays(start, end) + 1;
@@ -69,8 +70,9 @@ function calcTaskDays(startStr, endStr, activeCalendarEventIds, calendarEvents) 
   }
 
   const work = total - weekendSet.size;
-  const allBlocked = new Set([...weekendSet, ...calSet]);
-  const net = total - allBlocked.size;
+  const resourceSet = new Set(extraBlockedDates.filter((dateStr) => dateStr >= startStr && dateStr <= endStr));
+  const allBlocked = new Set([...weekendSet, ...calSet, ...resourceSet]);
+  const net = Math.max(total - allBlocked.size, 0);
   return { total, work, net };
 }
 
@@ -725,6 +727,21 @@ export default function GanttView({
   const selectedResourceMemberIds = getSelectedMemberIds(personnel, blockerScenarioState);
   const activeCalendarEventIds = new Set(getSelectedCalendarEventIds(calendarEvents, blockerScenarioState));
   const resourceBlockerTasks = buildBlockerSegments(items, selectedResourceMemberIds);
+  const getResourceBlockedDatesForTask = useCallback((task) => {
+    const relevantMemberIds = getTaskAssigneeIds(task)
+      .filter((memberId) => selectedResourceMemberIds.includes(memberId));
+
+    if (relevantMemberIds.length === 0) return [];
+
+    const occupancy = buildOccupancyByDate(
+      items,
+      relevantMemberIds,
+      task?.blocker ? {} : { excludeTaskId: task?.id },
+    );
+    return [...occupancy.entries()]
+      .filter(([, count]) => count > 0)
+      .map(([date]) => date);
+  }, [items, selectedResourceMemberIds]);
   const allDates = [
     ...collectTreeDates(items),
     ...calendarEvents.flatMap(e => [e.start, e.end || e.start]),
@@ -1574,8 +1591,15 @@ export default function GanttView({
                 if (row.rowType === 'task') {
                   const taskColor = row.node.done ? '#555' : row.color;
                   const taskLabel = getNodeLabel(row.node, row.numberPath);
+                  const resourceBlockedDates = getResourceBlockedDatesForTask(row.node);
                   const tDays = !row.node.milestone && row.node.start && row.node.end
-                    ? calcTaskDays(row.node.start, row.node.end, activeCalendarEventIds, calendarEvents)
+                    ? calcTaskDays(
+                        row.node.start,
+                        row.node.end,
+                        activeCalendarEventIds,
+                        calendarEvents,
+                        resourceBlockedDates,
+                      )
                     : null;
                   const descendantHighlighted = hoveredGroup?.descendants?.has(row.node.id);
                   const isSelected = selectedTaskIds.has(row.node.id);

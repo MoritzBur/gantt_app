@@ -2,57 +2,139 @@
 
 A local-first Gantt planner for people who need a schedule that reflects real life, not just ideal dates.
 
-It lets you plan tasks alongside your actual calendar, highlight events as blockers, and see how many real workdays remain inside a task window after weekends and selected calendar events are removed.
+Plan work against your actual calendar, compare scenarios before you commit, keep notes beside the timeline, and answer practical availability questions for yourself, teammates, or shared assets.
 
 <p align="center">
-  <img src="docs/screenshots/overview-full-compact.png" alt="Compact day view showing the Gantt app UI with task list, calendar lane, highlighted blockers, and task bars" width="100%" />
+  <img src="docs/screenshots/overview-local-planning.png" alt="Month view showing thesis work, sailing options, active calendar blockers, and long-running project bars in Actual Plan" width="100%" />
 </p>
 
-## What This App Is
+## Why Actual Plan Exists
 
-This is a focused personal planning tool. It runs locally on your own machine, stores your data in local JSON files, and can optionally use Git to keep a lightweight snapshot history of planning changes.
+Most Gantt tools are either expensive, clunky, or built for a team process that feels too heavy for personal planning.
 
-## Why It Is Useful
-
-Most Gantt charts only show the dates you typed in.
+Actual Plan started from a simpler need: making confident decisions when several important parts of life overlap. A master's thesis, coaching work, freelance responsibilities, travel, and optional sailing projects do not fit neatly into a traditional calendar. You can often make something work with a best guess, but it is much easier to decide well when you can actually see the tradeoffs.
 
 This app is built around a more useful planning question: how much real time is actually available once weekends and your existing calendar commitments are taken into account?
 
 That makes it useful for students, researchers, freelancers, consultants, and solo builders who want a clear plan without moving to a large multi-user project system.
 
-## Key Features
+## What Makes It Different
 
-- Local-first planning on your own machine
-- Recursive groups, tasks, and milestones on one timeline
-- Day, week, month, and quarter views
-- Real available workday calculations on task and group labels
-- Calendar overlay from iCal feeds or Google Calendar OAuth
-- Multi-calendar groups with labels, colors, ordering, and collapse state
-- Task notes stored with the task itself
-- Multi-select, bulk drag, and quick batch subtask creation
-- PDF export
-- Optional Git-backed snapshot history for planning data and GUI state
-- Optional external data directory via `GANTT_DATA_DIR`
+- Local-first workspaces on your own machine
+- Plain JSON, Markdown, and `.ics` files instead of a proprietary cloud format
+- Calendar-aware planning with blocker overlays and real available-workday calculations
+- Integrated notes panel with tabs, markdown editing, and related notes
+- Task assignment for people and assets, plus focused blocker scenarios
+- Built-in dark and light modes
+- Git-backed snapshots when you want to compare options safely
+- Example workspaces that demonstrate planning patterns instead of empty demo data
 
-## Example Views
+## Plan Against Reality
+
+Actual Plan combines a classic Gantt timeline with personal calendar context. In day, week, month, and quarter views, you can keep fixed commitments visible, activate specific calendar events as blockers, and see how much uninterrupted time is still left for the work that matters.
+
+That is the core workflow: move the bars, toggle the real constraints, and compare the result before you commit.
+
+## See Actual Days Available
+
+This is one of the strongest parts of the app.
+
+Nice-looking plans can still be stupid plans if they ignore weekends, existing commitments, and the actual interruptions already sitting on your calendar.
+
+Task and group labels surface the available-day counts directly on the timeline, so you stop guessing based on bars that merely look long enough. You can see immediately when a task window only looks generous on the chart but does not contain enough real working time after weekends and active blockers are removed.
+
+With the real numbers in front of you, you can simply reschedule until the plan matches the time the task actually needs. Reality beats Gantt fantasy here.
+
+In the screenshot below, the task window still spans `6d`, but once the family-weekend blocker and the weekend itself are counted, only `3d` remain realistically available.
 
 <p align="center">
-  <img src="docs/screenshots/real-workdays-day-compact.png" alt="Compact day view showing task bars with real available workday counts after weekends and blocker events are removed" width="100%" />
+  <img src="docs/screenshots/actual-days-available.png" alt="Tight dark-mode crop showing a family-weekend blocker over a task whose label reads 6d 4d 3d to show actual available days" width="100%" />
 </p>
 
+## Keep The Why Next To The Plan
+
+Plans rarely fail because the bars are wrong. They fail because the reasoning lives somewhere else.
+
+The notes panel keeps context inside the workspace itself: assumptions, checklists, meeting conclusions, related files, and short support notes that belong to the task. Notes open in tabs, stay linked to the schedule, and make the app feel more like a working knowledge base than a disconnected chart.
+
 <p align="center">
-  <img src="docs/screenshots/history-panel-compact.png" alt="Compact history panel showing Git-backed snapshots, restore options, and read-only history browsing" width="100%" />
+  <img src="docs/screenshots/notes-knowledge-panel.png" alt="Notes panel with multiple open tabs beside the Gantt chart, showing an integrated markdown knowledge base inside Actual Plan" width="100%" />
 </p>
+
+## Ask Focused Availability Questions
+
+This app is not trying to paint the whole screen red all the time. The blocker system is strongest when you use it to answer a concrete question.
+
+Assign tasks to people or assets, then open the blocker menu and narrow the view to only the calendars, groups, or members that matter for the decision in front of you. That makes it easy to answer questions like:
+
+- Can Alex still take this client job?
+- When is the van free?
+- Do we have a clean camp window with coach, rib, and trailer all available?
+
+<p align="center">
+  <img src="docs/screenshots/assets-and-blockers.png" alt="Resource blocker menu showing selected calendars and people while assigned tasks stay visible behind the overlay" width="100%" />
+</p>
+
+## Iterate Safely
+
+Good planning is usually iterative. Try an option, see what it does to the schedule, adjust the dates, update the notes, and keep the version that still makes sense.
+
+If your data directory is a Git repository, the History panel can create lightweight snapshots, browse recent plan versions, open older states read-only, and restore a previous snapshot when you want to roll back to a better decision.
+
+The screenshot below is shown in light mode on purpose so you can see that both light and dark themes are built in.
+
+<p align="center">
+  <img src="docs/screenshots/history-snapshots.png" alt="Snapshots panel showing local Git-backed planning history in Actual Plan" width="86%" />
+</p>
+
+## Local Files, Not Lock-In
+
+One of the best things about Actual Plan is that your planning data stays local and readable.
+
+Your workspace is not trapped inside a database that only one vendor understands. It lives in normal files on your machine, for example:
+
+```text
+workspace/
+├── tasks.json
+├── state.json
+├── personnel.json
+├── calendar-config.json
+├── calendars/
+│   └── *.ics
+└── notes/
+    └── .../main.md
+```
+
+That means:
+
+- your data is private by default and easy to back up
+- your planning files are readable without the app
+- Git works naturally when you want history
+- AI agents can inspect and modify the plan directly instead of working through a locked UI
+
+If you want, you can point `GANTT_DATA_DIR` at a separate repo and let tools like Claude Code or Codex work directly in that data directory with full project context. Notes become an integrated knowledge base, tasks stay scriptable, and you can build your own skills, automations, and agent workflows around the plan you already own.
+
+You are not waiting for some software company to maybe ship the AI integration you want someday. The data is yours. The workflow is yours. The app is ready for that.
+
+## Who It Helps
+
+Actual Plan works especially well for people who plan serious work without having a full PM office behind them:
+
+- students and researchers balancing thesis work with real life
+- freelancers and consultants juggling clients, travel, and delivery windows
+- coaches, makers, and solo builders coordinating projects with limited time and equipment
+- anyone who needs to compare options before choosing what to commit to
 
 ## Quick Start
 
 1. Start the app from your installed launcher or local source checkout.
-2. Click `Connect Calendar`.
-3. Add an iCal URL for the fastest test, or configure Google Calendar OAuth.
-4. Create a group and a task.
-5. In Day view, double-click a calendar entry to toggle it as a blocker and watch the available workday count update.
-6. Adjust the task until the available workdays match what you think the task really needs.
-7. Optional: open `History` and save a snapshot.
+2. Open one of the example workspaces, or create your own workspace.
+3. Click `Connect Calendar` and add an iCal URL, or configure Google Calendar OAuth.
+4. Create a group and a task, then drag the bar until the timing feels plausible.
+5. In Day or Week view, double-click a calendar event to activate it as a blocker.
+6. Add a note so the reasoning lives next to the task, not in a separate app.
+7. Optional: assign tasks to people or assets and use the blocker menu for focused availability checks.
+8. Optional: open `History` and save a snapshot.
 
 ## Install On Windows
 
@@ -99,6 +181,8 @@ powershell -ExecutionPolicy Bypass -File .\create-windows-shortcut.ps1
 ```
 
 ## Install On macOS
+
+A packaged macOS release is planned. For now, macOS uses the local source setup:
 
 1. Install Node.js 20+ from [nodejs.org](https://nodejs.org/).
 2. Optional: install Git if you want snapshot history or a private Git-backed data repo.
@@ -165,11 +249,11 @@ Simple everyday use:
 
 - Windows: launch `Actual Plan` from the installed Start Menu shortcut or your local source launcher
 - macOS: open the app created by `./create-launcher.sh`
-- Linux: open the launcher created by `./create-launcher.sh`
+- Linux: open the launcher created by `./create-launcher.sh` or use the packaged `actual-plan` command
 
 Packaged installs default to `http://localhost:3000`. Source checkouts created from `.env.example` default to `http://localhost:3001` so both can coexist on the same machine.
 
-If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus several persona-driven example workspaces with shipped notes and local `.ics` calendars, and opens the first example by default. By default it stores local data inside `data/` in a source checkout, `%LOCALAPPDATA%\ActualPlan\data` in the packaged Windows app, or `~/Actual Plan Data` in the packaged Linux app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
+If no data files exist yet, the app creates a clean multi-workspace data directory. On first start it includes an empty `Main Workspace` plus several persona-driven example workspaces with shipped notes and local `.ics` calendars, and opens the guide workspace by default. By default it stores local data inside `data/` in a source checkout, `%LOCALAPPDATA%\ActualPlan\data` in the packaged Windows app, or `~/Actual Plan Data` in the packaged Linux app. If you set `GANTT_DATA_DIR`, the app uses that directory instead.
 
 ## For Contributors
 
@@ -199,7 +283,7 @@ npm run build:windows:installer
 
 ## Optional: Git-Backed Snapshots And Private Data Repo
 
-The app works without Git. Git is only required for the snapshot/history workflow.
+The app works without Git. Git is only required for the snapshot and history workflow.
 
 If the app's data directory is a Git repository:
 
@@ -273,10 +357,10 @@ The redirect URI in Google Cloud must exactly match `http://localhost:<PORT>/api
 
 ## Scope / Limitations
 
-- Windows now has a packaged `.exe` and an Inno Setup installer, but macOS and Linux still use helper scripts from this repo.
 - It is designed for personal and self-managed work, not team collaboration.
 - Calendar overlay is optional, but Google OAuth still requires a localhost callback setup.
 - Git-backed snapshots depend on Git being installed and available on `PATH`.
+- Windows and Ubuntu now have packaged release paths; macOS packaging is still planned.
 
 ## Credits
 

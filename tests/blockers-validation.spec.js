@@ -245,4 +245,107 @@ test.describe('Blocker and resource planning validation', () => {
     expect(blockerTitles.some((title) => title?.includes('Coach Boat 1') && title.includes('Downselect robust design candidate'))).toBeTruthy();
     expect(blockerTitles.some((title) => title?.includes('Coach Boat 2') && title.includes('Downselect robust design candidate'))).toBeTruthy();
   });
+
+  test('task duration label falls to 0d when blocker coverage removes all realistic time', async ({ page }) => {
+    await page.goto('http://127.0.0.1:5173');
+    await page.evaluate(async ({ typeId }) => {
+      await fetch('/api/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: [{
+            id: 'group-ops',
+            type: 'group',
+            name: 'Operations',
+            color: '#27AE60',
+            start: '2026-04-01',
+            end: '2026-04-08',
+            children: [
+              {
+                id: 'task-vacation',
+                type: 'task',
+                name: 'Jonas vacation blocker',
+                start: '2026-04-03',
+                end: '2026-04-05',
+                blocker: true,
+                assigneeIds: ['member-jonas'],
+              },
+              {
+                id: 'task-service-trip',
+                type: 'task',
+                name: 'Service trip candidate',
+                start: '2026-04-03',
+                end: '2026-04-05',
+                assigneeIds: ['member-jonas'],
+              },
+            ],
+          }],
+        }),
+      });
+
+      await fetch('/api/personnel', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          types: [{
+            id: typeId,
+            name: 'Personnel',
+            comment: 'Use for teams and people.',
+            color: '#D95F5F',
+            groupLabel: 'Team',
+            groupLabelPlural: 'Teams',
+            assetLabel: 'Person',
+            assetLabelPlural: 'People',
+          }],
+          teams: [{
+            id: 'team-techs',
+            name: 'Service Technicians',
+            typeId,
+          }],
+          members: [{
+            id: 'member-jonas',
+            name: 'Jonas Richter',
+            typeId,
+            teamIds: ['team-techs'],
+          }],
+        }),
+      });
+
+      await fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zoom: 'Month',
+          density: 'Compact',
+          blockerScenarioState: {
+            version: 1,
+            activeScenarioId: 'default',
+            scenarios: [{
+              id: 'default',
+              name: 'Default',
+              calendars: {
+                visible: false,
+                filterInitialized: true,
+                visibleCalendarIds: [],
+                activeEventIds: [],
+              },
+              resources: {
+                teamIds: [],
+                memberIds: ['member-jonas'],
+              },
+            }],
+          },
+        }),
+      });
+    }, { typeId: examplePersonnel.types[0].id });
+
+    await page.reload();
+    await expect(page.locator('.app')).toBeVisible();
+
+    const blockerLabel = page.locator('.gantt-bar-outside-label').filter({ hasText: 'Jonas vacation blocker' }).first();
+    const taskLabel = page.locator('.gantt-bar-outside-label').filter({ hasText: 'Service trip candidate' }).first();
+
+    await expect(blockerLabel).toContainText('(3d 1d 0d)');
+    await expect(taskLabel).toContainText('(3d 1d 0d)');
+  });
 });
