@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 const CALENDAR_COLORS = [
   '#4A90D9', '#E67E22', '#27AE60', '#8E44AD',
@@ -48,6 +48,7 @@ export default function CalendarSetupModal({ status, config, onSave, onClose }) 
   const [googleCalendars, setGoogleCalendars] = useState([]);
   const [saving, setSaving] = useState(null); // 'ical' | 'google' | null
   const [saveResult, setSaveResult] = useState(null); // 'ical-ok' | 'ical-error' | 'google-ok' | 'google-error' | null
+  const backdropPressStartedRef = useRef(false);
 
   useEffect(() => {
     if (status.backend === 'ical') {
@@ -122,8 +123,24 @@ export default function CalendarSetupModal({ status, config, onSave, onClose }) 
     setSaving(null);
   };
 
+  const handleBackdropMouseDown = (event) => {
+    backdropPressStartedRef.current = event.target === event.currentTarget;
+  };
+
+  const handleBackdropClick = (event) => {
+    const startedOnBackdrop = backdropPressStartedRef.current;
+    backdropPressStartedRef.current = false;
+    if (!startedOnBackdrop) return;
+    if (event.target !== event.currentTarget) return;
+    onClose();
+  };
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      onMouseDown={handleBackdropMouseDown}
+      onClick={handleBackdropClick}
+    >
       <div className="modal cal-setup-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Connect Calendar</span>
